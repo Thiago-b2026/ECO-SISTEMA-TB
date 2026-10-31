@@ -3,6 +3,7 @@
 Sistema web de gestão completa para loja de salvados: lotes, triagem, rateio de custo,
 estoque, PDV, caixa, relatórios e financeiro. Substitui o "SuperMix PDV" feito no Lovable.
 
+- **Ao abrir uma sessão nova, leia primeiro `docs/CONTEXTO-SESSAO.md`** (estado atual, pendências e próximo passo)
 - Escopo completo: `docs/escopo.md` (fonte: https://claude.ai/artifact/9NPP1My1ezB8ghENwRLKsW)
 - Código antigo de referência (só leitura): `C:\PROJETOS_CLAUDE\PROJETO LOVABLE\cashier-buddy-plus-main\`
 - Metas/premiação de vendedores está FORA do escopo.
