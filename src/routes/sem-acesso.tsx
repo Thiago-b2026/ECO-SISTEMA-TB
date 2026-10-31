@@ -1,9 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ShieldAlert } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth, homeRouteFor } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/sem-acesso")({ component: SemAcesso });
+export const Route = createFileRoute("/sem-acesso")({
+  beforeLoad: ({ context }) => {
+    if (!context.auth.user) throw redirect({ to: "/login" });
+    if (context.auth.role) throw redirect({ to: homeRouteFor(context.auth.role) });
+  },
+  component: SemAcesso,
+});
 
 function SemAcesso() {
   const { signOut, profile } = useAuth();

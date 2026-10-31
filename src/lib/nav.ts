@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Landmark,
   Users,
+  UserCog,
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth";
@@ -30,6 +31,7 @@ export const NAV: NavItem[] = [
   { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: ["admin", "gerente"], fase: 1 },
   { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: ["admin", "gerente"], fase: 2 },
   { to: "/usuarios", label: "Usuários", icon: Users, roles: ["admin"], fase: 1 },
+  { to: "/conta", label: "Minha conta", icon: UserCog, roles: ["admin", "gerente", "vendedor", "estoquista"], fase: 0 },
 ];
 
 export function canAccess(path: string, role: AppRole | null): boolean {

@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
 import { Route as AppCaixaRouteImport } from './routes/_app.caixa'
+import { Route as AppContaRouteImport } from './routes/_app.conta'
 import { Route as AppFinanceiroRouteImport } from './routes/_app.financeiro'
 import { Route as AppLotesRouteImport } from './routes/_app.lotes'
 import { Route as AppPdvRouteImport } from './routes/_app.pdv'
@@ -44,6 +45,11 @@ const SemAcessoRoute = SemAcessoRouteImport.update({
 const AppCaixaRoute = AppCaixaRouteImport.update({
   id: '/caixa',
   path: '/caixa',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContaRoute = AppContaRouteImport.update({
+  id: '/conta',
+  path: '/conta',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
+  '/conta': typeof AppContaRoute
   '/financeiro': typeof AppFinanceiroRoute
   '/lotes': typeof AppLotesRoute
   '/pdv': typeof AppPdvRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
+  '/conta': typeof AppContaRoute
   '/financeiro': typeof AppFinanceiroRoute
   '/lotes': typeof AppLotesRoute
   '/pdv': typeof AppPdvRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/_app/caixa': typeof AppCaixaRoute
+  '/_app/conta': typeof AppContaRoute
   '/_app/financeiro': typeof AppFinanceiroRoute
   '/_app/lotes': typeof AppLotesRoute
   '/_app/pdv': typeof AppPdvRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sem-acesso'
     | '/caixa'
+    | '/conta'
     | '/financeiro'
     | '/lotes'
     | '/pdv'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sem-acesso'
     | '/caixa'
+    | '/conta'
     | '/financeiro'
     | '/lotes'
     | '/pdv'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/sem-acesso'
     | '/_app/caixa'
+    | '/_app/conta'
     | '/_app/financeiro'
     | '/_app/lotes'
     | '/_app/pdv'
@@ -208,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/caixa'
       fullPath: '/caixa'
       preLoaderRoute: typeof AppCaixaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/conta': {
+      id: '/_app/conta'
+      path: '/conta'
+      fullPath: '/conta'
+      preLoaderRoute: typeof AppContaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/financeiro': {
@@ -264,6 +283,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppCaixaRoute: typeof AppCaixaRoute
+  AppContaRoute: typeof AppContaRoute
   AppFinanceiroRoute: typeof AppFinanceiroRoute
   AppLotesRoute: typeof AppLotesRoute
   AppPdvRoute: typeof AppPdvRoute
@@ -275,6 +295,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppCaixaRoute: AppCaixaRoute,
+  AppContaRoute: AppContaRoute,
   AppFinanceiroRoute: AppFinanceiroRoute,
   AppLotesRoute: AppLotesRoute,
   AppPdvRoute: AppPdvRoute,

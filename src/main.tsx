@@ -10,6 +10,7 @@ const queryClient = new QueryClient();
 
 const router = createRouter({
   routeTree,
+  // Preenchido pelo <App> com o estado real de login antes da primeira navegação
   context: { auth: undefined! },
   defaultPreload: "intent",
 });
@@ -22,10 +23,13 @@ declare module "@tanstack/react-router" {
 
 function App() {
   const auth = useAuth();
-  // Reavalia as proteções de rota quando o login ou o perfil mudam
+  // Reavalia as proteções de rota quando o login ou o perfil mudam.
+  // Só depois que o auth terminou de carregar (antes disso o router ainda não tem o contexto).
   useEffect(() => {
+    if (auth.loading) return;
+    router.update({ ...router.options, context: { auth } });
     router.invalidate();
-  }, [auth.user?.id, auth.role]);
+  }, [auth.loading, auth.user?.id, auth.role]);
   if (auth.loading) {
     return <div className="min-h-screen grid place-items-center text-muted-foreground">Carregando…</div>;
   }

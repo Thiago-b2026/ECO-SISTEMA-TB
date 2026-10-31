@@ -33,18 +33,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     async function apply(sess: Session | null) {
-      setSession(sess);
       if (!sess?.user) {
+        if (!active) return;
+        setSession(null);
         setProfile(null);
         setRole(null);
-        if (active) setLoading(false);
+        setLoading(false);
         return;
       }
+      // Busca perfil e papel ANTES de publicar a sessão, para nunca existir
+      // um instante "logado mas sem papel" (que mandaria para /sem-acesso).
       const [{ data: p }, { data: r }] = await Promise.all([
         supabase.from("profiles").select("id, nome, email, ativo").eq("id", sess.user.id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", sess.user.id).maybeSingle(),
       ]);
       if (!active) return;
+      setSession(sess);
       setProfile((p as Profile) ?? null);
       setRole((r?.role as AppRole) ?? null);
       setLoading(false);
