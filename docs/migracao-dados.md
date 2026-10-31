@@ -65,9 +65,12 @@ Análise dos CSVs exportados em 31/10/2026
   `data_venda`, vendedor, pagamento e valores. Servem para relatórios e comparação mês a mês.
 - **Não geram estoque nem lucro** (não havia custo nem lote). O estoque do sistema novo começa do
   zero pela triagem dos lotes.
-- **Produtos antigos não são importados como estoque.** Os 17.103 importados (sem duplicados e sem
-  preço zero → ~8.600) viram uma **base de referência** de descrição, categoria e preço para a
-  triagem sugerir enquanto se digita. Os 5.646 avulsos não entram.
+- **Produtos antigos não são importados como estoque.** Os 17.103 importados viram uma **base de
+  referência** de descrição, categoria e preço para a triagem sugerir enquanto se digita.
+  Limpeza feita em 31/10/2026 (pasta `TABELAS LOVABLE\LIMPEZA`): −5.112 duplicados (nenhum com
+  venda) e −3.162 com preço zero → **8.829 produtos** em `products-importados-LIMPO.csv`
+  (31 categorias, 250 subcategorias, preço de R$ 0,58 a R$ 3.225,53, mediana R$ 33,92).
+  Os 5.646 avulsos não entram.
 - A árvore de categorias (estilo Mercado Livre) é importada como tabela de categorias.
 - As 12 datas suspeitas e a venda zerada são revisadas antes da importação.
 - Vendedores: ligados por nome aos usuários novos (criar NAGILA, VIVIANE, DHAFINE na tela Usuários).
