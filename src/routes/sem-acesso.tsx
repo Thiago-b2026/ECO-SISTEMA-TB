@@ -1,0 +1,23 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { ShieldAlert } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+
+export const Route = createFileRoute("/sem-acesso")({ component: SemAcesso });
+
+function SemAcesso() {
+  const { signOut, profile } = useAuth();
+  return (
+    <div className="min-h-screen grid place-items-center p-4 text-center">
+      <div className="max-w-sm space-y-3">
+        <ShieldAlert className="size-12 mx-auto text-warning" />
+        <h1 className="text-xl font-bold">Usuário sem perfil</h1>
+        <p className="text-sm text-muted-foreground">
+          {profile?.email ?? "Seu usuário"} ainda não tem um perfil (admin, gerente, vendedor ou
+          estoquista). Peça ao administrador para liberar seu acesso.
+        </p>
+        <Button variant="outline" onClick={signOut}>Sair</Button>
+      </div>
+    </div>
+  );
+}
