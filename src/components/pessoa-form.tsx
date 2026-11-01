@@ -38,6 +38,8 @@ export interface Pessoa {
   eh_cliente: boolean;
   eh_fornecedor: boolean;
   eh_usuario: boolean;
+  eh_funcionario: boolean;
+  cargo: string | null;
   user_id: string | null;
   ativo: boolean;
 }
@@ -46,7 +48,7 @@ const VAZIO: Omit<Pessoa, "id"> = {
   tipo: "F", documento: null, nome: "", nome_fantasia: null, ie: null, im: null, data_nascimento: null, email: null,
   telefone: null, celular: null, cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null,
   uf: null, cod_ibge: null, situacao_cadastral: null, atividade: null, observacao: null,
-  eh_cliente: true, eh_fornecedor: false, eh_usuario: false, user_id: null, ativo: true,
+  eh_cliente: true, eh_fornecedor: false, eh_usuario: false, eh_funcionario: false, cargo: null, user_id: null, ativo: true,
 };
 
 const PAPEIS: { id: AppRole; label: string }[] = [
@@ -108,7 +110,7 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
     e.preventDefault();
     if (digitos && !(digitos.length === 11 ? cpfValido(digitos) : cnpjValido(digitos))) return toast.error(`${ehCnpj ? "CNPJ" : "CPF"} inválido.`);
     if (!p.nome.trim()) return toast.error(ehCnpj ? "Informe a razão social." : "Informe o nome.");
-    if (!p.eh_cliente && !p.eh_fornecedor && !p.eh_usuario) return toast.error("Marque pelo menos um: Cliente, Fornecedor ou Usuário.");
+    if (!p.eh_cliente && !p.eh_fornecedor && !p.eh_usuario && !p.eh_funcionario) return toast.error("Marque pelo menos um: Cliente, Fornecedor, Funcionário ou Usuário.");
     if (criandoLogin) {
       if (!/^\S+@\S+\.\S+$/.test(login)) return toast.error("Informe o e-mail de login do usuário.");
       if (senha.length < 8) return toast.error("A senha do usuário precisa ter pelo menos 8 caracteres.");
@@ -164,7 +166,8 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
             {([
               ["eh_cliente", "Cliente", true],
               ["eh_fornecedor", "Fornecedor", gestor],
-              ["eh_usuario", "Usuário do sistema", admin || !!p.user_id],
+              ["eh_funcionario", "Funcionário", gestor],
+              ["eh_usuario", "Login de acesso", admin || !!p.user_id],
             ] as const).map(([k, l, pode]) => (
               <label key={k} className={cn("flex items-center gap-2 rounded-md border px-3 py-2 text-sm", p[k] && "border-primary bg-primary/5", !pode && "opacity-50")}>
                 <input type="checkbox" className="size-4 accent-primary" checked={p[k]} disabled={!pode || (k === "eh_usuario" && !!p.user_id)} onChange={(e) => set(k, e.target.checked)} />
@@ -189,6 +192,7 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
             {campo("nome", ehCnpj ? "Razão social" : "Nome completo", { className: "sm:col-span-2" })}
             {ehCnpj ? campo("nome_fantasia", "Nome fantasia") : campo("data_nascimento", "Data de nascimento", { type: "date" })}
             {ehCnpj ? campo("ie", "Inscrição estadual") : campo("ie", "RG (opcional)")}
+            {p.eh_funcionario && campo("cargo", "Cargo / função")}
             {campo("email", "E-mail")}
             {campo("celular", "Celular / WhatsApp")}
             {campo("telefone", "Telefone")}

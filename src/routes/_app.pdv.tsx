@@ -32,8 +32,12 @@ interface ItemCarrinho extends ProdutoPdv {
   preco: number;
   desconto: number;
 }
+interface FormaCad { id: string; nome: string; tipo: (typeof FORMAS)[number]["id"] }
+interface MeioCad { id: string; forma_id: string; nome: string; loja_id: string | null }
 interface Pagamento {
   forma: (typeof FORMAS)[number]["id"];
+  rotulo: string;
+  meio_id: string | null;
   valor: number;
 }
 
@@ -49,7 +53,25 @@ function PDV() {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [descontoVenda, setDescontoVenda] = useState("");
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
-  const [forma, setForma] = useState<Pagamento["forma"]>("pix");
+  const [formas, setFormas] = useState<FormaCad[]>(FORMAS.map((f) => ({ id: f.id, nome: f.label, tipo: f.id })));
+  const [meios, setMeios] = useState<MeioCad[]>([]);
+  const [formaSel, setFormaSel] = useState<string>("pix");
+  const [meioSel, setMeioSel] = useState("");
+  const formaAtual = formas.find((f) => f.id === formaSel) ?? formas[0];
+  const meiosDaForma = meios.filter((m) => m.forma_id === formaAtual?.id && (!m.loja_id || m.loja_id === filtroLoja));
+  useEffect(() => {
+    Promise.all([
+      supabase.from("formas_pagamento").select("id, nome, tipo").eq("ativo", true).order("ordem"),
+      supabase.from("meios_pagamento").select("id, forma_id, nome, loja_id").eq("ativo", true).order("nome"),
+    ]).then(([f, m]) => {
+      if (f.data?.length) {
+        setFormas(f.data as FormaCad[]);
+        setFormaSel((f.data.find((x) => x.tipo === "pix") ?? f.data[0]).id);
+      }
+      setMeios((m.data ?? []) as MeioCad[]);
+    });
+  }, []);
+  useEffect(() => setMeioSel(""), [formaSel]);
   const [valorPag, setValorPag] = useState("");
   const [finalizando, setFinalizando] = useState(false);
   const [ultima, setUltima] = useState<{ id: string; numero: number; total: number; troco: number } | null>(null);
@@ -113,7 +135,9 @@ function PDV() {
   function addPagamento() {
     const v = lerNumero(valorPag);
     if (!v || v <= 0) return toast.error("Informe o valor.");
-    setPagamentos((p) => [...p, { forma, valor: arred(v) }]);
+    if (!formaAtual) return;
+    const meio = meiosDaForma.find((m) => m.id === meioSel);
+    setPagamentos((p) => [...p, { forma: formaAtual.tipo, rotulo: meio ? `${formaAtual.nome} · ${meio.nome}` : formaAtual.nome, meio_id: meio?.id ?? null, valor: arred(v) }]);
   }
 
   async function finalizar() {
@@ -123,7 +147,7 @@ function PDV() {
     const { data, error } = await supabase.rpc("finalizar_venda", {
       _loja_id: filtroLoja,
       _itens: carrinho.map((i) => ({ produto_id: i.id, quantidade: i.quantidade, preco_unit: i.preco, desconto: i.desconto })),
-      _pagamentos: pagamentos,
+      _pagamentos: pagamentos.map((p) => ({ forma: p.forma, valor: p.valor, meio_id: p.meio_id })),
       _desconto: desc,
       _observacao: null,
     });
@@ -213,9 +237,15 @@ function PDV() {
         <div className="flex justify-between border-t pt-2 text-2xl font-bold"><span>Total</span><span>{fmtBRL(total)}</span></div>
 
         <div className="grid grid-cols-3 gap-1">
-          {FORMAS.map((f) => <Button key={f.id} size="sm" variant={forma === f.id ? "default" : "outline"} onClick={() => setForma(f.id)}>{f.label}</Button>)}
+          {formas.map((f) => <Button key={f.id} size="sm" variant={formaSel === f.id ? "default" : "outline"} onClick={() => setFormaSel(f.id)}>{f.nome}</Button>)}
         </div>
         <div className="flex gap-2">
+          {meiosDaForma.length > 0 && (
+            <select value={meioSel} onChange={(e) => setMeioSel(e.target.value)} className="h-10 rounded-md border bg-background px-2 text-sm max-w-36" title="Maquininha / bandeira">
+              <option value="">Meio…</option>
+              {meiosDaForma.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
+          )}
           <Input value={valorPag} onChange={(e) => setValorPag(e.target.value)} className="h-10" onKeyDown={(e) => e.key === "Enter" && addPagamento()} />
           <Button onClick={addPagamento} disabled={total === 0}>Adicionar</Button>
         </div>
@@ -223,7 +253,7 @@ function PDV() {
           <ul className="space-y-1 text-sm">
             {pagamentos.map((p, i) => (
               <li key={i} className="flex items-center justify-between rounded bg-muted px-2 py-1">
-                <span>{FORMA_LABEL[p.forma]}</span>
+                <span>{p.rotulo}</span>
                 <span className="flex items-center gap-1">{fmtBRL(p.valor)}<button onClick={() => setPagamentos((ps) => ps.filter((_, j) => j !== i))}><X className="size-3.5" /></button></span>
               </li>
             ))}

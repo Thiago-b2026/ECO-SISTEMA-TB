@@ -13,7 +13,7 @@ import { PessoaForm, type Pessoa } from "@/components/pessoa-form";
 
 export const Route = createFileRoute("/_app/pessoas")({ component: PaginaPessoas });
 
-type Filtro = "todos" | "cliente" | "fornecedor" | "usuario";
+type Filtro = "todos" | "cliente" | "fornecedor" | "funcionario" | "usuario";
 
 function PaginaPessoas() {
   const [pessoas, setPessoas] = useState<Pessoa[] | null>(null);
@@ -38,7 +38,7 @@ function PaginaPessoas() {
     const dig = t.replace(/\D/g, "");
     return (pessoas ?? []).filter(
       (p) =>
-        (filtro === "todos" || (filtro === "cliente" && p.eh_cliente) || (filtro === "fornecedor" && p.eh_fornecedor) || (filtro === "usuario" && p.eh_usuario)) &&
+        (filtro === "todos" || (filtro === "cliente" && p.eh_cliente) || (filtro === "fornecedor" && p.eh_fornecedor) || (filtro === "funcionario" && p.eh_funcionario) || (filtro === "usuario" && p.eh_usuario)) &&
         (!t || p.nome.toLowerCase().includes(t) || (p.nome_fantasia ?? "").toLowerCase().includes(t) || (dig.length >= 3 && (p.documento ?? "").includes(dig)) || (p.email ?? "").toLowerCase().includes(t)),
     );
   }, [pessoas, filtro, busca]);
@@ -61,7 +61,8 @@ function PaginaPessoas() {
             ["todos", `Todos (${pessoas?.length ?? 0})`],
             ["cliente", `Clientes (${conta((p) => p.eh_cliente)})`],
             ["fornecedor", `Fornecedores (${conta((p) => p.eh_fornecedor)})`],
-            ["usuario", `Usuários (${conta((p) => p.eh_usuario)})`],
+            ["funcionario", `Funcionários (${conta((p) => p.eh_funcionario)})`],
+            ["usuario", `Login de acesso (${conta((p) => p.eh_usuario)})`],
           ] as const).map(([f, l]) => (
             <Button key={f} size="sm" variant={filtro === f ? "default" : "outline"} onClick={() => setFiltro(f)}>{l}</Button>
           ))}
@@ -88,7 +89,8 @@ function PaginaPessoas() {
                       <div className="flex flex-wrap gap-1">
                         {p.eh_cliente && <Badge variant="outline">Cliente</Badge>}
                         {p.eh_fornecedor && <Badge variant="secondary">Fornecedor</Badge>}
-                        {p.eh_usuario && <Badge>{p.user_id ? "Usuário" : "Usuário (sem acesso)"}</Badge>}
+                        {p.eh_funcionario && <Badge variant="secondary">Funcionário{p.cargo ? ` · ${p.cargo}` : ""}</Badge>}
+                        {p.eh_usuario && <Badge>{p.user_id ? "Login de acesso" : "Login (não criado)"}</Badge>}
                       </div>
                     </td>
                   </tr>

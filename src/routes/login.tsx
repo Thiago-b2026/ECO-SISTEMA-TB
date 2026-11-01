@@ -153,11 +153,7 @@ function LoginPage() {
                 Esqueci minha senha
               </button>
             )}
-            {modo !== "criar" && (
-              <button type="button" className="text-primary hover:underline" onClick={() => trocar("criar")}>
-                Criar uma conta
-              </button>
-            )}
+            {/* Contas novas são criadas pelo admin em Cadastros → Pessoas (marcando "Usuário"). */}
           </div>
         )}
       </Card>
