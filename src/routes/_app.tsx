@@ -2,6 +2,14 @@ import { Link, Outlet, createFileRoute, redirect, useRouterState } from "@tansta
 import { useState } from "react";
 import { Building2, ChevronDown, FolderOpen, LogOut, Menu, Repeat, Store } from "lucide-react";
 import { LojaProvider, TODAS, useLoja } from "@/lib/loja";
+import { useVisual } from "@/lib/visual";
+import { LayoutTopo } from "@/components/layout-topo";
+
+/** Visual escolhido em Minha conta: clássico (menu lateral) ou ERP (menu no topo). */
+function EscolhaVisual() {
+  const visual = useVisual();
+  return visual === "erp" ? <LayoutTopo /> : <AppShell />;
+}
 import { useAuth, homeRouteFor } from "@/lib/auth";
 import { NAV, canAccess } from "@/lib/nav";
 import { Button } from "@/components/ui/button";
@@ -17,7 +25,7 @@ export const Route = createFileRoute("/_app")({
   },
   component: () => (
     <LojaProvider>
-      <AppShell />
+      <EscolhaVisual />
     </LojaProvider>
   ),
 });
