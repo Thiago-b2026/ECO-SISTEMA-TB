@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
 import { FiscalDialog } from "@/components/fiscal-dialog";
 import { Exportar } from "@/components/exportar";
+import { usePermissoes } from "@/lib/permissoes";
 
 import { FileText, EyeOff } from "lucide-react";
 
@@ -59,6 +60,9 @@ function PaginaProdutos() {
   const { role } = useAuth();
   const { filtroLoja, lojas } = useLoja();
   const podeEstoque = role === "admin" || role === "gerente" || role === "estoquista";
+  const { podeAcao } = usePermissoes();
+  const verCusto = podeEstoque && podeAcao("produtos.ver_custo");
+  const ajustar = podeEstoque && podeAcao("produtos.ajustar_estoque");
   const [produtos, setProdutos] = useState<Produto[] | null>(null);
   const [busca, setBusca] = useState("");
   const [soComEstoque, setSoComEstoque] = useState(true);
@@ -128,7 +132,7 @@ function PaginaProdutos() {
         <div className="flex gap-2">
           <Exportar titulo="Produtos e estoque" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
             colunas={[{ titulo: "SKU" }, { titulo: "Cód. barras" }, { titulo: "Produto" }, { titulo: "Loja" }, { titulo: "Grade" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "NCM" }]}
-            linhas={() => visiveis.map((p) => [p.sku, p.codigo_barras ?? "", p.titulo, nomeLoja(p.loja_id), p.grade, Number(p.estoque_atual), Number(p.preco_venda), p.custo_unit != null ? Number(p.custo_unit) : null, p.ncm ?? ""])} />
+            linhas={() => visiveis.map((p) => [p.sku, p.codigo_barras ?? "", p.titulo, nomeLoja(p.loja_id), p.grade, Number(p.estoque_atual), Number(p.preco_venda), verCusto && p.custo_unit != null ? Number(p.custo_unit) : null, p.ncm ?? ""])} />
           <Button variant="outline" disabled={selecionados.size === 0} onClick={() => setEtiquetas(true)}><Printer /> Etiquetas ({selecionados.size})</Button>
           {podeEstoque && <Button onClick={() => setNovo(true)} disabled={!filtroLoja && lojas.length > 1}><PackagePlus /> Produto avulso</Button>}
         </div>
@@ -160,7 +164,7 @@ function PaginaProdutos() {
                   {!filtroLoja && <th className="py-2 pr-2">Loja</th>}
                   <th className="py-2 pr-2 text-right">Estoque</th>
                   <th className="py-2 pr-2 text-right">Preço</th>
-                  {podeEstoque && <th className="py-2 pr-2 text-right">Custo</th>}
+                  {verCusto && <th className="py-2 pr-2 text-right">Custo</th>}
                   <th className="py-2"></th>
                 </tr>
               </thead>
@@ -183,10 +187,10 @@ function PaginaProdutos() {
                     {!filtroLoja && <td className="py-2 pr-2 text-xs">{nomeLoja(p.loja_id)}</td>}
                     <td className="py-2 pr-2 text-right font-semibold">{Number(p.estoque_atual)}</td>
                     <td className="py-2 pr-2 text-right whitespace-nowrap">{fmtBRL(Number(p.preco_venda))}</td>
-                    {podeEstoque && <td className="py-2 pr-2 text-right whitespace-nowrap text-muted-foreground">{p.custo_unit != null ? fmtBRL(Number(p.custo_unit)) : "—"}</td>}
+                    {verCusto && <td className="py-2 pr-2 text-right whitespace-nowrap text-muted-foreground">{p.custo_unit != null ? fmtBRL(Number(p.custo_unit)) : "—"}</td>}
                     <td className="py-2 whitespace-nowrap">
                       <Button size="icon" variant="ghost" title="Histórico" onClick={() => verHistorico(p)}><History /></Button>
-                      {podeEstoque && <Button size="icon" variant="ghost" title="Movimentar estoque" onClick={() => setMov(p)}><SlidersHorizontal /></Button>}
+                      {ajustar && <Button size="icon" variant="ghost" title="Movimentar estoque" onClick={() => setMov(p)}><SlidersHorizontal /></Button>}
                       {podeEstoque && <Button size="icon" variant="ghost" title={p.ncm ? `NCM ${p.ncm}` : "Dados fiscais (sem NCM)"} onClick={() => setFiscal(p)}><FileText className={p.ncm ? "" : "text-warning"} /></Button>}
                       {gestor && <Button size="icon" variant="ghost" title="Desativar produto" onClick={() => desativar(p)}><EyeOff /></Button>}
                     </td>

@@ -7,7 +7,6 @@ import { useAuth, type AppRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { EditorPermissoes } from "@/components/editor-permissoes";
 
 const PAPEIS: { id: AppRole; label: string }[] = [
   { id: "vendedor", label: "Vendedor" }, { id: "estoquista", label: "Estoquista" }, { id: "gerente", label: "Gerente" }, { id: "admin", label: "Admin" },
@@ -85,7 +84,7 @@ export function GerenciarAcesso({ userId, onMudou }: { userId: string; onMudou?:
           {ocupado ? <Loader2 className="animate-spin" /> : <KeyRound />} Trocar senha
         </Button>
       </div>
-      <EditorPermissoes userId={userId} papel={papel} />
+      {papel !== "admin" && <p className="rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">O que esta pessoa pode fazer (áreas, ações e empresas) fica em <b>Login de acesso → botão Permissões</b>.</p>}
     </div>
   );
 }

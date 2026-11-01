@@ -82,5 +82,5 @@ export async function imprimirComprovanteDaVenda(vendaId: string, loja: string):
     pagamentos: (pags ?? []).map((p) => ({ forma: p.forma, valor: n(p.valor), troco: n(p.troco) })),
     cancelada: v.status === "cancelada",
   });
-  return ok ? null : "O navegador bloqueou a janela de impressão. Permita pop-ups para localhost.";
+  return ok ? null : "O navegador bloqueou a janela de impressão. Permita pop-ups para este site.";
 }

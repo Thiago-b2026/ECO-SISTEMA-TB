@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { imprimirComprovanteDaVenda } from "@/lib/comprovante";
 import { Exportar } from "@/components/exportar";
+import { usePermissoes } from "@/lib/permissoes";
 
 import { Printer } from "lucide-react";
 
@@ -49,6 +50,7 @@ function PaginaVendas() {
   const { role } = useAuth();
   const { filtroLoja, lojas } = useLoja();
   const gestor = role === "admin" || role === "gerente";
+  const { podeAcao } = usePermissoes();
   const hoje = formatLocalDateInput();
   const [de, setDe] = useState(hoje);
   const [ate, setAte] = useState(hoje);
@@ -157,7 +159,7 @@ function PaginaVendas() {
                       <td className="py-2 whitespace-nowrap">
                         <Button size="icon" variant="ghost" title="Comprovante" onClick={async () => { const e = await imprimirComprovanteDaVenda(v.id, nomeLoja(v.loja_id)); if (e) toast.error(e); }}><Printer /></Button>
                         <Button size="icon" variant="ghost" onClick={() => abrir(v)}>{aberta === v.id ? <ChevronUp /> : <ChevronDown />}</Button>
-                        {gestor && v.status === "finalizada" && v.origem === "pdv" && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => cancelar(v)}>Cancelar</Button>}
+                        {gestor && podeAcao("vendas.cancelar") && v.status === "finalizada" && v.origem === "pdv" && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => cancelar(v)}>Cancelar</Button>}
                       </td>
                     </tr>
                     {aberta === v.id && (

@@ -1,4 +1,5 @@
 // Barra do caixa dentro do PDV: sangria, suprimento e fechamento cego sem sair da tela de vendas.
+import { usePermissoes } from "@/lib/permissoes";
 import { useState } from "react";
 import { ArrowDownCircle, ArrowUpCircle, Loader2, Lock, Wallet } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { Label } from "@/components/ui/label";
 type Acao = "sangria" | "suprimento" | "fechar" | null;
 
 export function CaixaBarra({ caixa, onFechado }: { caixa: Caixa; onFechado: () => void }) {
+  const { podeAcao } = usePermissoes();
   const [acao, setAcao] = useState<Acao>(null);
   const [valor, setValor] = useState("");
   const [motivo, setMotivo] = useState("");
@@ -74,8 +76,8 @@ export function CaixaBarra({ caixa, onFechado }: { caixa: Caixa; onFechado: () =
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
         <Wallet className="size-4 text-success" />
         <span className="mr-auto">Caixa aberto · {fmtDate(caixa.aberto_em)}{cab.terminal ? ` · ${cab.terminal}` : ""} · fundo {fmtBRL(Number(caixa.valor_abertura))}</span>
-        <Button size="sm" variant="outline" onClick={() => abrir("sangria")}><ArrowUpCircle /> Sangria</Button>
-        <Button size="sm" variant="outline" onClick={() => abrir("suprimento")}><ArrowDownCircle /> Suprimento</Button>
+        {podeAcao("caixa.sangria") && <Button size="sm" variant="outline" onClick={() => abrir("sangria")}><ArrowUpCircle /> Sangria</Button>}
+        {podeAcao("caixa.suprimento") && <Button size="sm" variant="outline" onClick={() => abrir("suprimento")}><ArrowDownCircle /> Suprimento</Button>}
         <Button size="sm" variant="destructive" onClick={() => abrir("fechar")}><Lock /> Fechar caixa</Button>
       </div>
 

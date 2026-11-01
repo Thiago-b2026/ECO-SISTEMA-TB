@@ -26,7 +26,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja }: { open: boo
     const m = modelos.find((x) => x.id === modelo)!;
     try { localStorage.setItem(CHAVE, modelo); } catch { /* sem storage */ }
     const lista = itens.map((i) => ({ ...i, copias: copias === "uma" ? 1 : i.copias }));
-    if (!imprimirEtiquetas(lista, m, loja)) toast.error("O navegador bloqueou a janela de impressão. Permita pop-ups para localhost.");
+    if (!imprimirEtiquetas(lista, m, loja)) toast.error("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");
     else onOpenChange(false);
   }
 

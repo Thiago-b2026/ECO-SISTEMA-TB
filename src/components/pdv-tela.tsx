@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePermissoes } from "@/lib/permissoes";
 import { Loader2, Minus, Plus, ScanBarcode, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +52,8 @@ export function PdvTela() {
   const [resultados, setResultados] = useState<ProdutoPdv[]>([]);
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [descontoVenda, setDescontoVenda] = useState("");
+  const { podeAcao } = usePermissoes();
+  const podeDesconto = podeAcao("vendas.desconto");
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [formas, setFormas] = useState<FormaCad[]>(FORMAS.map((f) => ({ id: f.id, nome: f.label, tipo: f.id })));
   const [meios, setMeios] = useState<MeioCad[]>([]);
@@ -235,7 +238,7 @@ export function PdvTela() {
 
       <Card className="p-4 space-y-3 h-fit lg:sticky lg:top-4">
         <div className="flex justify-between text-sm"><span>Subtotal</span><span>{fmtBRL(subtotal)}</span></div>
-        <div className="flex items-center justify-between gap-2 text-sm"><span>Desconto (R$)</span><Input value={descontoVenda} onChange={(e) => setDescontoVenda(e.target.value)} className="h-8 w-28 text-right" placeholder="0,00" /></div>
+        <div className="flex items-center justify-between gap-2 text-sm"><span>Desconto (R$)</span><Input value={descontoVenda} onChange={(e) => setDescontoVenda(e.target.value)} className="h-8 w-28 text-right" placeholder={podeDesconto ? "0,00" : "sem permissão"} disabled={!podeDesconto} title={podeDesconto ? "" : "Você não tem permissão para dar desconto"} /></div>
         <div className="flex justify-between border-t pt-2 text-2xl font-bold"><span>Total</span><span>{fmtBRL(total)}</span></div>
 
         <div className="grid grid-cols-3 gap-1">

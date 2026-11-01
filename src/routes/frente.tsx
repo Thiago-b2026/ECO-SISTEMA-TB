@@ -8,6 +8,7 @@ import { lerTerminal, salvarTerminal } from "@/lib/terminal";
 import { Button } from "@/components/ui/button";
 import { PdvTela } from "@/components/pdv-tela";
 import { EscolherEmpresa } from "@/components/escolher-empresa";
+import { PermissoesProvider } from "@/lib/permissoes";
 
 // Janela própria da frente de loja: só o caixa, sem o menu do sistema.
 export const Route = createFileRoute("/frente")({
@@ -58,7 +59,7 @@ function Frente() {
         <Button size="sm" variant="ghost" className="text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut}><LogOut /> Sair</Button>
       </header>
       <main className="flex-1">
-        {precisaEscolher ? <EscolherEmpresa /> : filtroLoja ? <PdvTela /> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
+        {precisaEscolher ? <EscolherEmpresa /> : filtroLoja ? <PermissoesProvider><PdvTela /></PermissoesProvider> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
       </main>
     </div>
   );
