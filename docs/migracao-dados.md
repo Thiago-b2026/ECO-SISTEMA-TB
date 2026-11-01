@@ -72,5 +72,14 @@ Análise dos CSVs exportados em 31/10/2026
   (31 categorias, 250 subcategorias, preço de R$ 0,58 a R$ 3.225,53, mediana R$ 33,92).
   Os 5.646 avulsos não entram.
 - A árvore de categorias (estilo Mercado Livre) é importada como tabela de categorias.
-- As 12 datas suspeitas e a venda zerada são revisadas antes da importação.
+- **Datas suspeitas (decidido em 31/10/2026): entram no histórico marcadas** com `data_suspeita = true`
+  e `motivo_data_suspeita`. Regra em `src/lib/data-suspeita.ts` (dia no fuso de São Paulo):
+  `antes_do_sistema` (antes de 01/05/2026) ou `depois_do_registro` (data da venda depois do dia em
+  que foi lançada, o que é impossível). Resultado: **26 vendas** (11 pela regra original + 15 lançadas com
+  data posterior ao próprio registro, que a contagem de "12" não pegava). Arquivo pronto para
+  importar: `TABELAS LOVABLE\LIMPEZA\sales-com-data-suspeita.csv`, gerado por
+  `node scripts/marcar-datas-suspeitas.ts "<sales-export.csv>" "<saida.csv>"`.
+  A tabela `sales` da Fase 1 deve ter `data_suspeita boolean not null default false` e
+  `motivo_data_suspeita text`, e os relatórios devem permitir filtrar/destacar essas vendas.
+- A venda zerada é revisada antes da importação.
 - Vendedores: ligados por nome aos usuários novos (criar NAGILA, VIVIANE, DHAFINE na tela Usuários).

@@ -9,7 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/_app/conta")({ component: MinhaConta });
+export const Route = createFileRoute("/_app/conta")({ component: Configuracoes });
+
+/** Configurações: minha conta, dados da loja (gestor) e atalho para lojas/equipe (admin). */
+function Configuracoes() {
+  return (
+    <div className="p-4 lg:p-6 space-y-4">
+      <h1 className="text-2xl font-bold">Minha conta</h1>
+      <MinhaConta />
+    </div>
+  );
+}
 
 function MinhaConta() {
   const { profile, user } = useAuth();
@@ -43,8 +53,7 @@ function MinhaConta() {
   }
 
   return (
-    <div className="p-4 lg:p-6 space-y-4 max-w-xl">
-      <h1 className="text-2xl font-bold">Minha conta</h1>
+    <div className="space-y-4 max-w-xl">
 
       <Card className="p-5">
         <form onSubmit={salvarNome} className="space-y-3">

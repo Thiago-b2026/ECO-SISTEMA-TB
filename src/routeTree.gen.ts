@@ -12,16 +12,27 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NovaSenhaRouteImport } from './routes/nova-senha'
 import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
 import { Route as AppCaixaRouteImport } from './routes/_app.caixa'
 import { Route as AppContaRouteImport } from './routes/_app.conta'
+import { Route as AppContasBancariasRouteImport } from './routes/_app.contas-bancarias'
+import { Route as AppEtiquetasRouteImport } from './routes/_app.etiquetas'
 import { Route as AppFinanceiroRouteImport } from './routes/_app.financeiro'
-import { Route as AppLotesRouteImport } from './routes/_app.lotes'
+import { Route as AppLojasRouteImport } from './routes/_app.lojas'
+import { Route as AppMercadoLivreRouteImport } from './routes/_app.mercado-livre'
+import { Route as AppMercadologicoRouteImport } from './routes/_app.mercadologico'
+import { Route as AppPagamentosRouteImport } from './routes/_app.pagamentos'
 import { Route as AppPdvRouteImport } from './routes/_app.pdv'
+import { Route as AppPessoasRouteImport } from './routes/_app.pessoas'
+import { Route as AppPlanoContasRouteImport } from './routes/_app.plano-contas'
 import { Route as AppProdutosRouteImport } from './routes/_app.produtos'
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
+import { Route as AppTransferenciasRouteImport } from './routes/_app.transferencias'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppVendasRouteImport } from './routes/_app.vendas'
+import { Route as AppLotesIndexRouteImport } from './routes/_app.lotes.index'
+import { Route as AppLotesIdRouteImport } from './routes/_app.lotes.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -35,6 +46,11 @@ const AppRoute = AppRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NovaSenhaRoute = NovaSenhaRouteImport.update({
+  id: '/nova-senha',
+  path: '/nova-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SemAcessoRoute = SemAcessoRouteImport.update({
@@ -52,19 +68,54 @@ const AppContaRoute = AppContaRouteImport.update({
   path: '/conta',
   getParentRoute: () => AppRoute,
 } as any)
+const AppContasBancariasRoute = AppContasBancariasRouteImport.update({
+  id: '/contas-bancarias',
+  path: '/contas-bancarias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEtiquetasRoute = AppEtiquetasRouteImport.update({
+  id: '/etiquetas',
+  path: '/etiquetas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFinanceiroRoute = AppFinanceiroRouteImport.update({
   id: '/financeiro',
   path: '/financeiro',
   getParentRoute: () => AppRoute,
 } as any)
-const AppLotesRoute = AppLotesRouteImport.update({
-  id: '/lotes',
-  path: '/lotes',
+const AppLojasRoute = AppLojasRouteImport.update({
+  id: '/lojas',
+  path: '/lojas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMercadoLivreRoute = AppMercadoLivreRouteImport.update({
+  id: '/mercado-livre',
+  path: '/mercado-livre',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMercadologicoRoute = AppMercadologicoRouteImport.update({
+  id: '/mercadologico',
+  path: '/mercadologico',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPagamentosRoute = AppPagamentosRouteImport.update({
+  id: '/pagamentos',
+  path: '/pagamentos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPdvRoute = AppPdvRouteImport.update({
   id: '/pdv',
   path: '/pdv',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPessoasRoute = AppPessoasRouteImport.update({
+  id: '/pessoas',
+  path: '/pessoas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlanoContasRoute = AppPlanoContasRouteImport.update({
+  id: '/plano-contas',
+  path: '/plano-contas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppProdutosRoute = AppProdutosRouteImport.update({
@@ -77,6 +128,11 @@ const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
   path: '/relatorios',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTransferenciasRoute = AppTransferenciasRouteImport.update({
+  id: '/transferencias',
+  path: '/transferencias',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
@@ -87,101 +143,178 @@ const AppVendasRoute = AppVendasRouteImport.update({
   path: '/vendas',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLotesIndexRoute = AppLotesIndexRouteImport.update({
+  id: '/lotes/',
+  path: '/lotes/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLotesIdRoute = AppLotesIdRouteImport.update({
+  id: '/lotes/$id',
+  path: '/lotes/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
+  '/contas-bancarias': typeof AppContasBancariasRoute
+  '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
-  '/lotes': typeof AppLotesRoute
+  '/lojas': typeof AppLojasRoute
+  '/mercado-livre': typeof AppMercadoLivreRoute
+  '/mercadologico': typeof AppMercadologicoRoute
+  '/pagamentos': typeof AppPagamentosRoute
   '/pdv': typeof AppPdvRoute
+  '/pessoas': typeof AppPessoasRoute
+  '/plano-contas': typeof AppPlanoContasRoute
   '/produtos': typeof AppProdutosRoute
   '/relatorios': typeof AppRelatoriosRoute
+  '/transferencias': typeof AppTransferenciasRoute
   '/usuarios': typeof AppUsuariosRoute
   '/vendas': typeof AppVendasRoute
+  '/lotes/$id': typeof AppLotesIdRoute
+  '/lotes/': typeof AppLotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
+  '/contas-bancarias': typeof AppContasBancariasRoute
+  '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
-  '/lotes': typeof AppLotesRoute
+  '/lojas': typeof AppLojasRoute
+  '/mercado-livre': typeof AppMercadoLivreRoute
+  '/mercadologico': typeof AppMercadologicoRoute
+  '/pagamentos': typeof AppPagamentosRoute
   '/pdv': typeof AppPdvRoute
+  '/pessoas': typeof AppPessoasRoute
+  '/plano-contas': typeof AppPlanoContasRoute
   '/produtos': typeof AppProdutosRoute
   '/relatorios': typeof AppRelatoriosRoute
+  '/transferencias': typeof AppTransferenciasRoute
   '/usuarios': typeof AppUsuariosRoute
   '/vendas': typeof AppVendasRoute
+  '/lotes/$id': typeof AppLotesIdRoute
+  '/lotes': typeof AppLotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/_app/caixa': typeof AppCaixaRoute
   '/_app/conta': typeof AppContaRoute
+  '/_app/contas-bancarias': typeof AppContasBancariasRoute
+  '/_app/etiquetas': typeof AppEtiquetasRoute
   '/_app/financeiro': typeof AppFinanceiroRoute
-  '/_app/lotes': typeof AppLotesRoute
+  '/_app/lojas': typeof AppLojasRoute
+  '/_app/mercado-livre': typeof AppMercadoLivreRoute
+  '/_app/mercadologico': typeof AppMercadologicoRoute
+  '/_app/pagamentos': typeof AppPagamentosRoute
   '/_app/pdv': typeof AppPdvRoute
+  '/_app/pessoas': typeof AppPessoasRoute
+  '/_app/plano-contas': typeof AppPlanoContasRoute
   '/_app/produtos': typeof AppProdutosRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
+  '/_app/transferencias': typeof AppTransferenciasRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/vendas': typeof AppVendasRoute
+  '/_app/lotes/$id': typeof AppLotesIdRoute
+  '/_app/lotes/': typeof AppLotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
+    | '/nova-senha'
     | '/sem-acesso'
     | '/caixa'
     | '/conta'
+    | '/contas-bancarias'
+    | '/etiquetas'
     | '/financeiro'
-    | '/lotes'
+    | '/lojas'
+    | '/mercado-livre'
+    | '/mercadologico'
+    | '/pagamentos'
     | '/pdv'
+    | '/pessoas'
+    | '/plano-contas'
     | '/produtos'
     | '/relatorios'
+    | '/transferencias'
     | '/usuarios'
     | '/vendas'
+    | '/lotes/$id'
+    | '/lotes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/nova-senha'
     | '/sem-acesso'
     | '/caixa'
     | '/conta'
+    | '/contas-bancarias'
+    | '/etiquetas'
     | '/financeiro'
-    | '/lotes'
+    | '/lojas'
+    | '/mercado-livre'
+    | '/mercadologico'
+    | '/pagamentos'
     | '/pdv'
+    | '/pessoas'
+    | '/plano-contas'
     | '/produtos'
     | '/relatorios'
+    | '/transferencias'
     | '/usuarios'
     | '/vendas'
+    | '/lotes/$id'
+    | '/lotes'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/nova-senha'
     | '/sem-acesso'
     | '/_app/caixa'
     | '/_app/conta'
+    | '/_app/contas-bancarias'
+    | '/_app/etiquetas'
     | '/_app/financeiro'
-    | '/_app/lotes'
+    | '/_app/lojas'
+    | '/_app/mercado-livre'
+    | '/_app/mercadologico'
+    | '/_app/pagamentos'
     | '/_app/pdv'
+    | '/_app/pessoas'
+    | '/_app/plano-contas'
     | '/_app/produtos'
     | '/_app/relatorios'
+    | '/_app/transferencias'
     | '/_app/usuarios'
     | '/_app/vendas'
+    | '/_app/lotes/$id'
+    | '/_app/lotes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  NovaSenhaRoute: typeof NovaSenhaRoute
   SemAcessoRoute: typeof SemAcessoRoute
 }
 
@@ -208,6 +341,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/nova-senha': {
+      id: '/nova-senha'
+      path: '/nova-senha'
+      fullPath: '/nova-senha'
+      preLoaderRoute: typeof NovaSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sem-acesso': {
       id: '/sem-acesso'
       path: '/sem-acesso'
@@ -229,6 +369,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/contas-bancarias': {
+      id: '/_app/contas-bancarias'
+      path: '/contas-bancarias'
+      fullPath: '/contas-bancarias'
+      preLoaderRoute: typeof AppContasBancariasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/etiquetas': {
+      id: '/_app/etiquetas'
+      path: '/etiquetas'
+      fullPath: '/etiquetas'
+      preLoaderRoute: typeof AppEtiquetasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/financeiro': {
       id: '/_app/financeiro'
       path: '/financeiro'
@@ -236,11 +390,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFinanceiroRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/lotes': {
-      id: '/_app/lotes'
-      path: '/lotes'
-      fullPath: '/lotes'
-      preLoaderRoute: typeof AppLotesRouteImport
+    '/_app/lojas': {
+      id: '/_app/lojas'
+      path: '/lojas'
+      fullPath: '/lojas'
+      preLoaderRoute: typeof AppLojasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mercado-livre': {
+      id: '/_app/mercado-livre'
+      path: '/mercado-livre'
+      fullPath: '/mercado-livre'
+      preLoaderRoute: typeof AppMercadoLivreRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/mercadologico': {
+      id: '/_app/mercadologico'
+      path: '/mercadologico'
+      fullPath: '/mercadologico'
+      preLoaderRoute: typeof AppMercadologicoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pagamentos': {
+      id: '/_app/pagamentos'
+      path: '/pagamentos'
+      fullPath: '/pagamentos'
+      preLoaderRoute: typeof AppPagamentosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/pdv': {
@@ -248,6 +423,20 @@ declare module '@tanstack/react-router' {
       path: '/pdv'
       fullPath: '/pdv'
       preLoaderRoute: typeof AppPdvRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/pessoas': {
+      id: '/_app/pessoas'
+      path: '/pessoas'
+      fullPath: '/pessoas'
+      preLoaderRoute: typeof AppPessoasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/plano-contas': {
+      id: '/_app/plano-contas'
+      path: '/plano-contas'
+      fullPath: '/plano-contas'
+      preLoaderRoute: typeof AppPlanoContasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/produtos': {
@@ -264,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRelatoriosRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/transferencias': {
+      id: '/_app/transferencias'
+      path: '/transferencias'
+      fullPath: '/transferencias'
+      preLoaderRoute: typeof AppTransferenciasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/usuarios': {
       id: '/_app/usuarios'
       path: '/usuarios'
@@ -278,31 +474,65 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVendasRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/lotes/': {
+      id: '/_app/lotes/'
+      path: '/lotes'
+      fullPath: '/lotes/'
+      preLoaderRoute: typeof AppLotesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/lotes/$id': {
+      id: '/_app/lotes/$id'
+      path: '/lotes/$id'
+      fullPath: '/lotes/$id'
+      preLoaderRoute: typeof AppLotesIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppCaixaRoute: typeof AppCaixaRoute
   AppContaRoute: typeof AppContaRoute
+  AppContasBancariasRoute: typeof AppContasBancariasRoute
+  AppEtiquetasRoute: typeof AppEtiquetasRoute
   AppFinanceiroRoute: typeof AppFinanceiroRoute
-  AppLotesRoute: typeof AppLotesRoute
+  AppLojasRoute: typeof AppLojasRoute
+  AppMercadoLivreRoute: typeof AppMercadoLivreRoute
+  AppMercadologicoRoute: typeof AppMercadologicoRoute
+  AppPagamentosRoute: typeof AppPagamentosRoute
   AppPdvRoute: typeof AppPdvRoute
+  AppPessoasRoute: typeof AppPessoasRoute
+  AppPlanoContasRoute: typeof AppPlanoContasRoute
   AppProdutosRoute: typeof AppProdutosRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
+  AppTransferenciasRoute: typeof AppTransferenciasRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppVendasRoute: typeof AppVendasRoute
+  AppLotesIdRoute: typeof AppLotesIdRoute
+  AppLotesIndexRoute: typeof AppLotesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppCaixaRoute: AppCaixaRoute,
   AppContaRoute: AppContaRoute,
+  AppContasBancariasRoute: AppContasBancariasRoute,
+  AppEtiquetasRoute: AppEtiquetasRoute,
   AppFinanceiroRoute: AppFinanceiroRoute,
-  AppLotesRoute: AppLotesRoute,
+  AppLojasRoute: AppLojasRoute,
+  AppMercadoLivreRoute: AppMercadoLivreRoute,
+  AppMercadologicoRoute: AppMercadologicoRoute,
+  AppPagamentosRoute: AppPagamentosRoute,
   AppPdvRoute: AppPdvRoute,
+  AppPessoasRoute: AppPessoasRoute,
+  AppPlanoContasRoute: AppPlanoContasRoute,
   AppProdutosRoute: AppProdutosRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
+  AppTransferenciasRoute: AppTransferenciasRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppVendasRoute: AppVendasRoute,
+  AppLotesIdRoute: AppLotesIdRoute,
+  AppLotesIndexRoute: AppLotesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
@@ -311,6 +541,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  NovaSenhaRoute: NovaSenhaRoute,
   SemAcessoRoute: SemAcessoRoute,
 }
 export const routeTree = rootRouteImport
