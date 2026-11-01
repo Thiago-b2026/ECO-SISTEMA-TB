@@ -41,6 +41,7 @@ export interface Pessoa {
   eh_usuario: boolean;
   eh_funcionario: boolean;
   cargo: string | null;
+  aceita_whatsapp: boolean;
   user_id: string | null;
   ativo: boolean;
 }
@@ -49,7 +50,7 @@ const VAZIO: Omit<Pessoa, "id"> = {
   tipo: "F", documento: null, nome: "", nome_fantasia: null, ie: null, im: null, data_nascimento: null, email: null,
   telefone: null, celular: null, cep: null, logradouro: null, numero: null, complemento: null, bairro: null, cidade: null,
   uf: null, cod_ibge: null, situacao_cadastral: null, atividade: null, observacao: null,
-  eh_cliente: true, eh_fornecedor: false, eh_usuario: false, eh_funcionario: false, cargo: null, user_id: null, ativo: true,
+  eh_cliente: true, eh_fornecedor: false, eh_usuario: false, eh_funcionario: false, cargo: null, aceita_whatsapp: true, user_id: null, ativo: true,
 };
 
 const PAPEIS: { id: AppRole; label: string }[] = [
@@ -204,7 +205,10 @@ export function PessoaForm({ pessoa, inicial, onClose, onSalvo }: { pessoa: Pess
             {ehCnpj ? campo("ie", "Inscrição estadual") : campo("ie", "RG (opcional)")}
             {p.eh_funcionario && campo("cargo", "Cargo / função")}
             {campo("email", "E-mail")}
-            {campo("celular", "Celular / WhatsApp")}
+            <div>
+              {campo("celular", "Celular / WhatsApp")}
+              <label className="mt-1 flex items-center gap-2 text-xs"><input type="checkbox" className="size-3.5 accent-primary" checked={p.aceita_whatsapp} onChange={(e) => set("aceita_whatsapp", e.target.checked)} /> Aceita receber ofertas pelo WhatsApp</label>
+            </div>
             {campo("telefone", "Telefone")}
             {ehCnpj && p.situacao_cadastral && <div className="text-xs text-muted-foreground sm:col-span-2">Receita: {p.situacao_cadastral}{p.atividade ? ` · ${p.atividade}` : ""}</div>}
           </div>

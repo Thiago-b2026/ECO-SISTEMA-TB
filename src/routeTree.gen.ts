@@ -18,6 +18,7 @@ import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
 import { Route as AppCaixaRouteImport } from './routes/_app.caixa'
 import { Route as AppContaRouteImport } from './routes/_app.conta'
 import { Route as AppContasBancariasRouteImport } from './routes/_app.contas-bancarias'
+import { Route as AppCrmRouteImport } from './routes/_app.crm'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppEtiquetasRouteImport } from './routes/_app.etiquetas'
 import { Route as AppFinanceiroRouteImport } from './routes/_app.financeiro'
@@ -78,6 +79,11 @@ const AppContaRoute = AppContaRouteImport.update({
 const AppContasBancariasRoute = AppContasBancariasRouteImport.update({
   id: '/contas-bancarias',
   path: '/contas-bancarias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCrmRoute = AppCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
   '/contas-bancarias': typeof AppContasBancariasRoute
+  '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
   '/contas-bancarias': typeof AppContasBancariasRoute
+  '/crm': typeof AppCrmRoute
   '/dashboard': typeof AppDashboardRoute
   '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/_app/caixa': typeof AppCaixaRoute
   '/_app/conta': typeof AppContaRoute
   '/_app/contas-bancarias': typeof AppContasBancariasRoute
+  '/_app/crm': typeof AppCrmRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/etiquetas': typeof AppEtiquetasRoute
   '/_app/financeiro': typeof AppFinanceiroRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conta'
     | '/contas-bancarias'
+    | '/crm'
     | '/dashboard'
     | '/etiquetas'
     | '/financeiro'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/caixa'
     | '/conta'
     | '/contas-bancarias'
+    | '/crm'
     | '/dashboard'
     | '/etiquetas'
     | '/financeiro'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/_app/caixa'
     | '/_app/conta'
     | '/_app/contas-bancarias'
+    | '/_app/crm'
     | '/_app/dashboard'
     | '/_app/etiquetas'
     | '/_app/financeiro'
@@ -406,6 +418,13 @@ declare module '@tanstack/react-router' {
       path: '/contas-bancarias'
       fullPath: '/contas-bancarias'
       preLoaderRoute: typeof AppContasBancariasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/crm': {
+      id: '/_app/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AppCrmRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -534,6 +553,7 @@ interface AppRouteChildren {
   AppCaixaRoute: typeof AppCaixaRoute
   AppContaRoute: typeof AppContaRoute
   AppContasBancariasRoute: typeof AppContasBancariasRoute
+  AppCrmRoute: typeof AppCrmRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppEtiquetasRoute: typeof AppEtiquetasRoute
   AppFinanceiroRoute: typeof AppFinanceiroRoute
@@ -557,6 +577,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCaixaRoute: AppCaixaRoute,
   AppContaRoute: AppContaRoute,
   AppContasBancariasRoute: AppContasBancariasRoute,
+  AppCrmRoute: AppCrmRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppEtiquetasRoute: AppEtiquetasRoute,
   AppFinanceiroRoute: AppFinanceiroRoute,

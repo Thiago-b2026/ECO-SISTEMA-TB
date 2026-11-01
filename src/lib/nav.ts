@@ -18,6 +18,7 @@ import {
   Banknote,
   ListTree,
   Gauge,
+  MessagesSquare,
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth";
@@ -60,6 +61,7 @@ export const NAV: NavItem[] = [
   { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento" },
   { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Movimento" },
 
+  { to: "/crm", label: "CRM e WhatsApp", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1 },
   { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1 },
   { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1 },
   { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: GESTOR, fase: 0 },
