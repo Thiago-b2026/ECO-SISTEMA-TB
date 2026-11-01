@@ -7,6 +7,8 @@ import { fmtBRL } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Exportar } from "@/components/exportar";
+
 
 interface Rel { faturamento: number; vendas: number; ticket_medio: number; custo: number }
 interface PorLoja { loja_id: string; loja: string; faturamento: number; vendas: number; ticket: number; custo: number }
@@ -96,6 +98,12 @@ export function RelatoriosExtra({ lojaId, de, ate }: { lojaId: string | null; de
       )}
 
       {porLoja.length > 1 && (
+        <div className="flex justify-end">
+          <Exportar titulo="Faturamento por loja" subtitulo={`${de} a ${ate}`} colunas={[{ titulo: "Loja" }, { titulo: "Vendas", numero: true }, { titulo: "Faturamento (R$)", numero: true }, { titulo: "Ticket (R$)", numero: true }, { titulo: "Custo (R$)", numero: true }]}
+            linhas={() => porLoja.map((l) => [l.loja, Number(l.vendas), Number(l.faturamento), Number(l.ticket), Number(l.custo)])} />
+        </div>
+      )}
+      {porLoja.length > 1 && (
         <Barras
           titulo="Faturamento por loja (comparativo)"
           dados={porLoja.map((l) => ({ nome: l.loja, valor: Number(l.faturamento), dica: `${l.loja}: ${fmtBRL(Number(l.faturamento))} · ${l.vendas} vendas · ticket ${fmtBRL(Number(l.ticket))}` }))}
@@ -105,6 +113,8 @@ export function RelatoriosExtra({ lojaId, de, ate }: { lojaId: string | null; de
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold text-sm mr-auto">Curva ABC de produtos (por receita)</h3>
+          <Exportar titulo="Curva ABC de produtos" subtitulo={`${de} a ${ate}`} colunas={[{ titulo: "Produto" }, { titulo: "Qtd.", numero: true }, { titulo: "Receita (R$)", numero: true }, { titulo: "Lucro (R$)", numero: true }, { titulo: "% acumulado", numero: true }, { titulo: "Classe" }]}
+            linhas={() => visiveisAbc.map((x) => [x.descricao, Number(x.quantidade), Number(x.receita), Number(x.lucro), Number(x.perc_acumulado), x.classe])} />
           {(["A", "B", "C", "todas"] as const).map((k) => <Button key={k} size="sm" variant={classe === k ? "default" : "outline"} onClick={() => setClasse(k)}>{k === "todas" ? "Todas" : `Classe ${k}`}</Button>)}
         </div>
         <div className="grid gap-2 sm:grid-cols-3">

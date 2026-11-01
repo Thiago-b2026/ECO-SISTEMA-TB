@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Barras } from "@/components/relatorios-extra";
 import { cn } from "@/lib/utils";
+import { Exportar } from "@/components/exportar";
+
 
 export const Route = createFileRoute("/_app/crm")({ component: Crm });
 
@@ -422,6 +424,10 @@ function Metricas() {
   const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
   return (
     <div className="space-y-3">
+      <div className="flex justify-end">
+        <Exportar titulo="Métricas das campanhas de WhatsApp" colunas={[{ titulo: "Campanha" }, { titulo: "Enviados", numero: true }, { titulo: "Contatos", numero: true }, { titulo: "Responderam", numero: true }, { titulo: "Compraram", numero: true }, { titulo: "Pedidos", numero: true }, { titulo: "Valor pedido (R$)", numero: true }]}
+          linhas={() => (m ?? []).map((x) => [x.nome, Number(x.enviados), Number(x.envios), Number(x.responderam), Number(x.compraram), Number(x.pedidos), Number(x.valor_pedidos)])} />
+      </div>
       <Card className="p-4">
         {!m ? <Loader2 className="animate-spin text-muted-foreground" /> : m.length === 0 ? <p className="text-sm text-muted-foreground">Sem campanhas.</p> : (
           <div className="overflow-x-auto">

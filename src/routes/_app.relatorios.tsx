@@ -10,6 +10,7 @@ import { formatLocalDateInput } from "@/lib/sale-datetime";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Exportar } from "@/components/exportar";
 import { Barras, RelatoriosExtra } from "@/components/relatorios-extra";
 
 export const Route = createFileRoute("/_app/relatorios")({ component: PaginaRelatorios });
@@ -32,7 +33,9 @@ interface Parado {
 }
 
 function PaginaRelatorios() {
-  const { filtroLoja, lojas } = useLoja();
+  const { filtroLoja: lojaMenu, lojas } = useLoja();
+  const [lojaSel, setLojaSel] = useState<string>(lojaMenu ?? "");
+  const filtroLoja = lojaSel || null;
   const hoje = formatLocalDateInput();
   const [de, setDe] = useState(hoje.slice(0, 8) + "01");
   const [ate, setAte] = useState(hoje);
@@ -74,6 +77,20 @@ function PaginaRelatorios() {
         <Button size="sm" variant="outline" onClick={() => { setDe(hoje); setAte(hoje); }}>Hoje</Button>
         <Button size="sm" variant="outline" onClick={() => { setDe(hoje.slice(0, 8) + "01"); setAte(hoje); }}>Este mês</Button>
         <Button size="sm" variant="outline" onClick={() => { setDe(hoje.slice(0, 5) + "01-01"); setAte(hoje); }}>Este ano</Button>
+        <div>
+          <label className="text-xs">Loja</label>
+          <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <option value="">Todas as lojas</option>
+            {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+          </select>
+        </div>
+        {rel && (
+          <div className="ml-auto">
+            <Exportar titulo="Vendas por dia" subtitulo={`${filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome : "Todas as lojas"} · ${de} a ${ate}`}
+              colunas={[{ titulo: "Dia" }, { titulo: "Vendas", numero: true }, { titulo: "Faturamento (R$)", numero: true }]}
+              linhas={() => rel.por_dia.map((d) => [d.dia.split("-").reverse().join("/"), d.vendas, Number(d.valor)])} />
+          </div>
+        )}
         {carregando && <Loader2 className="animate-spin text-muted-foreground" />}
       </Card>
 
@@ -113,7 +130,9 @@ function PaginaRelatorios() {
       )}
 
       <Card className="p-4 space-y-2">
-        <h2 className="font-semibold">Resultado por lote</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Resultado por lote</h2>
+          <Exportar titulo="Resultado por lote" colunas={[{ titulo: "Lote" }, { titulo: "Entraram", numero: true }, { titulo: "Vendidos", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "Receita (R$)", numero: true }, { titulo: "Lucro (R$)", numero: true }, { titulo: "Estoque restante", numero: true }]}
+            linhas={() => lotes.map((l) => [l.lote, Number(l.itens_entrada), Number(l.itens_vendidos), Number(l.custo_total), Number(l.receita), Number(l.lucro), Number(l.estoque_restante)])} /></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-muted-foreground"><tr className="border-b"><th className="py-2 pr-2">Lote</th><th className="py-2 pr-2 text-right">Entraram</th><th className="py-2 pr-2 text-right">Vendidos</th><th className="py-2 pr-2 text-right">Custo do lote</th><th className="py-2 pr-2 text-right">Receita</th><th className="py-2 pr-2 text-right">Lucro</th><th className="py-2 pr-2 text-right">Retorno</th></tr></thead>
@@ -139,6 +158,8 @@ function PaginaRelatorios() {
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-semibold">Itens parados há mais de</h2>
           {[30, 60, 90].map((d) => <Button key={d} size="sm" variant={dias === d ? "default" : "outline"} onClick={() => setDias(d)}>{d} dias</Button>)}
+          <div className="ml-auto"><Exportar titulo={`Itens parados há mais de ${dias} dias`} colunas={[{ titulo: "SKU" }, { titulo: "Produto" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Dias parado", numero: true }]}
+            linhas={() => parados.map((p) => [p.sku, p.titulo, Number(p.estoque), Number(p.preco_venda), p.dias_parado])} /></div>
         </div>
         <table className="w-full text-sm">
           <tbody>

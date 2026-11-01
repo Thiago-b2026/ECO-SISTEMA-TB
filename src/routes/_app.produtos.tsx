@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
 import { FiscalDialog } from "@/components/fiscal-dialog";
+import { Exportar } from "@/components/exportar";
+
 import { FileText, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/_app/produtos")({ component: PaginaProdutos });
@@ -124,6 +126,9 @@ function PaginaProdutos() {
           <p className="text-sm text-muted-foreground">{visiveis.length} produtos · {totalUn} unidades · {fmtBRL(totalVenda)} em venda</p>
         </div>
         <div className="flex gap-2">
+          <Exportar titulo="Produtos e estoque" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
+            colunas={[{ titulo: "SKU" }, { titulo: "Cód. barras" }, { titulo: "Produto" }, { titulo: "Loja" }, { titulo: "Grade" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "NCM" }]}
+            linhas={() => visiveis.map((p) => [p.sku, p.codigo_barras ?? "", p.titulo, nomeLoja(p.loja_id), p.grade, Number(p.estoque_atual), Number(p.preco_venda), p.custo_unit != null ? Number(p.custo_unit) : null, p.ncm ?? ""])} />
           <Button variant="outline" disabled={selecionados.size === 0} onClick={() => setEtiquetas(true)}><Printer /> Etiquetas ({selecionados.size})</Button>
           {podeEstoque && <Button onClick={() => setNovo(true)} disabled={!filtroLoja && lojas.length > 1}><PackagePlus /> Produto avulso</Button>}
         </div>

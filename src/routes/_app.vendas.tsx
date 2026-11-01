@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { imprimirComprovanteDaVenda } from "@/lib/comprovante";
+import { Exportar } from "@/components/exportar";
+
 import { Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_app/vendas")({ component: PaginaVendas });
@@ -122,6 +124,11 @@ function PaginaVendas() {
         <Button size="sm" variant="outline" onClick={() => { setDe(hoje); setAte(hoje); }}>Hoje</Button>
         <Button size="sm" variant="outline" onClick={() => { setDe(hoje.slice(0, 8) + "01"); setAte(hoje); }}>Este mês</Button>
         <label className="flex items-center gap-2 text-sm ml-2"><input type="checkbox" checked={soSuspeitas} onChange={(e) => setSoSuspeitas(e.target.checked)} className="size-4 accent-primary" /> Só data suspeita</label>
+        <div className="ml-auto">
+          <Exportar titulo="Vendas" subtitulo={`${filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"} · ${de} a ${ate}`}
+            colunas={[{ titulo: "Nº", numero: true }, { titulo: "Data" }, { titulo: "Loja" }, { titulo: "Vendedor" }, { titulo: "Pagamento" }, { titulo: "Total (R$)", numero: true }, { titulo: "Situação" }, { titulo: "Origem" }, { titulo: "Data suspeita" }]}
+            linhas={() => (vendas ?? []).map((v) => [v.numero, fmtDate(v.data_venda), nomeLoja(v.loja_id), v.vendedor_nome ?? "", v.venda_pagamentos.map((p) => FORMA_LABEL[p.forma] ?? p.forma).join(" + "), Number(v.total), v.status, v.origem === "legado" ? "Sistema antigo" : "PDV", v.data_suspeita ? "sim" : ""])} />
+        </div>
       </Card>
       <Card className="p-4">
         {vendas == null ? <Loader2 className="animate-spin text-muted-foreground" /> : vendas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma venda no período.</p> : (

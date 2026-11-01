@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Exportar } from "@/components/exportar";
+
 
 export const Route = createFileRoute("/_app/caixa")({ component: MovimentacoesCaixa });
 
@@ -67,6 +69,11 @@ function MovimentacoesCaixa() {
         <p className="text-sm text-muted-foreground">
           Abrir, sangria, suprimento e fechar ficam no <Link to="/pdv" className="text-primary hover:underline">PDV</Link>. Aqui você confere o histórico.
         </p>
+      </div>
+      <div className="flex justify-end">
+        <Exportar titulo="Movimentações de caixa" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
+          colunas={[{ titulo: "Operador" }, { titulo: "Loja" }, { titulo: "Abertura" }, { titulo: "Fechamento" }, { titulo: "Fundo (R$)", numero: true }, { titulo: "Esperado (R$)", numero: true }, { titulo: "Contado (R$)", numero: true }, { titulo: "Diferença (R$)", numero: true }]}
+          linhas={() => (lista ?? []).map((c) => [c.operador_nome ?? "", nomeLoja(c.loja_id), fmtDate(c.aberto_em), c.fechado_em ? fmtDate(c.fechado_em) : "aberto", Number(c.valor_abertura), c.valor_esperado != null ? Number(c.valor_esperado) : null, c.valor_informado != null ? Number(c.valor_informado) : null, c.diferenca != null ? Number(c.diferenca) : null])} />
       </div>
       <Card className="p-4">
         {!lista ? <Loader2 className="animate-spin text-muted-foreground" /> : lista.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum caixa ainda.</p> : (

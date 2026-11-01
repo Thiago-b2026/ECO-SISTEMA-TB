@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PessoaForm, type Pessoa } from "@/components/pessoa-form";
+import { Exportar } from "@/components/exportar";
+
 
 export const Route = createFileRoute("/_app/pessoas")({ component: PaginaPessoas });
 
@@ -54,7 +56,12 @@ function PaginaPessoas() {
           <h1 className="text-2xl font-bold">Cadastros</h1>
           <p className="text-sm text-muted-foreground">Clientes, fornecedores e usuários num só lugar</p>
         </div>
-        <Button onClick={() => setEditando("novo")}><Plus /> Novo cadastro</Button>
+        <div className="flex flex-wrap gap-2">
+          <Exportar titulo="Cadastros" subtitulo={filtro === "todos" ? "todos" : filtro}
+            colunas={[{ titulo: "Nome / razão social" }, { titulo: "Fantasia" }, { titulo: "CPF/CNPJ" }, { titulo: "Celular" }, { titulo: "E-mail" }, { titulo: "Cidade" }, { titulo: "UF" }, { titulo: "É" }, { titulo: "Ativo" }]}
+            linhas={() => visiveis.map((p) => [p.nome, p.nome_fantasia ?? "", p.documento ? formatarDocumento(p.documento) : "", p.celular ?? p.telefone ?? "", p.email ?? "", p.cidade ?? "", p.uf ?? "", [p.eh_cliente && "cliente", p.eh_fornecedor && "fornecedor", p.eh_funcionario && "funcionário", p.eh_usuario && "login"].filter(Boolean).join(", "), p.ativo ? "sim" : "não"])} />
+          <Button onClick={() => setEditando("novo")}><Plus /> Novo cadastro</Button>
+        </div>
       </div>
 
       <Card className="p-4 space-y-3">

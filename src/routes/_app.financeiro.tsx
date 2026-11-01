@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { Exportar } from "@/components/exportar";
+
 
 export const Route = createFileRoute("/_app/financeiro")({ component: Financeiro });
 
@@ -153,6 +155,11 @@ function ListaLanc(props: {
       </div>
       <div className="flex gap-1">
         {(["aberto", "pago", "todos"] as const).map((s) => <Button key={s} size="sm" variant={status === s ? "default" : "outline"} onClick={() => props.setStatus(s)}>{s === "aberto" ? "Em aberto" : s === "pago" ? (tipo === "pagar" ? "Pagos" : "Recebidos") : "Todos"}</Button>)}
+      </div>
+      <div className="flex justify-end">
+        <Exportar titulo={tipo === "pagar" ? "Contas a pagar" : "Contas a receber"} subtitulo={`vencimento ${props.de} a ${props.ate}`}
+          colunas={[{ titulo: "Vencimento" }, { titulo: "Descrição" }, { titulo: tipo === "pagar" ? "Fornecedor" : "Cliente" }, { titulo: "Conta do plano" }, { titulo: "Valor (R$)", numero: true }, { titulo: "Situação" }, { titulo: "Pago em" }, { titulo: "Valor pago (R$)", numero: true }]}
+          linhas={() => lista.map((l) => [dataBR(l.vencimento), l.descricao + (l.parcelas > 1 ? ` (${l.parcela}/${l.parcelas})` : ""), props.nomePessoa(l.pessoa_id), props.nomePlano(l.plano_conta_id), Number(l.valor), l.status, dataBR(l.data_pagamento), l.valor_pago != null ? Number(l.valor_pago) : null])} />
       </div>
       <Card className="p-4">
         {!lancs ? <Loader2 className="animate-spin text-muted-foreground" /> : lista.length === 0 ? <p className="text-sm text-muted-foreground">Nada neste filtro.</p> : (
@@ -349,6 +356,11 @@ function Fluxo({ lojaId }: { lojaId: string | null }) {
         <Card className="p-4"><div className="text-sm text-muted-foreground">Entradas (real + previsto)</div><div className="text-2xl font-bold text-success">{fmtBRL(tot("entradas") + tot("entradas_previstas"))}</div></Card>
         <Card className="p-4"><div className="text-sm text-muted-foreground">Saídas (real + previsto)</div><div className="text-2xl font-bold text-destructive">{fmtBRL(tot("saidas") + tot("saidas_previstas"))}</div></Card>
         <Card className="p-4"><div className="text-sm text-muted-foreground">Saldo projetado no fim</div><div className="text-2xl font-bold">{fmtBRL(saldoInicial + tot("entradas") + tot("entradas_previstas") - tot("saidas") - tot("saidas_previstas"))}</div></Card>
+      </div>
+      <div className="flex justify-end">
+        <Exportar titulo="Fluxo de caixa" subtitulo={`${de} a ${ate}`}
+          colunas={[{ titulo: "Dia" }, { titulo: "Entrou (R$)", numero: true }, { titulo: "Vai entrar (R$)", numero: true }, { titulo: "Saiu (R$)", numero: true }, { titulo: "Vai sair (R$)", numero: true }, { titulo: "Saldo (R$)", numero: true }]}
+          linhas={() => linhas.map((d) => [dataBR(d.dia), Number(d.entradas), Number(d.entradas_previstas), Number(d.saidas), Number(d.saidas_previstas), d.acum])} />
       </div>
       <Card className="p-4">
         {!dias ? <Loader2 className="animate-spin text-muted-foreground" /> : linhas.length === 0 ? <p className="text-sm text-muted-foreground">Sem movimento no período.</p> : (

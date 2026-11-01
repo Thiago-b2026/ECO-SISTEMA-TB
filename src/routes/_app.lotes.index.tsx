@@ -13,6 +13,8 @@ import { NovoLoteDialog } from "@/components/lotes/novo-lote-dialog";
 import { ConfigPrecoDialog } from "@/components/lotes/config-preco-dialog";
 import { cn } from "@/lib/utils";
 import { MercadoLivreConfig } from "@/components/mercado-livre-config";
+import { Exportar } from "@/components/exportar";
+
 
 export const Route = createFileRoute("/_app/lotes/")({ component: PaginaLotes });
 
@@ -101,9 +103,13 @@ function PaginaLotes() {
               </Button>
             ))}
           </div>
-          <Button size="sm" variant="ghost" onClick={carregar}>
-            <RefreshCw /> Atualizar
-          </Button>
+          <div className="flex gap-2">
+            <Exportar titulo="Lotes" colunas={[{ titulo: "Lote" }, { titulo: "Loja" }, { titulo: "Tipo" }, { titulo: "Criado em" }, { titulo: "Itens", numero: true }, { titulo: "Variedade", numero: true }, { titulo: "Pallets", numero: true }, { titulo: "Valor de venda (R$)", numero: true }, { titulo: "Situação" }]}
+              linhas={() => visiveis.map((l) => [l.nome, l.loja_nome, l.tipo === "planilha" ? "Com planilha" : "Sem planilha", fmtDateOnly(l.created_at), l.total_itens, l.produtos_unicos, l.qtd_pallets, Number(l.valor_venda), STATUS_LOTE_LABEL[l.status]])} />
+            <Button size="sm" variant="ghost" onClick={carregar}>
+              <RefreshCw /> Atualizar
+            </Button>
+          </div>
         </div>
 
         {lotes == null ? (
