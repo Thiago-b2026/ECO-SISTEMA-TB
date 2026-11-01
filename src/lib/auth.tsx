@@ -94,7 +94,7 @@ export function homeRouteFor(role: AppRole | null): string {
   switch (role) {
     case "admin":
     case "gerente":
-      return "/relatorios";
+      return "/dashboard";
     case "vendedor":
       return "/pdv";
     case "estoquista":

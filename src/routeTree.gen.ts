@@ -11,12 +11,14 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as FrenteRouteImport } from './routes/frente'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NovaSenhaRouteImport } from './routes/nova-senha'
 import { Route as SemAcessoRouteImport } from './routes/sem-acesso'
 import { Route as AppCaixaRouteImport } from './routes/_app.caixa'
 import { Route as AppContaRouteImport } from './routes/_app.conta'
 import { Route as AppContasBancariasRouteImport } from './routes/_app.contas-bancarias'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppEtiquetasRouteImport } from './routes/_app.etiquetas'
 import { Route as AppFinanceiroRouteImport } from './routes/_app.financeiro'
 import { Route as AppLojasRouteImport } from './routes/_app.lojas'
@@ -41,6 +43,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FrenteRoute = FrenteRouteImport.update({
+  id: '/frente',
+  path: '/frente',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -71,6 +78,11 @@ const AppContaRoute = AppContaRouteImport.update({
 const AppContasBancariasRoute = AppContasBancariasRouteImport.update({
   id: '/contas-bancarias',
   path: '/contas-bancarias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEtiquetasRoute = AppEtiquetasRouteImport.update({
@@ -156,12 +168,14 @@ const AppLotesIdRoute = AppLotesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
   '/contas-bancarias': typeof AppContasBancariasRoute
+  '/dashboard': typeof AppDashboardRoute
   '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
   '/lojas': typeof AppLojasRoute
@@ -181,12 +195,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/caixa': typeof AppCaixaRoute
   '/conta': typeof AppContaRoute
   '/contas-bancarias': typeof AppContasBancariasRoute
+  '/dashboard': typeof AppDashboardRoute
   '/etiquetas': typeof AppEtiquetasRoute
   '/financeiro': typeof AppFinanceiroRoute
   '/lojas': typeof AppLojasRoute
@@ -208,12 +224,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
   '/sem-acesso': typeof SemAcessoRoute
   '/_app/caixa': typeof AppCaixaRoute
   '/_app/conta': typeof AppContaRoute
   '/_app/contas-bancarias': typeof AppContasBancariasRoute
+  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/etiquetas': typeof AppEtiquetasRoute
   '/_app/financeiro': typeof AppFinanceiroRoute
   '/_app/lojas': typeof AppLojasRoute
@@ -235,12 +253,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/frente'
     | '/login'
     | '/nova-senha'
     | '/sem-acesso'
     | '/caixa'
     | '/conta'
     | '/contas-bancarias'
+    | '/dashboard'
     | '/etiquetas'
     | '/financeiro'
     | '/lojas'
@@ -260,12 +280,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/frente'
     | '/login'
     | '/nova-senha'
     | '/sem-acesso'
     | '/caixa'
     | '/conta'
     | '/contas-bancarias'
+    | '/dashboard'
     | '/etiquetas'
     | '/financeiro'
     | '/lojas'
@@ -286,12 +308,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/frente'
     | '/login'
     | '/nova-senha'
     | '/sem-acesso'
     | '/_app/caixa'
     | '/_app/conta'
     | '/_app/contas-bancarias'
+    | '/_app/dashboard'
     | '/_app/etiquetas'
     | '/_app/financeiro'
     | '/_app/lojas'
@@ -313,6 +337,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  FrenteRoute: typeof FrenteRoute
   LoginRoute: typeof LoginRoute
   NovaSenhaRoute: typeof NovaSenhaRoute
   SemAcessoRoute: typeof SemAcessoRoute
@@ -332,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/frente': {
+      id: '/frente'
+      path: '/frente'
+      fullPath: '/frente'
+      preLoaderRoute: typeof FrenteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -374,6 +406,13 @@ declare module '@tanstack/react-router' {
       path: '/contas-bancarias'
       fullPath: '/contas-bancarias'
       preLoaderRoute: typeof AppContasBancariasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/etiquetas': {
@@ -495,6 +534,7 @@ interface AppRouteChildren {
   AppCaixaRoute: typeof AppCaixaRoute
   AppContaRoute: typeof AppContaRoute
   AppContasBancariasRoute: typeof AppContasBancariasRoute
+  AppDashboardRoute: typeof AppDashboardRoute
   AppEtiquetasRoute: typeof AppEtiquetasRoute
   AppFinanceiroRoute: typeof AppFinanceiroRoute
   AppLojasRoute: typeof AppLojasRoute
@@ -517,6 +557,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCaixaRoute: AppCaixaRoute,
   AppContaRoute: AppContaRoute,
   AppContasBancariasRoute: AppContasBancariasRoute,
+  AppDashboardRoute: AppDashboardRoute,
   AppEtiquetasRoute: AppEtiquetasRoute,
   AppFinanceiroRoute: AppFinanceiroRoute,
   AppLojasRoute: AppLojasRoute,
@@ -540,6 +581,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  FrenteRoute: FrenteRoute,
   LoginRoute: LoginRoute,
   NovaSenhaRoute: NovaSenhaRoute,
   SemAcessoRoute: SemAcessoRoute,

@@ -11,6 +11,7 @@ export interface Caixa {
   valor_informado: number | null;
   valor_esperado: number | null;
   diferenca: number | null;
+  terminal?: string | null;
 }
 
 /** Caixa aberto do usuário logado na loja (ou null). */

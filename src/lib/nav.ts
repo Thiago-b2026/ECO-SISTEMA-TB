@@ -17,6 +17,7 @@ import {
   CreditCard,
   Banknote,
   ListTree,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth";
@@ -39,6 +40,7 @@ const GESTOR: AppRole[] = ["admin", "gerente"];
 
 /** Menu único do sistema. Quem pode ver cada tela fica definido aqui. A ordem é a do menu. */
 export const NAV: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: Gauge, roles: TODOS, fase: 1 },
   { to: "/pdv", label: "PDV · Frente de loja", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1 },
 
   // Cadastros
