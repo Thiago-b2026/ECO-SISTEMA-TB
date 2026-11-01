@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { chamarAdminUsuarios, GerenciarAcesso } from "@/components/gerenciar-acesso";
 
 export interface Pessoa {
   id: string;
@@ -55,12 +56,12 @@ const PAPEIS: { id: AppRole; label: string }[] = [
   { id: "vendedor", label: "Vendedor" }, { id: "estoquista", label: "Estoquista" }, { id: "gerente", label: "Gerente" }, { id: "admin", label: "Admin" },
 ];
 
-export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null; onClose: () => void; onSalvo: () => void }) {
+export function PessoaForm({ pessoa, inicial, onClose, onSalvo }: { pessoa: Pessoa | null; inicial?: Partial<Pessoa>; onClose: () => void; onSalvo: () => void }) {
   const { role } = useAuth();
   const { lojas } = useLoja();
   const admin = role === "admin";
   const gestor = admin || role === "gerente";
-  const [p, setP] = useState<Omit<Pessoa, "id">>(pessoa ? { ...pessoa } : { ...VAZIO });
+  const [p, setP] = useState<Omit<Pessoa, "id">>(pessoa ? { ...pessoa } : { ...VAZIO, ...inicial });
   const [doc, setDoc] = useState(pessoa?.documento ? formatarDocumento(pessoa.documento) : "");
   const [buscando, setBuscando] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -126,6 +127,9 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
       setSalvando(false);
       return toast.error(r.error.message.includes("duplicate") ? `Já existe cadastro com esse ${ehCnpj ? "CNPJ" : "CPF"}.` : r.error.message);
     }
+    if (pessoa && pessoa.ativo !== p.ativo && p.user_id && admin) {
+      try { await chamarAdminUsuarios({ acao: "ativo", user_id: p.user_id, ativo: p.ativo }); } catch (err) { toast.error("Cadastro salvo, mas o acesso não mudou: " + (err as Error).message); }
+    }
     if (criandoLogin) {
       const { error } = await supabase.functions.invoke("admin-usuarios", {
         body: { acao: "criar", nome: p.nome.trim(), email: login.trim().toLowerCase(), senha, papel, lojas: lojasSel, pessoa_id: r.data.id },
@@ -176,6 +180,12 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
             ))}
           </div>
 
+          {pessoa && (gestor || p.eh_cliente) && (
+            <label className={cn("flex w-fit items-center gap-2 rounded-md border px-3 py-1.5 text-sm", !p.ativo && "border-destructive/50 bg-destructive/5")}>
+              <input type="checkbox" className="size-4 accent-primary" checked={p.ativo} onChange={(e) => set("ativo", e.target.checked)} />
+              {p.ativo ? "Cadastro ativo" : "Cadastro INATIVO (não aparece para vender/lançar)"}
+            </label>
+          )}
           <div className="flex items-end gap-2">
             <div className="flex-1">
               <Label className="text-xs">CPF ou CNPJ</Label>
@@ -219,7 +229,7 @@ export function PessoaForm({ pessoa, onClose, onSalvo }: { pessoa: Pessoa | null
             <div className="space-y-2 rounded-lg border border-primary/40 p-3">
               <div className="text-sm font-medium">Acesso ao sistema</div>
               {p.user_id ? (
-                <p className="text-sm text-muted-foreground">Este cadastro já tem acesso. Perfil, senha e desativação ficam na tela <b>Usuários</b>; as lojas, na tela <b>Lojas</b>.</p>
+                <GerenciarAcesso userId={p.user_id} />
               ) : (
                 <>
                   <div className="grid gap-2 sm:grid-cols-2">

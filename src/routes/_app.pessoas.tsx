@@ -19,6 +19,7 @@ function PaginaPessoas() {
   const [pessoas, setPessoas] = useState<Pessoa[] | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [busca, setBusca] = useState("");
+  const [inativos, setInativos] = useState(false);
   const [editando, setEditando] = useState<Pessoa | null | "novo">(null);
 
   async function carregar() {
@@ -38,10 +39,11 @@ function PaginaPessoas() {
     const dig = t.replace(/\D/g, "");
     return (pessoas ?? []).filter(
       (p) =>
+        (inativos || p.ativo) &&
         (filtro === "todos" || (filtro === "cliente" && p.eh_cliente) || (filtro === "fornecedor" && p.eh_fornecedor) || (filtro === "funcionario" && p.eh_funcionario) || (filtro === "usuario" && p.eh_usuario)) &&
         (!t || p.nome.toLowerCase().includes(t) || (p.nome_fantasia ?? "").toLowerCase().includes(t) || (dig.length >= 3 && (p.documento ?? "").includes(dig)) || (p.email ?? "").toLowerCase().includes(t)),
     );
-  }, [pessoas, filtro, busca]);
+  }, [pessoas, filtro, busca, inativos]);
 
   const conta = (f: (p: Pessoa) => boolean) => (pessoas ?? []).filter(f).length;
 
@@ -70,23 +72,25 @@ function PaginaPessoas() {
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nome, fantasia, CPF/CNPJ ou e-mail" className="pl-8" />
           </div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-primary" checked={inativos} onChange={(e) => setInativos(e.target.checked)} /> Mostrar inativos</label>
         </div>
 
         {pessoas == null ? <Loader2 className="animate-spin text-muted-foreground" /> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr className="border-b"><th className="py-2 pr-2">Nome</th><th className="py-2 pr-2">CPF/CNPJ</th><th className="py-2 pr-2">Contato</th><th className="py-2 pr-2">Cidade</th><th className="py-2 pr-2">É</th></tr>
+                <tr className="border-b"><th className="py-2 pr-2">Nome</th><th className="py-2 pr-2">CPF/CNPJ</th><th className="py-2 pr-2 hidden md:table-cell">Contato</th><th className="py-2 pr-2 hidden lg:table-cell">Cidade</th><th className="py-2 pr-2">É</th></tr>
               </thead>
               <tbody>
                 {visiveis.slice(0, 500).map((p) => (
-                  <tr key={p.id} className="border-b last:border-0 cursor-pointer hover:bg-muted/40" onClick={() => setEditando(p)}>
+                  <tr key={p.id} className={`border-b last:border-0 cursor-pointer hover:bg-muted/40 ${p.ativo ? "" : "opacity-50"}`} onClick={() => setEditando(p)}>
                     <td className="py-2 pr-2"><div className="font-medium">{p.nome}</div>{p.nome_fantasia && <div className="text-xs text-muted-foreground">{p.nome_fantasia}</div>}</td>
                     <td className="py-2 pr-2 whitespace-nowrap">{p.documento ? formatarDocumento(p.documento) : "—"}</td>
-                    <td className="py-2 pr-2 text-xs">{[p.celular || p.telefone, p.email].filter(Boolean).join(" · ") || "—"}</td>
-                    <td className="py-2 pr-2 text-xs">{p.cidade ? `${p.cidade}/${p.uf ?? ""}` : "—"}</td>
+                    <td className="py-2 pr-2 text-xs hidden md:table-cell">{[p.celular || p.telefone, p.email].filter(Boolean).join(" · ") || "—"}</td>
+                    <td className="py-2 pr-2 text-xs hidden lg:table-cell">{p.cidade ? `${p.cidade}/${p.uf ?? ""}` : "—"}</td>
                     <td className="py-2 pr-2">
                       <div className="flex flex-wrap gap-1">
+                        {!p.ativo && <Badge variant="destructive">Inativo</Badge>}
                         {p.eh_cliente && <Badge variant="outline">Cliente</Badge>}
                         {p.eh_fornecedor && <Badge variant="secondary">Fornecedor</Badge>}
                         {p.eh_funcionario && <Badge variant="secondary">Funcionário{p.cargo ? ` · ${p.cargo}` : ""}</Badge>}
