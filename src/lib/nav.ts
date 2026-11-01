@@ -22,6 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth";
+import type { Modulo } from "@/lib/permissoes";
 
 export interface NavItem {
   to: string;
@@ -34,6 +35,8 @@ export interface NavItem {
   grupo?: "Cadastros" | "Movimento";
   /** Rota existe (permissão), mas não aparece no menu. */
   oculto?: boolean;
+  /** Área de permissão (sem "ver" o item some do menu). */
+  modulo?: Modulo;
 }
 
 const TODOS: AppRole[] = ["admin", "gerente", "vendedor", "estoquista"];
@@ -42,28 +45,28 @@ const GESTOR: AppRole[] = ["admin", "gerente"];
 /** Menu único do sistema. Quem pode ver cada tela fica definido aqui. A ordem é a do menu. */
 export const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: Gauge, roles: TODOS, fase: 1 },
-  { to: "/pdv", label: "PDV · Frente de loja", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1 },
+  { to: "/pdv", label: "PDV · Frente de loja", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "vendas" },
 
   // Cadastros
-  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Cadastros" },
+  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Cadastros", modulo: "pessoas" },
   { to: "/usuarios", label: "Login de acesso", icon: Users, roles: ["admin"], fase: 1, grupo: "Cadastros" },
-  { to: "/produtos", label: "Produtos e estoque", icon: Package, roles: TODOS, fase: 1, grupo: "Cadastros" },
-  { to: "/etiquetas", label: "Etiquetas", icon: Tag, roles: GESTOR, fase: 1, grupo: "Cadastros" },
-  { to: "/mercadologico", label: "Mercadológico", icon: Network, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Cadastros" },
-  { to: "/pagamentos", label: "Formas e meios de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "Cadastros" },
-  { to: "/contas-bancarias", label: "Contas bancárias", icon: Banknote, roles: GESTOR, fase: 1, grupo: "Cadastros" },
-  { to: "/plano-contas", label: "Plano de contas", icon: ListTree, roles: GESTOR, fase: 1, grupo: "Cadastros" },
+  { to: "/produtos", label: "Produtos e estoque", icon: Package, roles: TODOS, fase: 1, grupo: "Cadastros", modulo: "produtos" },
+  { to: "/etiquetas", label: "Etiquetas", icon: Tag, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "produtos" },
+  { to: "/mercadologico", label: "Mercadológico", icon: Network, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Cadastros", modulo: "produtos" },
+  { to: "/pagamentos", label: "Formas e meios de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros" },
+  { to: "/contas-bancarias", label: "Contas bancárias", icon: Banknote, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros" },
+  { to: "/plano-contas", label: "Plano de contas", icon: ListTree, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros" },
 
-  { to: "/lotes", label: "Lotes", icon: Boxes, roles: ["admin", "gerente", "estoquista"], fase: 1 },
+  { to: "/lotes", label: "Lotes", icon: Boxes, roles: ["admin", "gerente", "estoquista"], fase: 1, modulo: "lotes" },
 
   // Movimento
-  { to: "/vendas", label: "Vendas e notas", icon: ListOrdered, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento" },
-  { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento" },
-  { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Movimento" },
+  { to: "/vendas", label: "Vendas e notas", icon: ListOrdered, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento", modulo: "vendas" },
+  { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento", modulo: "caixa" },
+  { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Movimento", modulo: "produtos" },
 
-  { to: "/crm", label: "CRM e WhatsApp", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1 },
-  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1 },
-  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1 },
+  { to: "/crm", label: "CRM e WhatsApp", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "crm" },
+  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, modulo: "relatorios" },
+  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1, modulo: "financeiro" },
   { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: GESTOR, fase: 0 },
 
   // Rotas sem item no menu

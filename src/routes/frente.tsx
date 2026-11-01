@@ -7,6 +7,7 @@ import { fmtDate } from "@/lib/format";
 import { lerTerminal, salvarTerminal } from "@/lib/terminal";
 import { Button } from "@/components/ui/button";
 import { PdvTela } from "@/components/pdv-tela";
+import { EscolherEmpresa } from "@/components/escolher-empresa";
 
 // Janela própria da frente de loja: só o caixa, sem o menu do sistema.
 export const Route = createFileRoute("/frente")({
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/frente")({
 
 function Frente() {
   const { profile, signOut } = useAuth();
-  const { lojas, lojaAtual, setLojaAtual, filtroLoja } = useLoja();
+  const { lojas, lojaAtual, setLojaAtual, filtroLoja, podeTrocar, precisaEscolher } = useLoja();
   const [agora, setAgora] = useState(new Date());
   const [terminal, setTerminal] = useState(lerTerminal());
   useEffect(() => {
@@ -42,7 +43,7 @@ function Frente() {
     <div className="min-h-screen flex flex-col bg-background">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b bg-sidebar text-sidebar-foreground px-3 py-2 text-sm">
         <div className="flex items-center gap-2 font-bold"><Store className="size-5" /> Frente de loja</div>
-        {lojas.length > 1 || lojaAtual === TODAS ? (
+        {podeTrocar && (lojas.length > 1 || lojaAtual === TODAS) ? (
           <select value={filtroLoja ?? ""} onChange={(e) => setLojaAtual(e.target.value)} className="h-8 rounded bg-sidebar-accent px-2 text-sm">
             <option value="" disabled>Escolha a loja…</option>
             {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
@@ -57,7 +58,7 @@ function Frente() {
         <Button size="sm" variant="ghost" className="text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut}><LogOut /> Sair</Button>
       </header>
       <main className="flex-1">
-        {filtroLoja ? <PdvTela /> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
+        {precisaEscolher ? <EscolherEmpresa /> : filtroLoja ? <PdvTela /> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
       </main>
     </div>
   );

@@ -4,11 +4,15 @@ import { Building2, ChevronDown, FolderOpen, LogOut, Menu, Repeat, Store } from 
 import { LojaProvider, TODAS, useLoja } from "@/lib/loja";
 import { useVisual } from "@/lib/visual";
 import { LayoutTopo } from "@/components/layout-topo";
+import { PermissoesProvider, usePermissoes } from "@/lib/permissoes";
+import { EscolherEmpresa } from "@/components/escolher-empresa";
 
 /** Visual escolhido em Minha conta: clássico (menu lateral) ou ERP (menu no topo). */
 function EscolhaVisual() {
   const visual = useVisual();
-  return visual === "erp" ? <LayoutTopo /> : <AppShell />;
+  const { precisaEscolher } = useLoja();
+  if (precisaEscolher) return <EscolherEmpresa />;
+  return <PermissoesProvider>{visual === "erp" ? <LayoutTopo /> : <AppShell />}</PermissoesProvider>;
 }
 import { useAuth, homeRouteFor } from "@/lib/auth";
 import { NAV, canAccess } from "@/lib/nav";
@@ -35,6 +39,10 @@ function SeletorLoja() {
   const { role } = useAuth();
   const { lojas, lojaAtual, setLojaAtual } = useLoja();
   if (lojas.length === 0) return null;
+  if (role !== "admin") {
+    const l = lojas.find((x) => x.id === lojaAtual) ?? lojas[0];
+    return <div className="px-5 py-2 text-xs opacity-80 border-b border-sidebar-border">Empresa: <b>{l.nome}</b></div>;
+  }
   if (lojas.length === 1 && role !== "admin") {
     return <div className="px-5 py-2 text-xs opacity-80 border-b border-sidebar-border">Loja: <b>{lojas[0].nome}</b></div>;
   }
@@ -63,7 +71,8 @@ function AppShell() {
   const { role, profile, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
-  const items = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto);
+  const { pode } = usePermissoes();
+  const items = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto && (!n.modulo || pode(n.modulo)));
   const ativo = (to: string) => pathname === to || pathname.startsWith(to + "/");
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   // Monta o menu: itens soltos e grupos (na ordem em que aparecem)

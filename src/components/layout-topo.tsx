@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { NAV } from "@/lib/nav";
 import { TODAS, useLoja } from "@/lib/loja";
 import { cn } from "@/lib/utils";
+import { usePermissoes } from "@/lib/permissoes";
 
 export function LayoutTopo() {
   const { role, profile, signOut } = useAuth();
@@ -14,7 +15,8 @@ export function LayoutTopo() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
   const barra = useRef<HTMLDivElement>(null);
-  const itens = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto);
+  const { pode } = usePermissoes();
+  const itens = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto && (!n.modulo || pode(n.modulo)));
   const ativo = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
   // fecha o submenu ao clicar fora ou ao trocar de tela
@@ -35,7 +37,9 @@ export function LayoutTopo() {
     else if (!ordem.some((o) => o.tipo === "grupo" && o.nome === n.grupo)) ordem.push({ tipo: "grupo", nome: n.grupo });
   }
 
-  const seletor = lojas.length > 0 && (
+  const seletor = lojas.length > 0 && role !== "admin" ? (
+    <span className="text-xs">Empresa: <b>{(lojas.find((l) => l.id === lojaAtual) ?? lojas[0]).nome}</b></span>
+  ) : lojas.length > 0 && (
     <label className="flex items-center gap-1 text-xs">
       <Building2 className="size-3.5 text-muted-foreground" />
       <select value={lojaAtual} onChange={(e) => setLojaAtual(e.target.value)} className="h-8 rounded border bg-background px-1 text-xs">

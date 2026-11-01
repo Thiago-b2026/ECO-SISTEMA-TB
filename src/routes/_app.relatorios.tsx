@@ -1,17 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { BarChart3, Building2, CalendarDays, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useLoja } from "@/lib/loja";
+import { useAuth } from "@/lib/auth";
 import { FORMA_LABEL } from "@/lib/caixa";
-import { fmtBRL, fmtDateOnly } from "@/lib/format";
+import { fmtBRL } from "@/lib/format";
 import { formatLocalDateInput } from "@/lib/sale-datetime";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Exportar } from "@/components/exportar";
-import { Barras, RelatoriosExtra } from "@/components/relatorios-extra";
+import { AuditoriaRelatorio } from "@/components/auditoria-relatorio";
+import { Barras, Colunas, RelatoriosExtra, Secao } from "@/components/relatorios-extra";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/relatorios")({ component: PaginaRelatorios });
 
@@ -32,12 +34,37 @@ interface Parado {
   produto_id: string; sku: string; titulo: string; estoque: number; preco_venda: number; dias_parado: number;
 }
 
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+function atalhos(hoje: string) {
+  const h = new Date(hoje + "T12:00:00");
+  const menos = (dias: number) => { const d = new Date(h); d.setDate(d.getDate() - dias); return iso(d); };
+  const mesPassadoIni = new Date(h.getFullYear(), h.getMonth() - 1, 1);
+  const mesPassadoFim = new Date(h.getFullYear(), h.getMonth(), 0);
+  const ano12 = new Date(h.getFullYear(), h.getMonth() - 11, 1);
+  return [
+    { nome: "Hoje", de: hoje, ate: hoje },
+    { nome: "7 dias", de: menos(6), ate: hoje },
+    { nome: "30 dias", de: menos(29), ate: hoje },
+    { nome: "Este mês", de: hoje.slice(0, 8) + "01", ate: hoje },
+    { nome: "Mês passado", de: iso(mesPassadoIni), ate: iso(mesPassadoFim) },
+    { nome: "Este ano", de: hoje.slice(0, 5) + "01-01", ate: hoje },
+    { nome: "12 meses", de: iso(ano12), ate: hoje },
+  ];
+}
+
 function PaginaRelatorios() {
   const { filtroLoja: lojaMenu, lojas } = useLoja();
+  const { role } = useAuth();
+  const admin = role === "admin";
   const [lojaSel, setLojaSel] = useState<string>(lojaMenu ?? "");
-  const filtroLoja = lojaSel || null;
+  // não-admin só vê a própria empresa
+  const filtroLoja = admin ? lojaSel || null : lojaMenu;
+  const [aba, setAba] = useState<"resultados" | "auditoria">("resultados");
   const hoje = formatLocalDateInput();
-  const [de, setDe] = useState(hoje.slice(0, 8) + "01");
+  const ATALHOS = atalhos(hoje);
+  const [de, setDe] = useState(ATALHOS[2].de); // padrão: últimos 30 dias (nunca abre zerado no dia 1º)
   const [ate, setAte] = useState(hoje);
   const [dias, setDias] = useState(30);
   const [rel, setRel] = useState<RelVendas | null>(null);
@@ -59,132 +86,177 @@ function PaginaRelatorios() {
     setParados((c.data ?? []) as Parado[]);
   }
   useEffect(() => {
-    carregar();
-  }, [filtroLoja, de, ate, dias]);
+    if (aba === "resultados") carregar();
+  }, [filtroLoja, de, ate, dias, aba]);
 
+  const nomeLoja = filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome ?? "" : "Todas as lojas";
+  const fmtD = (s: string) => s.split("-").reverse().join("/");
+  const periodo = `${fmtD(de)} a ${fmtD(ate)}`;
   const lucroBruto = rel ? Number(rel.faturamento) - Number(rel.custo) : 0;
-  const maxDia = Math.max(1, ...(rel?.por_dia ?? []).map((d) => Number(d.valor)));
+
+  // muitos dias → agrupa por mês
+  const porDia = rel?.por_dia ?? [];
+  const agruparMes = porDia.length > 62;
+  const serie = agruparMes
+    ? Object.values(porDia.reduce<Record<string, { nome: string; valor: number; vendas: number }>>((acc, d) => {
+        const k = d.dia.slice(0, 7);
+        acc[k] ??= { nome: `${MESES[Number(k.slice(5)) - 1]}/${k.slice(2, 4)}`, valor: 0, vendas: 0 };
+        acc[k].valor += Number(d.valor);
+        acc[k].vendas += Number(d.vendas);
+        return acc;
+      }, {}))
+    : porDia.map((d) => ({ nome: fmtD(d.dia).slice(0, 5), valor: Number(d.valor), vendas: Number(d.vendas) }));
+
+  const totLotes = lotes.reduce((s, l) => ({ custo: s.custo + Number(l.custo_total), receita: s.receita + Number(l.receita), lucro: s.lucro + Number(l.lucro) }), { custo: 0, receita: 0, lucro: 0 });
 
   return (
-    <div className="p-4 lg:p-6 space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Relatórios</h1>
-        <p className="text-sm text-muted-foreground">{filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome : "Todas as lojas"} · pela data da venda</p>
-      </div>
-      <Card className="p-4 flex flex-wrap items-end gap-2">
-        <div><label className="text-xs">De</label><Input type="date" value={de} onChange={(e) => setDe(e.target.value)} /></div>
-        <div><label className="text-xs">Até</label><Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} /></div>
-        <Button size="sm" variant="outline" onClick={() => { setDe(hoje); setAte(hoje); }}>Hoje</Button>
-        <Button size="sm" variant="outline" onClick={() => { setDe(hoje.slice(0, 8) + "01"); setAte(hoje); }}>Este mês</Button>
-        <Button size="sm" variant="outline" onClick={() => { setDe(hoje.slice(0, 5) + "01-01"); setAte(hoje); }}>Este ano</Button>
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1400px] mx-auto">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <label className="text-xs">Loja</label>
-          <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-            <option value="">Todas as lojas</option>
-            {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
-          </select>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><BarChart3 className="size-6 text-primary" /> Relatórios</h1>
+          <p className="text-sm text-muted-foreground">{aba === "resultados" ? <>{nomeLoja} · {periodo} · pela data da venda</> : "Quem inseriu, alterou ou excluiu dados no sistema"}</p>
         </div>
-        {rel && (
-          <div className="ml-auto">
-            <Exportar titulo="Vendas por dia" subtitulo={`${filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome : "Todas as lojas"} · ${de} a ${ate}`}
-              colunas={[{ titulo: "Dia" }, { titulo: "Vendas", numero: true }, { titulo: "Faturamento (R$)", numero: true }]}
-              linhas={() => rel.por_dia.map((d) => [d.dia.split("-").reverse().join("/"), d.vendas, Number(d.valor)])} />
+        {admin && (
+          <div className="inline-flex rounded-lg border bg-card p-1">
+            {([["resultados", "Resultados", BarChart3], ["auditoria", "Auditoria", ShieldCheck]] as const).map(([id, nome, Icone]) => (
+              <button key={id} onClick={() => setAba(id)} className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm", aba === id ? "bg-primary text-primary-foreground font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                <Icone className="size-4" /> {nome}
+              </button>
+            ))}
           </div>
         )}
-        {carregando && <Loader2 className="animate-spin text-muted-foreground" />}
-      </Card>
+      </div>
 
-      {rel && (
+      {aba === "auditoria" && admin ? <AuditoriaRelatorio lojaId={filtroLoja} /> : (
         <>
-          <RelatoriosExtra lojaId={filtroLoja} de={de} ate={ate} />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Kpi titulo="Lucro bruto (vendas com custo)" valor={fmtBRL(lucroBruto)} sub="vendas do sistema antigo não têm custo" />
-            <Kpi titulo="Margem bruta" valor={Number(rel.faturamento) > 0 ? `${((lucroBruto / Number(rel.faturamento)) * 100).toFixed(1)}%` : "—"} />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Card className="p-4 space-y-2">
-              <h2 className="font-semibold">Formas de pagamento</h2>
-              <Barras titulo="" dados={rel.por_forma.map((f) => ({ nome: FORMA_LABEL[f.forma] ?? f.forma, valor: Number(f.valor), dica: `${FORMA_LABEL[f.forma] ?? f.forma}: ${fmtBRL(Number(f.valor))} em ${f.vendas} vendas` }))} />
-              {rel.por_forma.length === 0 && <p className="text-sm text-muted-foreground">Sem vendas.</p>}
-            </Card>
-            <Card className="p-4 space-y-2">
-              <h2 className="font-semibold">Por vendedor</h2>
-              <Barras titulo="" dados={rel.por_vendedor.map((v) => ({ nome: v.vendedor, valor: Number(v.valor), dica: `${v.vendedor}: ${fmtBRL(Number(v.valor))} em ${v.vendas} vendas` }))} />
-            </Card>
-          </div>
-
-          <Card className="p-4 space-y-2">
-            <h2 className="font-semibold">Faturamento por dia</h2>
-            <div className="space-y-1">
-              {rel.por_dia.map((d) => (
-                <div key={d.dia} className="flex items-center gap-2 text-xs" title={`${fmtDateOnly(d.dia + "T12:00:00")}: ${fmtBRL(Number(d.valor))} em ${d.vendas} vendas`}>
-                  <span className="w-20 shrink-0">{fmtDateOnly(d.dia + "T12:00:00")}</span>
-                  <div className="h-4 rounded bg-primary/70" style={{ width: `${(Number(d.valor) / maxDia) * 70}%` }} />
-                  <span className="whitespace-nowrap">{fmtBRL(Number(d.valor))} · {d.vendas}</span>
-                </div>
+          {/* Filtros: fixos no topo ao rolar */}
+          <Card className="sticky top-12 z-20 p-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <CalendarDays className="size-4 text-muted-foreground" />
+              {ATALHOS.map((a) => (
+                <button key={a.nome} onClick={() => { setDe(a.de); setAte(a.ate); }}
+                  className={cn("rounded-full border px-3 py-1 text-xs transition-colors", de === a.de && ate === a.ate ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                  {a.nome}
+                </button>
               ))}
+              <div className="flex items-center gap-1">
+                <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="h-8 w-36 text-xs" aria-label="De" />
+                <span className="text-xs text-muted-foreground">até</span>
+                <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} className="h-8 w-36 text-xs" aria-label="Até" />
+              </div>
+              {admin ? (
+                <label className="flex items-center gap-1">
+                  <Building2 className="size-4 text-muted-foreground" />
+                  <select value={lojaSel} onChange={(e) => setLojaSel(e.target.value)} className="h-8 rounded-md border bg-background px-2 text-xs">
+                    <option value="">Todas as lojas</option>
+                    {lojas.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <span className="flex items-center gap-1 text-xs"><Building2 className="size-4 text-muted-foreground" /> {nomeLoja}</span>
+              )}
+              {carregando && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
             </div>
           </Card>
+
+          {rel && (
+            <>
+              <RelatoriosExtra lojaId={filtroLoja} de={de} ate={ate} todas={!filtroLoja}
+                extras={[
+                  { titulo: "Lucro bruto", valor: fmtBRL(lucroBruto), sub: "só vendas com custo (PDV novo)" },
+                  { titulo: "Margem bruta", valor: Number(rel.faturamento) > 0 ? `${((lucroBruto / Number(rel.faturamento)) * 100).toFixed(1)}%` : "—", sub: "lucro ÷ faturamento" },
+                ]}>
+                <Secao titulo={agruparMes ? "Faturamento por mês" : "Faturamento por dia"} desc="passe o mouse nas colunas para ver o valor"
+                  acoes={<Exportar titulo={agruparMes ? "Faturamento por mês" : "Faturamento por dia"} subtitulo={`${nomeLoja} · ${periodo}`}
+                    colunas={[{ titulo: agruparMes ? "Mês" : "Dia" }, { titulo: "Vendas", numero: true }, { titulo: "Faturamento (R$)", numero: true }]}
+                    linhas={() => (agruparMes ? serie.map((s) => [s.nome, s.vendas, s.valor]) : porDia.map((d) => [fmtD(d.dia), Number(d.vendas), Number(d.valor)]))} />}>
+                  <Colunas dados={serie.map((s) => ({ nome: s.nome, valor: s.valor, dica: `${s.nome}: ${fmtBRL(s.valor)} em ${s.vendas} vendas` }))} />
+                </Secao>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Secao titulo="Formas de pagamento" acoes={<Exportar titulo="Formas de pagamento" subtitulo={`${nomeLoja} · ${periodo}`} colunas={[{ titulo: "Forma" }, { titulo: "Vendas", numero: true }, { titulo: "Valor (R$)", numero: true }]} linhas={() => rel.por_forma.map((f) => [FORMA_LABEL[f.forma] ?? f.forma, f.vendas, Number(f.valor)])} />}>
+                    <Barras dados={rel.por_forma.map((f) => ({ nome: FORMA_LABEL[f.forma] ?? f.forma, valor: Number(f.valor), dica: `${FORMA_LABEL[f.forma] ?? f.forma}: ${fmtBRL(Number(f.valor))} em ${f.vendas} vendas` }))} total={Number(rel.faturamento)} />
+                  </Secao>
+                  <Secao titulo="Por vendedor" acoes={<Exportar titulo="Vendas por vendedor" subtitulo={`${nomeLoja} · ${periodo}`} colunas={[{ titulo: "Vendedor" }, { titulo: "Vendas", numero: true }, { titulo: "Valor (R$)", numero: true }]} linhas={() => rel.por_vendedor.map((v) => [v.vendedor, v.vendas, Number(v.valor)])} />}>
+                    <Barras dados={rel.por_vendedor.map((v) => ({ nome: v.vendedor, valor: Number(v.valor), dica: `${v.vendedor}: ${fmtBRL(Number(v.valor))} em ${v.vendas} vendas` }))} total={Number(rel.faturamento)} />
+                  </Secao>
+                </div>
+              </RelatoriosExtra>
+            </>
+          )}
+
+          <Secao titulo="Resultado por lote" desc="quanto cada lote já devolveu do que custou (todo o período)"
+            acoes={<Exportar titulo="Resultado por lote" subtitulo={nomeLoja} colunas={[{ titulo: "Lote" }, { titulo: "Entraram", numero: true }, { titulo: "Vendidos", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "Receita (R$)", numero: true }, { titulo: "Lucro (R$)", numero: true }, { titulo: "Estoque restante", numero: true }]}
+              linhas={() => lotes.map((l) => [l.lote, Number(l.itens_entrada), Number(l.itens_vendidos), Number(l.custo_total), Number(l.receita), Number(l.lucro), Number(l.estoque_restante)])} />}>
+            {lotes.length === 0 ? <Vazio>Nenhum lote lançado no estoque ainda.</Vazio> : (
+              <div className="overflow-x-auto max-h-[28rem]">
+                <table className="w-full text-sm">
+                  <thead><tr><th>Lote</th><th className="text-right">Entraram</th><th className="text-right">Vendidos</th><th className="text-right">Custo</th><th className="text-right">Receita</th><th className="text-right">Lucro</th><th className="w-40">Retorno</th></tr></thead>
+                  <tbody>
+                    {lotes.map((l) => {
+                      const ret = Number(l.custo_total) > 0 ? (Number(l.receita) / Number(l.custo_total)) * 100 : 0;
+                      return (
+                        <tr key={l.lote_id}>
+                          <td className="font-medium">{l.lote}</td>
+                          <td className="text-right">{Number(l.itens_entrada)}</td>
+                          <td className="text-right">{Number(l.itens_vendidos)}</td>
+                          <td className="text-right">{fmtBRL(Number(l.custo_total))}</td>
+                          <td className="text-right">{fmtBRL(Number(l.receita))}</td>
+                          <td className={cn("text-right font-semibold", Number(l.lucro) < 0 && "text-destructive")}>{fmtBRL(Number(l.lucro))}</td>
+                          <td>
+                            {Number(l.custo_total) > 0 ? (
+                              <div className="flex items-center gap-2" title={`Já voltou ${Math.round(ret)}% do custo`}>
+                                <div className="h-2 flex-1 rounded-full bg-muted"><div className={cn("h-2 rounded-full", ret >= 100 ? "bg-success" : "bg-primary")} style={{ width: `${Math.min(100, ret)}%` }} /></div>
+                                <span className="w-11 text-right text-xs">{Math.round(ret)}%</span>
+                              </div>
+                            ) : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot><tr><td>Total</td><td /><td /><td className="text-right">{fmtBRL(totLotes.custo)}</td><td className="text-right">{fmtBRL(totLotes.receita)}</td><td className="text-right">{fmtBRL(totLotes.lucro)}</td><td /></tr></tfoot>
+                </table>
+              </div>
+            )}
+          </Secao>
+
+          <Secao titulo="Itens parados" desc="produtos com estoque que não vendem há muito tempo"
+            acoes={<>
+              <div className="inline-flex rounded-md border p-0.5">
+                {[30, 60, 90].map((d) => <button key={d} onClick={() => setDias(d)} className={cn("rounded px-2.5 py-1 text-xs", dias === d ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>+{d} dias</button>)}
+              </div>
+              <Exportar titulo={`Itens parados há mais de ${dias} dias`} subtitulo={nomeLoja} colunas={[{ titulo: "SKU" }, { titulo: "Produto" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Dias parado", numero: true }]}
+                linhas={() => parados.map((p) => [p.sku, p.titulo, Number(p.estoque), Number(p.preco_venda), p.dias_parado])} />
+            </>}>
+            {parados.length === 0 ? <Vazio>Nenhum item parado nesse prazo.</Vazio> : (
+              <div className="overflow-x-auto max-h-[28rem]">
+                <table className="w-full text-sm">
+                  <thead><tr><th>Produto</th><th className="text-right">Estoque</th><th className="text-right">Preço</th><th className="text-right">Valor parado</th><th className="text-right">Parado há</th></tr></thead>
+                  <tbody>
+                    {parados.map((p) => (
+                      <tr key={p.produto_id}>
+                        <td>{p.titulo} <span className="text-xs text-muted-foreground">{p.sku}</span></td>
+                        <td className="text-right">{Number(p.estoque)} un.</td>
+                        <td className="text-right">{fmtBRL(Number(p.preco_venda))}</td>
+                        <td className="text-right">{fmtBRL(Number(p.estoque) * Number(p.preco_venda))}</td>
+                        <td className="text-right"><span className={cn("rounded px-1.5 py-0.5 text-xs font-medium", p.dias_parado >= 90 ? "bg-destructive/15 text-destructive" : "bg-warning/20")}>{p.dias_parado} dias</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr><td>{parados.length} produto(s)</td><td className="text-right">{parados.reduce((s, p) => s + Number(p.estoque), 0)} un.</td><td /><td className="text-right">{fmtBRL(parados.reduce((s, p) => s + Number(p.estoque) * Number(p.preco_venda), 0))}</td><td /></tr></tfoot>
+                </table>
+              </div>
+            )}
+          </Secao>
         </>
       )}
-
-      <Card className="p-4 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Resultado por lote</h2>
-          <Exportar titulo="Resultado por lote" colunas={[{ titulo: "Lote" }, { titulo: "Entraram", numero: true }, { titulo: "Vendidos", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "Receita (R$)", numero: true }, { titulo: "Lucro (R$)", numero: true }, { titulo: "Estoque restante", numero: true }]}
-            linhas={() => lotes.map((l) => [l.lote, Number(l.itens_entrada), Number(l.itens_vendidos), Number(l.custo_total), Number(l.receita), Number(l.lucro), Number(l.estoque_restante)])} /></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-muted-foreground"><tr className="border-b"><th className="py-2 pr-2">Lote</th><th className="py-2 pr-2 text-right">Entraram</th><th className="py-2 pr-2 text-right">Vendidos</th><th className="py-2 pr-2 text-right">Custo do lote</th><th className="py-2 pr-2 text-right">Receita</th><th className="py-2 pr-2 text-right">Lucro</th><th className="py-2 pr-2 text-right">Retorno</th></tr></thead>
-            <tbody>
-              {lotes.map((l) => (
-                <tr key={l.lote_id} className="border-b last:border-0">
-                  <td className="py-2 pr-2 font-medium">{l.lote}</td>
-                  <td className="py-2 pr-2 text-right">{Number(l.itens_entrada)}</td>
-                  <td className="py-2 pr-2 text-right">{Number(l.itens_vendidos)}</td>
-                  <td className="py-2 pr-2 text-right">{fmtBRL(Number(l.custo_total))}</td>
-                  <td className="py-2 pr-2 text-right">{fmtBRL(Number(l.receita))}</td>
-                  <td className="py-2 pr-2 text-right font-semibold">{fmtBRL(Number(l.lucro))}</td>
-                  <td className="py-2 pr-2 text-right">{Number(l.custo_total) > 0 ? `${Math.round((Number(l.receita) / Number(l.custo_total)) * 100)}%` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {lotes.length === 0 && <p className="text-sm text-muted-foreground">Nenhum lote lançado no estoque ainda.</p>}
-        </div>
-      </Card>
-
-      <Card className="p-4 space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold">Itens parados há mais de</h2>
-          {[30, 60, 90].map((d) => <Button key={d} size="sm" variant={dias === d ? "default" : "outline"} onClick={() => setDias(d)}>{d} dias</Button>)}
-          <div className="ml-auto"><Exportar titulo={`Itens parados há mais de ${dias} dias`} colunas={[{ titulo: "SKU" }, { titulo: "Produto" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Dias parado", numero: true }]}
-            linhas={() => parados.map((p) => [p.sku, p.titulo, Number(p.estoque), Number(p.preco_venda), p.dias_parado])} /></div>
-        </div>
-        <table className="w-full text-sm">
-          <tbody>
-            {parados.map((p) => (
-              <tr key={p.produto_id} className="border-b last:border-0">
-                <td className="py-1.5 pr-2">{p.titulo} <span className="text-xs text-muted-foreground">{p.sku}</span></td>
-                <td className="py-1.5 pr-2 text-right">{Number(p.estoque)} un.</td>
-                <td className="py-1.5 pr-2 text-right">{fmtBRL(Number(p.preco_venda))}</td>
-                <td className="py-1.5 text-right text-warning font-medium">{p.dias_parado} dias</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {parados.length === 0 && <p className="text-sm text-muted-foreground">Nenhum item parado nesse prazo.</p>}
-      </Card>
     </div>
   );
 }
 
-function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: string }) {
-  return (
-    <Card className="p-4">
-      <div className="text-sm text-muted-foreground">{titulo}</div>
-      <div className="text-2xl font-bold">{valor}</div>
-      {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
-    </Card>
-  );
+function Vazio({ children }: { children: ReactNode }) {
+  return <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">{children}</p>;
 }
+

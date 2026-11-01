@@ -22,10 +22,17 @@ interface LojaState {
   recarregar: () => Promise<void>;
   /** Filtro para consultas: null = todas as lojas permitidas */
   filtroLoja: string | null;
+  /** Não-admin com mais de uma loja ainda não escolheu a empresa desta sessão */
+  precisaEscolher: boolean;
+  /** Pode trocar de loja pelo menu (só admin) */
+  podeTrocar: boolean;
+  escolherEmpresa: (id: string) => void;
 }
 
 const Ctx = createContext<LojaState | undefined>(undefined);
 const CHAVE = "eco.lojaAtual";
+const SESSAO = "eco.lojaSessao";
+const lerSessao = () => { try { return sessionStorage.getItem(SESSAO); } catch { return null; } };
 
 function lerSalvo(): string | null {
   try {
@@ -55,9 +62,26 @@ export function LojaProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) recarregar();
+    else { try { sessionStorage.removeItem(SESSAO); } catch { /* sem storage */ } }
   }, [user?.id, role]);
 
+  const admin = role === "admin";
+  const [sessao, setSessao] = useState<string | null>(lerSessao());
+  // não-admin: a loja é a escolhida no login (ou a única que ele tem)
+  useEffect(() => {
+    if (admin || !lojas.length) return;
+    const fixa = lojas.length === 1 ? lojas[0].id : sessao && lojas.some((l) => l.id === sessao) ? sessao : null;
+    if (fixa && lojaAtual !== fixa) setLojaAtualState(fixa);
+  }, [admin, lojas, sessao]);
+  function escolherEmpresa(id: string) {
+    try { sessionStorage.setItem(SESSAO, id); } catch { /* sem storage */ }
+    setSessao(id);
+    setLojaAtualState(id);
+  }
+  const precisaEscolher = !admin && !carregando && lojas.length > 1 && !(sessao && lojas.some((l) => l.id === sessao));
+
   function setLojaAtual(id: string) {
+    if (!admin) return; // só o admin troca de loja
     setLojaAtualState(id);
     try {
       localStorage.setItem(CHAVE, id);
@@ -69,7 +93,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const filtroLoja = lojaAtual === TODAS || !lojaAtual ? null : lojaAtual;
 
   return (
-    <Ctx.Provider value={{ lojas, lojaAtual, setLojaAtual, carregando, recarregar, filtroLoja }}>
+    <Ctx.Provider value={{ lojas, lojaAtual, setLojaAtual, carregando, recarregar, filtroLoja, precisaEscolher, podeTrocar: admin, escolherEmpresa }}>
       {children}
     </Ctx.Provider>
   );
