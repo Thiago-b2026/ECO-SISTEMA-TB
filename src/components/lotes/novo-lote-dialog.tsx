@@ -38,6 +38,7 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const [colEan, setColEan] = useState("");
   const [colGrade, setColGrade] = useState("F");
   const [colCategoria, setColCategoria] = useState("L");
+  const [colSub, setColSub] = useState("M");
   const [linhaInicial, setLinhaInicial] = useState("2");
   const [salvando, setSalvando] = useState(false);
 
@@ -61,7 +62,8 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       const iEan = colEan.trim() ? colunaParaIndice(colEan) : -2;
       const iGrade = colGrade.trim() ? colunaParaIndice(colGrade) : -2;
       const iCat = colCategoria.trim() ? colunaParaIndice(colCategoria) : -2;
-      if (iProd < 0 || [iValor, iQtd, iEan, iGrade, iCat].includes(-1)) return toast.error("Use letras de coluna (ex.: A, D, AB).");
+      const iSub = colSub.trim() ? colunaParaIndice(colSub) : -2;
+      if (iProd < 0 || [iValor, iQtd, iEan, iGrade, iCat, iSub].includes(-1)) return toast.error("Use letras de coluna (ex.: A, D, AB).");
       try {
         const linhas = await lerPlanilha(arquivo);
         const inicio = Math.max(1, Number(linhaInicial) || 1) - 1;
@@ -73,7 +75,8 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           const ean = iEan >= 0 ? String(l[iEan] ?? "").replace(/\D/g, "") || null : null;
           const grade = iGrade >= 0 ? String(l[iGrade] ?? "").trim().toUpperCase().slice(0, 3) || "A" : "A";
           const categoria = iCat >= 0 ? String(l[iCat] ?? "").trim() || null : null;
-          return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria }];
+          const subcategoria = iSub >= 0 ? String(l[iSub] ?? "").trim() || null : null;
+          return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria, subcategoria }];
         });
       } catch (err) {
         return toast.error((err as Error).message);
@@ -189,6 +192,7 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 <Campo label="Quantidade" value={colQtd} onChange={setColQtd} placeholder="opcional" />
                 <Campo label="Grade" value={colGrade} onChange={setColGrade} placeholder="opcional" />
                 <Campo label="Categoria" value={colCategoria} onChange={setColCategoria} placeholder="opcional" />
+                <Campo label="Subcategoria" value={colSub} onChange={setColSub} placeholder="opcional" />
                 <Campo label="Cód. barras (EAN)" value={colEan} onChange={setColEan} placeholder="opcional" />
               </div>
               <Campo label="Primeira linha com produto" value={linhaInicial} onChange={setLinhaInicial} />

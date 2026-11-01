@@ -1,5 +1,5 @@
 // Busca produtos no Mercado Livre por código de barras, nome ou link.
-// Body: { tipo: "ean" | "nome" | "link", valor: string, limite?: number }
+// Body: { tipo: "ean" | "nome" | "link" | "categoria", valor: string, limite?: number }
 // Resposta: { candidatos: Candidato[] }
 import { cors, exigirPapel, json, mlGet, SITE, tokenValido } from "../_shared/ml.ts";
 import { candidatoDeItem, candidatoDeProduto, ehCodigoDeBarras, extrairIdDoLink, precoDosAnuncios, type Candidato } from "../_shared/ml-parse.ts";
@@ -54,6 +54,11 @@ Deno.serve(async (req) => {
         const item = await mlGet(`/items/${alvo.id}`, token);
         candidatos = [candidatoDeItem(item)];
       }
+    } else if (tipo === "categoria") {
+      // Caminho da categoria no ML (para o mercadológico): [{ id, name }, ...]
+      if (!/^MLB\d+$/i.test(texto)) return json({ erro: "Categoria inválida." }, 400);
+      const c = await mlGet(`/categories/${texto.toUpperCase()}`, token);
+      return json({ caminho: (c.path_from_root ?? []).map((p: any) => ({ id: p.id, nome: p.name })) });
     } else {
       return json({ erro: "Tipo de busca inválido." }, 400);
     }
