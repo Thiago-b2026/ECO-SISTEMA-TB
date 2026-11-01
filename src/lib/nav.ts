@@ -59,7 +59,7 @@ export const NAV: NavItem[] = [
   { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Movimento" },
 
   { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1 },
-  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 2 },
+  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1 },
   { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: GESTOR, fase: 0 },
 
   // Rotas sem item no menu

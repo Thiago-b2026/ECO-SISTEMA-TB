@@ -10,6 +10,7 @@ import { formatLocalDateInput } from "@/lib/sale-datetime";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Barras, RelatoriosExtra } from "@/components/relatorios-extra";
 
 export const Route = createFileRoute("/_app/relatorios")({ component: PaginaRelatorios });
 
@@ -78,26 +79,21 @@ function PaginaRelatorios() {
 
       {rel && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi titulo="Faturamento" valor={fmtBRL(Number(rel.faturamento))} />
-            <Kpi titulo="Vendas" valor={String(rel.vendas)} />
-            <Kpi titulo="Ticket médio" valor={fmtBRL(Number(rel.ticket_medio))} />
-            <Kpi titulo="Lucro bruto (com custo)" valor={fmtBRL(lucroBruto)} sub="vendas antigas não têm custo" />
+          <RelatoriosExtra lojaId={filtroLoja} de={de} ate={ate} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Kpi titulo="Lucro bruto (vendas com custo)" valor={fmtBRL(lucroBruto)} sub="vendas do sistema antigo não têm custo" />
+            <Kpi titulo="Margem bruta" valor={Number(rel.faturamento) > 0 ? `${((lucroBruto / Number(rel.faturamento)) * 100).toFixed(1)}%` : "—"} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="p-4 space-y-2">
               <h2 className="font-semibold">Formas de pagamento</h2>
-              {rel.por_forma.map((f) => (
-                <div key={f.forma} className="flex justify-between text-sm"><span>{FORMA_LABEL[f.forma] ?? f.forma} <span className="text-muted-foreground">({f.vendas})</span></span><b>{fmtBRL(Number(f.valor))}</b></div>
-              ))}
+              <Barras titulo="" dados={rel.por_forma.map((f) => ({ nome: FORMA_LABEL[f.forma] ?? f.forma, valor: Number(f.valor), dica: `${FORMA_LABEL[f.forma] ?? f.forma}: ${fmtBRL(Number(f.valor))} em ${f.vendas} vendas` }))} />
               {rel.por_forma.length === 0 && <p className="text-sm text-muted-foreground">Sem vendas.</p>}
             </Card>
             <Card className="p-4 space-y-2">
               <h2 className="font-semibold">Por vendedor</h2>
-              {rel.por_vendedor.map((v) => (
-                <div key={v.vendedor} className="flex justify-between text-sm"><span>{v.vendedor} <span className="text-muted-foreground">({v.vendas})</span></span><b>{fmtBRL(Number(v.valor))}</b></div>
-              ))}
+              <Barras titulo="" dados={rel.por_vendedor.map((v) => ({ nome: v.vendedor, valor: Number(v.valor), dica: `${v.vendedor}: ${fmtBRL(Number(v.valor))} em ${v.vendas} vendas` }))} />
             </Card>
           </div>
 
@@ -105,7 +101,7 @@ function PaginaRelatorios() {
             <h2 className="font-semibold">Faturamento por dia</h2>
             <div className="space-y-1">
               {rel.por_dia.map((d) => (
-                <div key={d.dia} className="flex items-center gap-2 text-xs">
+                <div key={d.dia} className="flex items-center gap-2 text-xs" title={`${fmtDateOnly(d.dia + "T12:00:00")}: ${fmtBRL(Number(d.valor))} em ${d.vendas} vendas`}>
                   <span className="w-20 shrink-0">{fmtDateOnly(d.dia + "T12:00:00")}</span>
                   <div className="h-4 rounded bg-primary/70" style={{ width: `${(Number(d.valor) / maxDia) * 70}%` }} />
                   <span className="whitespace-nowrap">{fmtBRL(Number(d.valor))} · {d.vendas}</span>
