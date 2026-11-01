@@ -1,13 +1,13 @@
 // Gera o SQL de importação do HISTÓRICO de vendas do PDV antigo (Lovable).
-// Entram como origem = 'legado', na loja Matriz, sem mexer em estoque nem caixa.
+// Entram como origem = 'legado', na loja indicada (padrão: loja de código MATRIZ), sem mexer em estoque nem caixa.
 // Pode rodar de novo sem duplicar (on conflict do nothing).
 //
 // Uso:
-//   node scripts/gerar-sql-historico.ts "<sales-com-data-suspeita.csv>" "<sale_items.csv>" "<saida.sql>"
+//   node scripts/gerar-sql-historico.ts "<sales-com-data-suspeita.csv>" "<sale_items.csv>" "<saida.sql>" [cnpj-da-loja] [sale_cancellations.csv]
 // Depois: npx supabase db query --linked --project-ref <ref> -f "<saida.sql>"
 import { readFileSync, writeFileSync } from "node:fs";
 
-const [arqVendas, arqItens, saida] = process.argv.slice(2);
+const [arqVendas, arqItens, saida, cnpjLoja, arqCancel] = process.argv.slice(2);
 if (!arqVendas || !arqItens || !saida) {
   console.error('Uso: node scripts/gerar-sql-historico.ts "<vendas.csv>" "<itens.csv>" "<saida.sql>"');
   process.exit(1);
@@ -42,7 +42,11 @@ const num = (v: string) => {
 };
 const ts = (v: string) => (v ? `'${v.replace(" ", "T")}'::timestamptz` : "now()");
 const FORMAS = new Set(["dinheiro", "pix", "debito", "credito"]);
-const LOJA = "(select id from public.lojas where codigo = 'MATRIZ')";
+const cnpj = (cnpjLoja ?? "").replace(/D/g, "");
+const LOJA = cnpj ? `(select id from public.lojas where cnpj = '${cnpj}')` : "(select id from public.lojas where codigo = 'MATRIZ')";
+// motivo/data do cancelamento (o último registro de cada venda vale)
+const cancel = new Map<string, { motivo: string; quando: string }>();
+if (arqCancel) for (const c of lerCsv(arqCancel)) cancel.set(c.sale_id, { motivo: c.motivo, quando: c.cancelled_at });
 
 const vendas = lerCsv(arqVendas);
 const itens = lerCsv(arqItens);
@@ -53,12 +57,13 @@ const lote = <T,>(xs: T[], n = 500) => Array.from({ length: Math.ceil(xs.length 
 
 for (const bloco of lote(vendas)) {
   sql.push(
-    "insert into public.vendas (id, numero, loja_id, vendedor_nome, subtotal, desconto, total, status, origem, data_venda, data_suspeita, motivo_data_suspeita, observacao, created_at) values\n" +
+    "insert into public.vendas (id, numero, loja_id, vendedor_nome, subtotal, desconto, total, status, origem, data_venda, data_suspeita, motivo_data_suspeita, observacao, created_at, motivo_cancelamento, cancelado_em) values\n" +
       bloco
         .map((v) =>
-          `(${txt(v.id)}, ${num(v.numero)}, ${LOJA}, ${txt(v.vendedor_nome)}, ${num(v.subtotal)}, ${Math.max(0, Number(num(v.desconto)))}, ${num(v.total)}, ` +
+          `(${txt(v.id)}, ${num(v.numero)}, ${LOJA}, ${txt(v.vendedor_nome?.trim())}, ${num(v.subtotal)}, ${Math.max(0, Number(num(v.desconto)))}, ${num(v.total)}, ` +
           `${v.status === "cancelada" ? "'cancelada'" : "'finalizada'"}, 'legado', ${ts(v.data_venda)}, ${v.data_suspeita === "true"}, ` +
-          `${txt(v.motivo_data_suspeita)}, ${txt(v.observacao)}, ${ts(v.created_at)})`,
+          `${txt(v.motivo_data_suspeita)}, ${txt(v.observacao)}, ${ts(v.created_at)}, ` +
+          `${txt(cancel.get(v.id)?.motivo)}, ${cancel.get(v.id)?.quando ? ts(cancel.get(v.id)!.quando) : "null"})`,
         )
         .join(",\n") +
       "\non conflict (id) do nothing;",

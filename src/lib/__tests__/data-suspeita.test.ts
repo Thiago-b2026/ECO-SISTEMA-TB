@@ -19,6 +19,11 @@ describe("motivoDataSuspeita", () => {
     expect(motivoDataSuspeita("2026-07-18 12:00:00+00", criada)).toBe("depois_do_registro");
   });
 
+  it("aceita data de início própria da loja", () => {
+    expect(motivoDataSuspeita("2025-11-10 12:00:00+00", "2026-05-08 00:00:00+00", "2025-11-01")).toBeNull();
+    expect(motivoDataSuspeita("2025-10-31 12:00:00+00", "2026-05-08 00:00:00+00", "2025-11-01")).toBe("antes_do_sistema");
+  });
+
   it("compara dias no fuso de São Paulo, não em UTC", () => {
     // 02:00 UTC do dia 18 ainda é 23:00 do dia 17 em São Paulo → mesmo dia, ok
     expect(motivoDataSuspeita("2026-07-18 02:00:00+00", criada)).toBeNull();

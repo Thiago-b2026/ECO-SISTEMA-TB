@@ -23,11 +23,12 @@ export const MOTIVO_DATA_SUSPEITA_LABEL: Record<MotivoDataSuspeita, string> = {
 export function motivoDataSuspeita(
   dataVenda: string | Date,
   createdAt: string | Date,
+  inicio: string = INICIO_PDV_LEGADO,
 ): MotivoDataSuspeita | null {
   const diaVenda = formatLocalDateInput(normalizar(dataVenda));
   const diaRegistro = formatLocalDateInput(normalizar(createdAt));
 
-  if (diaVenda < INICIO_PDV_LEGADO) return "antes_do_sistema";
+  if (diaVenda < inicio) return "antes_do_sistema";
   if (diaVenda > diaRegistro) return "depois_do_registro";
   return null;
 }

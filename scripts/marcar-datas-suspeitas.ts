@@ -6,7 +6,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { motivoDataSuspeita } from "../src/lib/data-suspeita.ts";
 
-const [entrada, saida] = process.argv.slice(2);
+// 3º argumento opcional: data de início da loja (AAAA-MM-DD). Padrão: 2026-05-01.
+const [entrada, saida, inicio] = process.argv.slice(2);
 if (!entrada || !saida) {
   console.error('Uso: node scripts/marcar-datas-suspeitas.ts "<sales-export.csv>" "<saida.csv>"');
   process.exit(1);
@@ -27,7 +28,7 @@ const saidaLinhas = [[...cabecalho, "data_suspeita", "motivo_data_suspeita"].joi
 
 for (const linha of linhas.slice(1)) {
   const col = linha.split(";");
-  const motivo = motivoDataSuspeita(col[iDataVenda], col[iCriada]);
+  const motivo = motivoDataSuspeita(col[iDataVenda], col[iCriada], inicio || undefined);
   if (motivo) suspeitas.push(`  nº ${col[iNumero]}  venda ${col[iDataVenda]}  registrada ${col[iCriada]}  → ${motivo}`);
   saidaLinhas.push([...col, motivo ? "true" : "false", motivo ?? ""].join(";"));
 }
