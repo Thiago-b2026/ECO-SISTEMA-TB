@@ -1,0 +1,13 @@
+# nunca enviar para a Vercel
+.env
+.env.*
+!.env.example
+prints/
+planilha/
+.tanstack/
+node_modules/
+dist/
+supabase/.temp/
+*.csv
+*.xlsx
+*.sql.bak

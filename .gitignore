@@ -12,3 +12,6 @@ supabase/.branches
 prints/
 planilha/
 .tanstack/
+
+.vercel
+.env*
