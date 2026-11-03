@@ -142,6 +142,13 @@ export async function carregarConfig(): Promise<ConfigArredondamento> {
 }
 
 // ------------------------------------------------------------ busca no ML
+/** O Mercado Livre responde em inglês; traduz os casos de bloqueio. */
+export function traduzirErroML(msg: string): string {
+  if (/forbidden|unauthorized|policies|invalid access token|invalid_token/i.test(msg)) {
+    return "O Mercado Livre recusou a busca (acesso negado). Peça ao administrador para reconectar a conta em Lotes → Configuração Mercado Livre. Enquanto isso, use \"Inserir sem buscar\".";
+  }
+  return msg;
+}
 export type TipoBusca = "ean" | "nome" | "link";
 
 export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Promise<Candidato[]> {
@@ -149,7 +156,7 @@ export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Prom
   if (error) {
     const ctx = (error as { context?: Response }).context;
     const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
-    const e = new Error(body?.erro ?? error.message) as Error & { status?: number };
+    const e = new Error(traduzirErroML(body?.erro ?? error.message)) as Error & { status?: number };
     e.status = ctx?.status;
     throw e;
   }

@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
 import { FiscalDialog } from "@/components/fiscal-dialog";
+import { BotaoCamera } from "@/components/leitor-camera";
 import { Exportar } from "@/components/exportar";
 import { usePermissoes } from "@/lib/permissoes";
 
@@ -311,7 +312,13 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
             <div><Label>Quantidade</Label><Input value={qtd} onChange={(e) => setQtd(e.target.value)} /></div>
             <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="opcional" /></div>
           </div>
-          <div><Label>Código de barras (opcional)</Label><Input value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} /></div>
+          <div>
+            <Label>Código de barras (opcional)</Label>
+            <div className="flex gap-2">
+              <Input value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Bipe, digite ou use a câmera" />
+              <BotaoCamera rotulo="Câmera" onLido={(c) => setEan(c.replace(/\D/g, ""))} />
+            </div>
+          </div>
           <Button onClick={salvar} disabled={salvando} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Cadastrar"}</Button>
         </div>
       </DialogContent>

@@ -1,4 +1,12 @@
-# Contexto do projeto — passagem de sessão (atualizado em 01/11/2026, noite)
+# Contexto do projeto — passagem de sessão (atualizado em 03/11/2026)
+
+## Mudança de pasta (03/11/2026)
+- A raiz do git `C:\PROJETOS_CLAUDE\ECO-SISTEMA-TB` agora é uma pasta guarda-chuva. O sistema fica em
+  **`PDV SALVADOS\`**, ao lado de `CHECK LIST OPERACIONAL\` e `PROJETOS POP\` (essas duas não estão no git).
+- Todos os comandos (`npm ...`, `npx vercel ...`, `npx supabase ...`) rodam dentro de `PDV SALVADOS`.
+- **Vercel**: Settings → Build and Deployment → **Root Directory = `PDV SALVADOS`** precisa estar
+  configurado ANTES do próximo push, senão o deploy quebra.
+- O modo automático do Claude bloqueou `vercel deploy --prod`: o usuário roda com `!`.
 
 Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/escopo.md`,
 `docs/migracao-dados.md`, `docs/mercado-livre-api.md` e `docs/ANALISE-PRECIFICALOTE.md`.
@@ -87,6 +95,9 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   Client ID 6994712218468875, conta SL20260203173040; retorno usa o secret `APP_URL`.
 - **Lotes** estilo PrecificaLote (planilha ML: H produto, E qtd, J valor, F grade, L categoria, M subcategoria),
   robô, desmembrar, avaria parcial, transferir, gráficos, lançar no estoque.
+- **Leitor pela câmera** (03/11, `@zxing/browser`, `src/components/leitor-camera.tsx`): lê código de barras
+  no lote e no produto avulso.
+- Pessoas e Lojas: só admin (03/11). Erro 403 do Mercado Livre aparece traduzido.
 - **Estoque/Produtos**, etiquetas Code128 com editor, dados fiscais.
 - **PDV** (`/pdv` abre `/frente` em janela própria): caixa embutido, venda atômica `finalizar_venda`,
   cupom 80 mm, impressões de caixa.
@@ -99,6 +110,8 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   cancelada" ao abrir caixa (bug da 0013/0014). **O usuário precisa aplicar** — confirmar se rodou.
 
 ## Pendências
+0. Configurar Root Directory na Vercel e publicar (push na `main`). Investigar o 403 do ML que o
+   repositor Eder recebeu ao buscar produto no lote (falta saber se o admin também recebe).
 1. Usuário aplicar a migration 0015 e testar: abrir caixa, sangria/suprimento, ajuste de estoque.
 2. Supabase → Authentication → URL Configuration: Site URL e Redirect URLs com
    `https://eco-sistema-tb.vercel.app` (manter localhost); secret `APP_URL` nas Edge Functions.

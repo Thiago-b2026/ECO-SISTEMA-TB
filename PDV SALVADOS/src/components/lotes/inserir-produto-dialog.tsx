@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { BotaoCamera } from "@/components/leitor-camera";
 import { cn } from "@/lib/utils";
 
 type Aba = TipoBusca | "manual";
@@ -71,17 +72,26 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
 
   async function buscar(e: React.FormEvent) {
     e.preventDefault();
-    if (aba === "manual" || !busca.trim()) return;
+    await executarBusca(busca);
+  }
+
+  async function executarBusca(valor: string) {
+    const texto = valor.trim();
+    if (aba === "manual" || !texto) return;
     setBuscando(true);
     setCandidatos(null);
     setEscolhido(null);
+    if (aba === "ean") setEan(texto.replace(/\D/g, ""));
     try {
-      const r = await buscarML(aba, busca.trim(), 5);
+      const r = await buscarML(aba, texto, 5);
       setCandidatos(r);
       if (r.length === 0) toast.info("Nada encontrado no Mercado Livre. Tente pelo nome ou insira sem buscar.");
-      if (aba === "ean") setEan(busca.trim());
     } catch (err) {
-      toast.error((err as Error).message);
+      // Mesmo sem o Mercado Livre, o produto pode ser inserido à mão (o código lido é mantido)
+      toast.error((err as Error).message, {
+        duration: 10000,
+        action: { label: "Inserir sem buscar", onClick: () => setAba("manual") },
+      });
     } finally {
       setBuscando(false);
     }
@@ -162,6 +172,9 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
         {aba !== "manual" && (
           <form onSubmit={buscar} className="flex gap-2">
             <Input ref={campoBusca} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={abaAtual.placeholder} inputMode={aba === "ean" ? "numeric" : undefined} className="h-11" autoFocus />
+            {aba === "ean" && (
+              <BotaoCamera className="h-11" onLido={(codigo) => { setBusca(codigo); void executarBusca(codigo); }} />
+            )}
             <Button type="submit" disabled={buscando} className="h-11">
               {buscando ? <Loader2 className="animate-spin" /> : <Search />} Buscar no ML
             </Button>
@@ -268,7 +281,10 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
               </div>
               <div>
                 <Label className="text-xs">Código de barras</Label>
-                <Input value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
+                <div className="flex gap-2">
+                  <Input value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
+                  <BotaoCamera onLido={(c) => setEan(c.replace(/\D/g, ""))} />
+                </div>
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm">

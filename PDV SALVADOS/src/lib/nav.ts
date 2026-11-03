@@ -48,7 +48,7 @@ export const NAV: NavItem[] = [
   { to: "/pdv", label: "PDV · Frente de loja", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "vendas" },
 
   // Cadastros
-  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Cadastros", modulo: "pessoas" },
+  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin"], fase: 1, grupo: "Cadastros", modulo: "pessoas" },
   { to: "/usuarios", label: "Login de acesso", icon: Users, roles: ["admin"], fase: 1, grupo: "Cadastros" },
   { to: "/produtos", label: "Produtos e estoque", icon: Package, roles: TODOS, fase: 1, grupo: "Cadastros", modulo: "produtos" },
   { to: "/etiquetas", label: "Etiquetas", icon: Tag, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "produtos" },
@@ -67,7 +67,7 @@ export const NAV: NavItem[] = [
   { to: "/crm", label: "CRM e WhatsApp", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "crm" },
   { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, modulo: "relatorios" },
   { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1, modulo: "financeiro" },
-  { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: GESTOR, fase: 0 },
+  { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: ["admin"], fase: 0 },
 
   // Rotas sem item no menu
   { to: "/mercado-livre", label: "Mercado Livre", icon: Store, roles: ["admin", "gerente", "estoquista"], fase: 1, oculto: true },
