@@ -7,6 +7,8 @@ export interface ContaPlano {
   tipo: "receita" | "despesa";
   pai_id: string | null;
   ativo: boolean;
+  /** Categoria do DRE gerencial (null = herda da conta-pai) */
+  dre_categoria_id?: string | null;
 }
 
 /** Ordena "3.1.10" depois de "3.1.9" (compara número a número). */

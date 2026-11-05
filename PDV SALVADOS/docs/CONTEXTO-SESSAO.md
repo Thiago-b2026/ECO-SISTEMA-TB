@@ -97,6 +97,13 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   robô, desmembrar, avaria parcial, transferir, gráficos, lançar no estoque.
 - **Leitor pela câmera** (03/11, `@zxing/browser`, `src/components/leitor-camera.tsx`): lê código de barras
   no lote e no produto avulso.
+- **DRE gerencial** (05/11, aba do Financeiro, `src/components/financeiro-dre.tsx`, migration 0016): veio do projeto
+  Lovable `rhsupermixms-alt/marketwise-margin-map` (Supabase dele: `bnjkflwykzomjotrqfnn`). UNIFICADO: despesas = contas a pagar,
+  agrupadas por `plano_contas.dre_categoria_id` (subcontas herdam); SEPARADO POR EMPRESA; faturamento = vendas do mês ou
+  valor digitado em `dre_faturamento` (prioridade); benchmark padrão em `dre_categorias` e por empresa em `dre_benchmark_loja`.
+  Dados do Lovable importados e conferidos (101 lançamentos `origem='importacao'`, documento `LOV-<id>`; faturamento mai–jul
+  das duas lojas) com `scripts/importar-dre-lovable.mjs` (CSV → SQL; CSVs fora do repo, em Downloads).
+- Supabase CLI novo: escrita pede confirmação → usar `--yes`; o Claude consegue conferir com `--read-only`.
 - Pessoas e Lojas: só admin (03/11). Erro 403 do Mercado Livre aparece traduzido.
 - **Estoque/Produtos**, etiquetas Code128 com editor, dados fiscais.
 - **PDV** (`/pdv` abre `/frente` em janela própria): caixa embutido, venda atômica `finalizar_venda`,

@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Exportar } from "@/components/exportar";
+import { DreGerencial } from "@/components/financeiro-dre";
 
 
 export const Route = createFileRoute("/_app/financeiro")({ component: Financeiro });
@@ -39,7 +40,7 @@ const somarMeses = (iso: string, n: number) => {
   return dt.toISOString().slice(0, 10);
 };
 
-type Aba = "pagar" | "receber" | "fluxo" | "contas";
+type Aba = "pagar" | "receber" | "fluxo" | "contas" | "dre";
 
 function Financeiro() {
   const { filtroLoja, lojas } = useLoja();
@@ -101,7 +102,7 @@ function Financeiro() {
         <Button onClick={() => setNovo(true)} disabled={!filtroLoja && lojas.length > 1}><Plus /> Novo lançamento</Button>
       </div>
       <div className="flex flex-wrap gap-2 border-b pb-2">
-        {([["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["fluxo", "Fluxo de caixa"], ["contas", "Saldos e extrato"]] as const).map(([k, l]) => (
+        {([["pagar", "Contas a pagar"], ["receber", "Contas a receber"], ["fluxo", "Fluxo de caixa"], ["contas", "Saldos e extrato"], ["dre", "DRE gerencial"]] as const).map(([k, l]) => (
           <Button key={k} size="sm" variant={aba === k ? "default" : "ghost"} onClick={() => setAba(k)}>{l}</Button>
         ))}
       </div>
@@ -116,6 +117,7 @@ function Financeiro() {
       )}
       {aba === "fluxo" && <Fluxo lojaId={filtroLoja} />}
       {aba === "contas" && <Contas lojaId={filtroLoja} lancs={lancs ?? []} />}
+      {aba === "dre" && <DreGerencial lojaId={filtroLoja} lojaNome={filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome ?? "" : "Todas as lojas"} />}
 
       {novo && (
         <NovoLanc
@@ -187,7 +189,7 @@ function ListaLanc(props: {
                       <td className="py-2 whitespace-nowrap text-right">
                         {l.status === "aberto" && <Button size="sm" onClick={() => props.onBaixar(l)}>{tipo === "pagar" ? "Pagar" : "Receber"}</Button>}
                         {l.status === "pago" && <Button size="sm" variant="ghost" onClick={() => props.onEstornar(l)}>Estornar</Button>}
-                        {l.status === "aberto" && l.origem === "manual" && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => props.onCancelar(l)}>Cancelar</Button>}
+                        {l.status === "aberto" && l.origem !== "venda" && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => props.onCancelar(l)}>Cancelar</Button>}
                       </td>
                     </tr>
                   );

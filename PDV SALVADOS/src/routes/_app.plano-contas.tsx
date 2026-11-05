@@ -15,11 +15,30 @@ function PaginaPlano() {
   const [contas, setContas] = useState<ContaPlano[] | null>(null);
   const [novo, setNovo] = useState<{ pai: ContaPlano | null; nome: string; tipo: "receita" | "despesa" } | null>(null);
   const [editando, setEditando] = useState<{ id: string; nome: string } | null>(null);
+  const [cats, setCats] = useState<{ id: string; nome: string }[]>([]);
 
   async function carregar() {
     const { data, error } = await supabase.from("plano_contas").select("*");
     if (error) return toast.error(error.message);
     setContas(((data ?? []) as ContaPlano[]).sort((a, b) => compararCodigo(a.codigo, b.codigo)));
+    const c = await supabase.from("dre_categorias").select("id, nome").eq("ativo", true).order("ordem");
+    if (!c.error) setCats(c.data ?? []);
+  }
+
+  async function ligarDre(c: ContaPlano, catId: string) {
+    const { error } = await supabase.from("plano_contas").update({ dre_categoria_id: catId || null }).eq("id", c.id);
+    if (error) return toast.error(error.message);
+    carregar();
+  }
+
+  /** Categoria do DRE que vale para a conta: a dela ou a herdada da conta-pai. */
+  function catHerdada(c: ContaPlano): string | null {
+    let pai = contas?.find((x) => x.id === c.pai_id);
+    while (pai) {
+      if (pai.dre_categoria_id) return pai.dre_categoria_id;
+      pai = contas?.find((x) => x.id === pai!.pai_id);
+    }
+    return null;
   }
   useEffect(() => {
     carregar();
@@ -56,7 +75,7 @@ function PaginaPlano() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-bold">Plano de contas</h1>
-          <p className="text-sm text-muted-foreground">Receitas e despesas em níveis. Passe o mouse numa linha para criar subconta, renomear ou desativar.</p>
+          <p className="text-sm text-muted-foreground">Receitas e despesas em níveis. Passe o mouse numa linha para criar subconta, renomear ou desativar. A coluna "DRE" diz em qual categoria do DRE gerencial a despesa entra (subcontas herdam da conta-pai).</p>
         </div>
         <Button variant="outline" onClick={() => setNovo({ pai: null, nome: "", tipo: "despesa" })}><Plus /> Grupo principal</Button>
       </div>
@@ -86,6 +105,16 @@ function PaginaPlano() {
               ) : (
                 <span className={cn("flex-1", nivel === 1 && "font-semibold")}>{c.nome}</span>
               )}
+              {c.tipo === "despesa" && cats.length > 0 && (() => {
+                const herdada = cats.find((x) => x.id === catHerdada(c))?.nome;
+                return (
+                  <select value={c.dre_categoria_id ?? ""} onChange={(e) => ligarDre(c, e.target.value)} title="Categoria do DRE gerencial"
+                    className={cn("h-7 rounded border bg-background px-1 text-xs", !c.dre_categoria_id && "text-muted-foreground")}>
+                    <option value="">{herdada ? `DRE: ${herdada} (herdada)` : "DRE: sem categoria"}</option>
+                    {cats.map((x) => <option key={x.id} value={x.id}>DRE: {x.nome}</option>)}
+                  </select>
+                );
+              })()}
               <span className={cn("text-[11px] rounded px-1.5", c.tipo === "receita" ? "bg-success/15 text-success" : "bg-destructive/10 text-destructive")}>{c.tipo}</span>
               <span className="flex gap-1 sm:hidden sm:group-hover:flex">
                 {nivel < 4 && <Button size="sm" variant="ghost" className="h-7" onClick={() => setNovo({ pai: c, nome: "", tipo: c.tipo })}><Plus /> Subconta</Button>}
