@@ -102,8 +102,11 @@ export async function mlGet(path: string, token: string): Promise<any> {
     }
     const body = await r.json().catch(() => ({}));
     if (!r.ok) {
-      const e = new Error(body.message ?? `Erro ${r.status} no Mercado Livre`) as Error & { status?: number };
+      const e = new Error(body.message ?? `Erro ${r.status} no Mercado Livre`) as Error & { status?: number; caminho?: string };
       e.status = r.status;
+      e.caminho = path.split("?")[0];
+      // Aparece em Supabase → Edge Functions → ml-buscar → Logs
+      console.error(`ML ${r.status} em ${path}: ${JSON.stringify(body)}`);
       throw e;
     }
     return body;

@@ -20,6 +20,33 @@ export function extrairIdDoLink(link: string): IdDoLink | null {
   return null;
 }
 
+/**
+ * Tira o nome do produto que vem escrito no próprio link (plano B quando o ML
+ * nega a leitura do anúncio).
+ * - produto.mercadolivre.com.br/MLB-123-fone-bluetooth-xyz-_JM → "fone bluetooth xyz"
+ * - mercadolivre.com.br/fone-bluetooth-xyz/p/MLB123            → "fone bluetooth xyz"
+ */
+export function nomeDoLink(link: string): string | null {
+  let caminho: string;
+  try {
+    caminho = decodeURIComponent(new URL(link.trim()).pathname);
+  } catch {
+    return null;
+  }
+  let slug = "";
+  const item = caminho.match(/MLB-?\d+-([^/]+)/i);
+  if (item) slug = item[1];
+  else {
+    const produto = caminho.match(/\/([^/]+)\/p\/MLB\d+/i);
+    if (produto) slug = produto[1];
+  }
+  const nome = slug
+    .replace(/-_J[MP]$/i, "")
+    .replace(/[-_]+/g, " ")
+    .trim();
+  return nome.length >= 3 ? nome : null;
+}
+
 /** Só dígitos, 8 a 14 (EAN-8, UPC-12, EAN-13, GTIN-14). */
 export function ehCodigoDeBarras(valor: string): boolean {
   return /^\d{8,14}$/.test(valor.trim());

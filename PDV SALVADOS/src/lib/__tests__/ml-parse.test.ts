@@ -3,9 +3,25 @@ import {
   candidatoDeProduto,
   ehCodigoDeBarras,
   extrairIdDoLink,
+  nomeDoLink,
   precoDosAnuncios,
   similaridade,
 } from "../../../supabase/functions/_shared/ml-parse.ts";
+
+describe("nomeDoLink", () => {
+  it("tira o nome do link de anúncio", () => {
+    expect(nomeDoLink("https://produto.mercadolivre.com.br/MLB-3456789012-cafeteira-eletrica-oster-_JM#position=1")).toBe(
+      "cafeteira eletrica oster",
+    );
+  });
+  it("tira o nome do link de catálogo", () => {
+    expect(nomeDoLink("https://www.mercadolivre.com.br/liquidificador-philco/p/MLB19529284?x=1")).toBe("liquidificador philco");
+  });
+  it("devolve null quando não há nome", () => {
+    expect(nomeDoLink("https://www.mercadolivre.com.br/up/MLBU123?item_id=MLB998877665")).toBeNull();
+    expect(nomeDoLink("não é link")).toBeNull();
+  });
+});
 
 describe("extrairIdDoLink", () => {
   it("reconhece link de produto de catálogo", () => {

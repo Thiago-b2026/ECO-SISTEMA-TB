@@ -156,6 +156,7 @@ export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Prom
   if (error) {
     const ctx = (error as { context?: Response }).context;
     const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
+    if (body?.detalhe) console.warn("Mercado Livre:", body.detalhe);
     const e = new Error(traduzirErroML(body?.erro ?? error.message)) as Error & { status?: number };
     e.status = ctx?.status;
     throw e;
