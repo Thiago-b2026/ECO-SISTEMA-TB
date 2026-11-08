@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+dados-lovable
+senhas-temporarias.txt
+*.png
+HISTORICO_*.md
+node_modules
+dist
+scripts
+supabase

@@ -1,0 +1,19 @@
+# Dependências e saída do build
+node_modules
+dist
+tsconfig.tsbuildinfo
+
+# Segredos: NUNCA vão para o Git (.env, .env.local, .env.db, ...)
+.env
+.env.*
+!.env.example
+.vercel
+supabase/.temp
+
+# Dados pessoais e arquivos de apoio (ficam só no computador)
+dados-lovable/
+senhas-temporarias.txt
+*.png
+*.jpg
+*.jpeg
+*.csv
