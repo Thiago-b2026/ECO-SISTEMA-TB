@@ -1,11 +1,11 @@
 -- =====================================================================
 -- GESTÃO RH – Supermix: UMA empresa com 4 lojas + funções da tela de cadastro (só admin)
+-- (só RH: não mexe no PDV)
 -- 1) Apaga as empresas criadas por engano (SUPER MIX BRAZ 02, 03, 04), as lojas/unidades e as redes
 --    criadas junto. PARA tudo se alguma delas tiver lançamento, histórico ou permissão.
 -- 2) A empresa original volta a se chamar "Supermix Braz" (rede SUPERMIX BRAZ) e as lojas viram
 --    SUPER MIX BRAZ 01 (matriz) a 04 (filiais), com os CNPJs. Os lançamentos NÃO mudam.
 -- 2b) Apaga a "Loja 5" da empresa original (criada por engano), SÓ se continuar vazia.
--- 2c) Telas do PDV renomeadas: "Caixa" e "Formas de pagamento".
 -- 3) Cadastro de lojas pelo admin: adicionar (com CNPJ), editar, ativar/inativar e excluir (só sem histórico).
 --    Regra de excluir: só MOVIMENTO bloqueia (lançamentos com valor, vendas, caixa, estoque, financeiro);
 --    a auditoria do próprio cadastro não conta.
@@ -97,17 +97,6 @@ begin
                  ('loja3', 'SUPER MIX BRAZ 03', '17890178000409'), ('loja4', 'SUPER MIX BRAZ 04', '17890178000581')) as n(codigo, nome, cnpj)
    where l.empresa_id = v_original and l.codigo = n.codigo and u.id = l.unidade_id;
 end $$;
-
--- ---------------------------------------------------------------------
--- 2c. NOMES DAS TELAS DO PDV (iguais ao menu)
--- ---------------------------------------------------------------------
--- RENOMEIA_TELAS (código, nome)
-update public.telas t set nome = x.nome
-from (values
-  ('pdv.caixa', 'Caixa'),
-  ('pdv.pagamentos', 'Formas de pagamento')
-) as x(codigo, nome)
-where t.codigo = x.codigo;
 
 -- ---------------------------------------------------------------------
 -- 3. CADASTRO DE LOJAS (só admin)

@@ -16,6 +16,9 @@ export interface Loja {
   codigo: string;
   nome: string;
   ordem: number;
+  /** Flag do cadastro: false = fora dos resultados (Painel e Visão Global); o histórico fica guardado. */
+  mostrar?: boolean;
+  unidade_id?: string | null;
 }
 
 export interface EmpresaComPapel extends Empresa {

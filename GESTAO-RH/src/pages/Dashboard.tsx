@@ -259,6 +259,16 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {!temValores(atual) ? (
+        <Card>
+          <div className="py-8 text-center">
+            <div className="text-lg font-bold uppercase tracking-wide">{periodo === "ano" ? "Sem lançamentos neste ano" : "Sem lançamentos neste mês"}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {ABA_LABEL[aba]} • {titPeriodo}.{editavel ? " Para lançar, preencha a grade abaixo." : " Escolha outro período."}
+            </p>
+          </div>
+        </Card>
+      ) : (<>
       {/* Indicadores */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card titulo="Faturamento Global">
@@ -329,6 +339,7 @@ export default function Dashboard() {
           </div>
         </Card>
       </section>
+      </>)}
 
       {/* Lançamentos */}
       <Card
@@ -356,6 +367,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Resumo */}
+      {temValores(atual) && (
       <Card titulo="Resumo por Item">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
@@ -401,6 +413,7 @@ export default function Dashboard() {
           </table>
         </div>
       </Card>
+      )}
 
       {/* Provisão x Realizado */}
       <Card titulo={`Provisão x Realizado — ${titPeriodo}`}>

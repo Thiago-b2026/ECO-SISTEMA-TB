@@ -1,6 +1,7 @@
 # 📒 HISTÓRICO – RH COMPASS 2.0 (multi-empresa)
 
 ## 📍 ONDE PARAMOS
+🆕 **Sessão 6 (08/11):** cadastro SIMPLES de filiais (flag "mostrar"), Visão Global por loja + GLOBAL e "Sem lançamentos neste mês". **Falta aplicar a 0019 e depois a 0020 (pelo chat com `!`, NUNCA pelo SQL Editor) e publicar com push no `main`.** (A versão da Sessão 5, com o flag "Juntar", foi substituída.)
 ✅ No ar (versão antiga): https://gestao-rh-tau.vercel.app (login = o mesmo do PDV Salvados).
 🆕 **Permissões do Ecossistema (08/11)**: as telas do RH são liberadas no PDV Salvados (Login de acesso → Permissões → sistema Gestão RH). Só o admin cria empresas e dá acessos. O código está pronto e o build passou; **falta o usuário aplicar a migration 0017 do PDV e publicar os dois sites**.
 Depois de publicado e testado: colocar esta pasta no Git, sem .env, CSVs, prints e senhas-temporarias.txt.
@@ -90,6 +91,58 @@ Pasta: `C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB\GESTAO-RH`. Banco: Supabase ECO-S
 4. "+ Adicionar loja" só aparece para o admin. `npm run build` OK.
 
 **Onde parou:** 0018 APLICADA em 08/11; falta republicar o RH (`npx --yes vercel@latest deploy --prod --yes`).
+
+---
+### Sessão 5 – 08/11/2026 – Excluir cadastro + cadastro de filiais com flag "Juntar"
+**Pedido:** opção de excluir cadastro, cadastro de filiais melhorado e um flag que, marcado, junta com a empresa já cadastrada.
+**O que foi feito:**
+1. Tela **Empresas** refeita (`src/pages/Empresas.tsx`):
+   - Flag **"Juntar com empresa já cadastrada"** em "+ Nova empresa / filial": marcado, escolhe a empresa (matriz) e as filiais entram como lojas dela (`rh.adicionar_loja`), sem virar empresa separada. Isso evita o erro do SUPER MIX BRAZ 02/03/04.
+   - Se o CNPJ digitado tiver a mesma raiz (8 primeiros números) de uma empresa cadastrada, aparece um aviso com o botão "Juntar com ...".
+   - Cada loja/filial tem nome + CNPJ (com máscara) e etiqueta Matriz/Filial (final /0001 = matriz).
+   - Em Configurar: editar nome e CNPJ da loja, **Ativar/Inativar**, **Excluir loja** e **Excluir empresa**. Excluir só fica ativo sem histórico; com histórico, aparece "Não pode excluir, já tem histórico. Use Inativar."
+   - Se o banco ainda não tiver a 0019, a tela funciona no modo antigo e mostra um aviso.
+2. Migration nova `PDV SALVADOS/supabase/migrations/20261108000020_rh_cadastro_filiais.sql`: `rh.criar_empresa_com_lojas(nome, cnpj, lojas jsonb)`, que cria a empresa com as lojas e os CNPJs de uma vez, e bloqueia CNPJ repetido ou já cadastrado.
+3. Conferido no banco: a 0019 pode rodar. As empresas 02, 03 e 04 e a Loja 5 não têm lançamentos, histórico nem permissões.
+4. `npm run build` OK (tsc + vite).
+
+**Pendente/observação:** loja inativa continua aparecendo no Painel. Esconder da tela de lançar fica para depois.
+
+**Onde parou:** o usuário precisa aplicar no SQL Editor a **0019** e, depois, a **0020**. Em seguida, publicar o RH (commit e push no `main`, ou `npx --yes vercel@latest deploy --prod --yes`). Nada foi commitado ainda.
+
+---
+### Sessão 6 – 08/11/2026 – Cadastro simples de filiais, Visão Global por loja e mês vazio
+**Pedido:** retomar o RH de forma simples e pelo caminho seguro (conferência → ensaio desfeito → comando com `!`).
+**O que foi feito:**
+1. **0019 (limpeza):** só RH. A troca de nomes de telas do PDV saiu dela e foi para a `20261108000021_pdv_nomes_caixa_pagamentos.sql`, que fica **PARADA**.
+   - Apaga as empresas SUPER MIX BRAZ 02, 03 e 04, as redes criadas junto e a Loja 5 vazia.
+   - Fica a empresa "Supermix Braz" com as lojas SUPER MIX BRAZ 01 (matriz, 17.890.178/0001-58), 02 (0003-10), 03 (0004-09) e 04 (0005-81).
+2. **0020 refeita:**
+   - flag `rh.lojas.mostrar`, que começa marcado;
+   - `rh.mostrar_loja` (só admin);
+   - `rh.nova_empresa(nome, nome da 1ª loja, cnpj)`;
+   - `rh.lojas_da_empresa` devolve o flag e se a filial pode ser excluída.
+   O flag "Juntar com empresa já cadastrada" foi retirado.
+3. **Tela Empresas refeita:**
+   - um bloco por empresa e uma linha por filial: [flag] NOME · MATRIZ/FILIAL · CNPJ, com EDITAR e EXCLUIR (este só sem histórico);
+   - "+ ADICIONAR FILIAL" pede nome e CNPJ (opcional), e a filial já entra marcada;
+   - "+ NOVA EMPRESA" separado, com o aviso;
+   - "CONFIGURAR": nome, % de Gastos Extras e faixas;
+   - só o admin mexe.
+4. **Painel e Visão Global** mostram só as filiais marcadas.
+5. **Visão Global** igual ao Lovable: Por loja / Empresa inteira (uma coluna por filial + GLOBAL: faturamento, custo, %, indicador) / Grupo todo. Composição dos custos e gráficos por loja.
+6. **"Sem lançamentos neste mês"** (ou "neste ano") no Painel e na Visão Global, no lugar dos zeros. No Painel, a grade de lançar continua aberta.
+7. **Conferência só leitura:** tudo OK.
+8. **Ensaio desfeito da 0019 + 0020 juntas:**
+   - fica 1 empresa (Supermix Braz) e as redes SALVADOS LP (2) e SUPERMIX BRAZ (4);
+   - faturamento: 01 = 6.754.074,54, 02 = 3.320.453,99, 03 = 3.050.348,30, 04 = 0, total = 13.124.876,83;
+   - os 11 lançamentos ficaram intactos;
+   - desmarcar a 02 tirou a coluna do resultado (Global 9.804.422,84) sem apagar nada, e marcar de novo trouxe de volta;
+   - a Natália foi barrada ao desmarcar;
+   - a filial nova entra marcada, e a nova empresa cria a rede e a 1ª loja (matriz pelo CNPJ).
+9. **PDV:** os nomes "Caixa" e "Formas de pagamento" voltaram aos nomes publicados no código, para o push no `main` não mudar nada no PDV. A troca fica para a 0021, parada. Build OK no RH e no PDV; 94 testes OK.
+
+**Onde parou:** aplicar a 0019 e depois a 0020 pelo chat. Depois, configurar o Root Directory = `PORTAL` no projeto portal-grupotb da Vercel e publicar com push no `main` (o RH publica; PDV e Portal remontam sem mudança visível).
 
 ---
 <!-- NOVAS SESSÕES ENTRAM ABAIXO, NO MESMO FORMATO -->

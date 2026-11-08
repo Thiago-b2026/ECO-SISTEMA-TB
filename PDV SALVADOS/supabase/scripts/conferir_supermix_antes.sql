@@ -3,7 +3,6 @@
 --   APAGAR  = empresas criadas por engano (SUPER MIX BRAZ 02, 03, 04), as lojas/unidades e as redes criadas junto
 --   MANTER  = a empresa original (com os lançamentos), que volta a se chamar "Supermix Braz"
 --   APAGAR loja = lojas além da 04 na empresa original (ex.: "Loja 5"), só se vazias
---   TELA    = telas do PDV renomeadas (Caixa, Formas de pagamento)
 --   LOJA    = como fica cada loja da empresa original (nome novo, CNPJ, matriz/filial) e o faturamento que NÃO pode mudar
 -- Coluna "seguro": tem que dizer OK em todas as linhas APAGAR (sem lançamentos, sem histórico, sem permissões).
 with
@@ -65,7 +64,4 @@ select 'APAGAR loja (vazia)', l.nome || ' (' || l.codigo || ')', 'SUPERMIX BRAZ'
             then 'NÃO – tem valor lançado: NÃO será apagada' else 'OK' end
 from rh.lojas l join original o on o.id = l.empresa_id left join public.lojas u on u.id = l.unidade_id
 where l.codigo not in ('loja1', 'loja2', 'loja3', 'loja4')
-union all
-select 'TELA renomeada', t.codigo, 'PDV', t.nome || '  →  ' || x.nome, 'OK'
-from public.telas t join (values ('pdv.caixa', 'Caixa'), ('pdv.pagamentos', 'Formas de pagamento')) as x(codigo, nome) on x.codigo = t.codigo
 order by 1, 2;

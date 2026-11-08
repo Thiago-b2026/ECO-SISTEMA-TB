@@ -65,13 +65,13 @@ function MovimentacoesCaixa() {
   return (
     <div className="p-4 lg:p-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Caixa</h1>
+        <h1 className="text-2xl font-bold">Movimentações de caixa</h1>
         <p className="text-sm text-muted-foreground">
           Abrir, sangria, suprimento e fechar ficam no <Link to="/pdv" className="text-primary hover:underline">PDV</Link>. Aqui você confere o histórico.
         </p>
       </div>
       <div className="flex justify-end">
-        <Exportar titulo="Caixa" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
+        <Exportar titulo="Movimentações de caixa" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
           colunas={[{ titulo: "Operador" }, { titulo: "Loja" }, { titulo: "Abertura" }, { titulo: "Fechamento" }, { titulo: "Fundo (R$)", numero: true }, { titulo: "Esperado (R$)", numero: true }, { titulo: "Contado (R$)", numero: true }, { titulo: "Diferença (R$)", numero: true }]}
           linhas={() => (lista ?? []).map((c) => [c.operador_nome ?? "", nomeLoja(c.loja_id), fmtDate(c.aberto_em), c.fechado_em ? fmtDate(c.fechado_em) : "aberto", Number(c.valor_abertura), c.valor_esperado != null ? Number(c.valor_esperado) : null, c.valor_informado != null ? Number(c.valor_informado) : null, c.diferenca != null ? Number(c.diferenca) : null])} />
       </div>

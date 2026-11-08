@@ -69,7 +69,8 @@ export function EmpresaProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("empresa_id", empresa.id)
       .order("ordem")
-      .then(({ data }) => setLojas((data as Loja[]) ?? []));
+      // só as filiais MARCADAS no cadastro aparecem nos resultados (o histórico das outras fica guardado)
+      .then(({ data }) => setLojas(((data as Loja[]) ?? []).filter((l) => l.mostrar !== false)));
   }, [empresa?.id, empresas]);
 
   const selecionar = (id: string) => {
