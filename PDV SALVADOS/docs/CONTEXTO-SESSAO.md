@@ -1,11 +1,22 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
 ## Sessão 08/11/2026 — Permissões do Ecossistema: SISTEMA → GRUPO → TELA
+- **PUBLICAÇÃO DO PDV (mudou em 08/11)**: a Vercel tem *Root Directory = `PDV SALVADOS`* e publica **pelo push no `main`**
+  do GitHub. O `npx vercel deploy --prod` de dentro da pasta NÃO funciona mais (erro "Root Directory does not exist").
+  Branch de trabalho do PDV: **`fase1-lotes-pdv-multiloja`** (igualada ao `main` em 08/11, commit `573a40d`). Para publicar:
+  `git -C "C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB" push origin fase1-lotes-pdv-multiloja` e depois
+  `git -C "C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB" push origin fase1-lotes-pdv-multiloja:main`.
+  Existe também a branch `feat/meu-supervisor` (criada pela sessão do Meu Supervisor), hoje no mesmo commit.
+  O Gestão RH continua publicando pela CLI dentro de `GESTAO-RH` (`npx --yes vercel@latest deploy --prod --yes`).
+- **Status 08/11**: migration 0017 APLICADA e conferida (6 sistemas, 9 grupos, 24 telas, 84 linhas, 34 liberadas, 45 políticas,
+  1 admin). PDV e Gestão RH publicados com a versão nova. Falta o teste com uma vendedora.
+- Migration 0017 aplicada com: `npx supabase db query --remote=blqgmueqsqqpflorusrm --yes -f "<arquivo>.sql"`
+  (o `--linked --project-ref` está descontinuado; conferência só leitura usa `--read-only` no lugar do `--yes`).
 - **Pastas novas**: tudo está em `C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB` (espaço depois de `GTB_`). O sistema
   continua em `PDV SALVADOS\`; o Gestão RH fica em `GESTAO-RH\` (schema `rh`, mesmo login, https://gestao-rh-tau.vercel.app).
   Regras de TODO sistema da pasta: `CLAUDE.md` da raiz (seção "Ecossistema TB"). Catálogo: `MEU SUPERVISOR/sistemas.json`.
   Os caminhos `C:\PROJETOS_CLAUDE\...` citados abaixo são antigos.
-- **Migration `20261108000017_permissao_por_tela.sql` (AINDA NÃO APLICADA; ensaiada com rollback em 08/11)**:
+- **Migration `20261108000017_permissao_por_tela.sql` (APLICADA em 08/11, depois de ensaiada com rollback)**:
   `public.sistemas` (pdv, rh ativos; crm, checklist, pop, supervisor inativos), `public.grupos` (PDV: Vendas, Caixa, Estoque,
   Cadastros, Financeiro, Relatórios, CRM; RH: Lançamentos, Consolidado), `public.telas` (24; `app` = FK do sistema, código
   `<sistema>.<tela>`), `public.usuario_telas` (**sem linha = bloqueado**), `pode_ver_tela`, `minhas_telas(app)`, `meus_sistemas()`.
@@ -29,7 +40,7 @@
   perfis); (3) no `NAV` (só PDV) `tela: "<código>"`; (4) migration NOVA com `insert into public.telas` (e `public.grupos` se for
   grupo novo); (5) modelos em `permissoes.tsx`; (6) `npm test`.
 - **Sistema novo**: checklist do `CLAUDE.md` da raiz (ativar em `public.sistemas` com a url, grupos, telas, `sistemas.json`).
-- **Pendente (usuário)**: conferência → aplicar 0017 → publicar PDV e RH → testar com vendedor. Depois: pôr `GESTAO-RH` no Git
+- **Pendente (usuário)**: testar com vendedor; cadastrar a Natália (só Gestão RH). Depois: pôr `GESTAO-RH` no Git
   (sem .env, CSVs, prints, senhas-temporarias.txt). Desligar "Allow new users to sign up" no Supabase (pendência antiga).
 
 ## Mudança de pasta (03/11/2026)
