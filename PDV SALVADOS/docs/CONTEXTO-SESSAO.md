@@ -1,7 +1,7 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
 ## Sessão 08/11/2026 (tarde) — Portal, fase 1: Grupo TB → REDE → UNIDADE e permissões por unidade
-- Migration **`20261108000018_portal_redes_unidades.sql` (pronta e ensaiada; AINDA NÃO APLICADA)**. Histórico completo e requisitos da
+- Migration **`20261108000018_portal_redes_unidades.sql` (APLICADA e conferida em 08/11)**. Histórico completo e requisitos da
   fase 2 em `../PORTAL/HISTORICO_PORTAL.md`.
 - Unidade = `public.lojas` (+ `rede_id`, `tipo` matriz/filial pelo CNPJ (/0001 = matriz), `sistemas`). `public.redes`. Monte Sinai (ex "SALVADOS LP MS")
   e Eldorado (ex "SALVADOS LP") na rede SALVADOS LP; SUPERMIX BRAZ com Supermix Loja 1 (= loja "SUPER MIX BRAZ" do PDV, CNPJ 17.890.178/0001-58,

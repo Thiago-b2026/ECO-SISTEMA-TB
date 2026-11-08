@@ -1,9 +1,9 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
-**Fase 1 (banco): pronta, ensaiada e testada, mas AINDA NÃO APLICADA.** Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
+**Fase 1 (banco): APLICADA e conferida em 08/11** (294 linhas convertidas, 140 liberadas; Natália só RH nas 3 lojas da Supermix; PDV com Monte Sinai e Eldorado). Antes disso: Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
 
-**Próximo passo:** aplicar `PDV SALVADOS/supabase/migrations/20261108000018_portal_redes_unidades.sql`, de preferência pelo chat com `!`, para ver a saída. Depois, conferir no banco e publicar o PDV e o Gestão RH.
+**Próximo passo:** publicar o PDV (push no `main`) e o Gestão RH (CLI); depois, a fase 2.
 
 **Depois:** fase 2, a tela do Portal (requisitos abaixo).
 
