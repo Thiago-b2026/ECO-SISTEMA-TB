@@ -1,6 +1,17 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
-## Sessão 08/11/2026 — Permissões do Ecossistema: SISTEMA → GRUPO → TELA
+## Sessão 08/11/2026 (tarde) — Portal, fase 1: Grupo TB → REDE → UNIDADE e permissões por unidade
+- Migration **`20261108000018_portal_redes_unidades.sql` (pronta e ensaiada; AINDA NÃO APLICADA)**. Histórico completo e requisitos da
+  fase 2 em `../PORTAL/HISTORICO_PORTAL.md`.
+- Unidade = `public.lojas` (+ `rede_id`, `tipo` matriz/filial pelo CNPJ (/0001 = matriz), `sistemas`). `public.redes`. Monte Sinai (ex "SALVADOS LP MS")
+  e Eldorado (ex "SALVADOS LP") na rede SALVADOS LP; SUPERMIX BRAZ com Supermix Loja 1 (= loja "SUPER MIX BRAZ" do PDV, CNPJ 17.890.178/0001-58,
+  reaproveitada, só RH), Loja 2 e 3. O PDV só lista unidades com 'pdv' em `sistemas` (`minhas_lojas`, `lojas_ativas`, `relatorio_por_loja`, tela Empresas).
+- Grupos do PDV = menu novo: Dashboard; PDV · Frente de loja; Produtos; Financeiro; Cadastros; CRM e WhatsApp (o menu na tela muda na fase 3).
+- `public.acoes`, `public.tela_acoes`, `public.usuario_permissoes` (usuário+unidade+tela+ação), `pode()`, `minhas_unidades()`, `minhas_permissoes()`,
+  `copiar_permissoes()`, `sincronizar_permissoes_legado()` (só antes da fase 3). Nenhum comportamento muda até a fase 3.
+- Gestão RH: loja nova vira unidade automaticamente; `adicionar_loja` e `criar_empresa` só admin.
+- Conferência: `supabase/scripts/conferir_portal_antes.sql`. Testes: 88 passando.
+
 - **PUBLICAÇÃO DO PDV (mudou em 08/11)**: a Vercel tem *Root Directory = `PDV SALVADOS`* e publica **pelo push no `main`**
   do GitHub. O `npx vercel deploy --prod` de dentro da pasta NÃO funciona mais (erro "Root Directory does not exist").
   Branch de trabalho do PDV: **`fase1-lotes-pdv-multiloja`** (igualada ao `main` em 08/11, commit `573a40d`). Para publicar:

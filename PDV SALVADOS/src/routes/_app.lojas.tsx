@@ -44,7 +44,7 @@ function PaginaLojas() {
 
   async function carregar() {
     const [l, p, v] = await Promise.all([
-      supabase.from("lojas").select("*").order("nome"),
+      supabase.from("lojas").select("*").contains("sistemas", ["pdv"]).order("nome"),
       supabase.from("profiles").select("id, nome, email").order("nome"),
       supabase.from("usuario_lojas").select("user_id, loja_id"),
     ]);

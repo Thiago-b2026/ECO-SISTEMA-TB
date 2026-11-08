@@ -10,7 +10,7 @@
 import type { AppRole } from "@/lib/auth";
 import type { Modulo } from "@/lib/permissoes";
 
-export type CodigoSistema = "pdv" | "rh" | "crm" | "checklist" | "pop" | "supervisor";
+export type CodigoSistema = "portal" | "pdv" | "rh" | "crm" | "checklist" | "pop" | "supervisor";
 
 export interface Sistema {
   codigo: CodigoSistema;
@@ -43,6 +43,7 @@ export interface Tela {
 
 /** Sistemas do ecossistema (espelho de public.sistemas e de MEU SUPERVISOR/sistemas.json). */
 export const SISTEMAS: Sistema[] = [
+  { codigo: "portal", nome: "Portal Grupo TB", url: "https://portal-grupotb.vercel.app", ordem: 5, ativo: false },
   { codigo: "pdv", nome: "PDV Salvados", url: "https://eco-sistema-tb.vercel.app", ordem: 10, ativo: true },
   { codigo: "rh", nome: "Gestão RH", url: "https://gestao-rh-tau.vercel.app", ordem: 20, ativo: true },
   { codigo: "crm", nome: "CRM Super Mix Braz", url: null, ordem: 30, ativo: false },
@@ -55,13 +56,14 @@ export const SISTEMAS: Sistema[] = [
 export const SISTEMA_ATUAL: CodigoSistema = "pdv";
 
 export const GRUPOS: Grupo[] = [
-  { sistema: "pdv", codigo: "vendas", nome: "Vendas", ordem: 10 },
-  { sistema: "pdv", codigo: "caixa", nome: "Caixa", ordem: 20 },
-  { sistema: "pdv", codigo: "estoque", nome: "Estoque", ordem: 30 },
-  { sistema: "pdv", codigo: "cadastros", nome: "Cadastros", ordem: 40 },
-  { sistema: "pdv", codigo: "financeiro", nome: "Financeiro", ordem: 50 },
-  { sistema: "pdv", codigo: "relatorios", nome: "Relatórios", ordem: 60 },
-  { sistema: "pdv", codigo: "crm", nome: "CRM", ordem: 70 },
+  // PDV: mesma organização do menu novo (Dashboard, PDV · Frente de loja, Produtos, Financeiro, Cadastros, CRM e WhatsApp)
+  { sistema: "pdv", codigo: "dashboard", nome: "Dashboard", ordem: 10 },
+  { sistema: "pdv", codigo: "frente", nome: "PDV · Frente de loja", ordem: 20 },
+  { sistema: "pdv", codigo: "produtos", nome: "Produtos", ordem: 30 },
+  { sistema: "pdv", codigo: "financeiro", nome: "Financeiro", ordem: 40 },
+  { sistema: "pdv", codigo: "cadastros", nome: "Cadastros", ordem: 50 },
+  { sistema: "pdv", codigo: "crm", nome: "CRM e WhatsApp", ordem: 60 },
+  { sistema: "portal", codigo: "acessos", nome: "Acessos", ordem: 10 },
   { sistema: "rh", codigo: "lancamentos", nome: "Lançamentos", ordem: 10 },
   { sistema: "rh", codigo: "consolidado", nome: "Consolidado", ordem: 20 },
 ];
@@ -73,31 +75,35 @@ const ESTOQUE: AppRole[] = ["admin", "gerente", "estoquista"];
 
 export const TELAS: Tela[] = [
   // PDV Salvados
-  { codigo: "pdv.pdv", nome: "PDV · Frente de loja", sistema: "pdv", grupo: "vendas", rota: "/pdv", area: "vendas", perfis: VENDA },
-  { codigo: "pdv.vendas", nome: "Vendas e notas", sistema: "pdv", grupo: "vendas", rota: "/vendas", area: "vendas", perfis: VENDA },
-  { codigo: "pdv.caixa", nome: "Movimentações de caixa", sistema: "pdv", grupo: "caixa", rota: "/caixa", area: "caixa", perfis: VENDA },
-  { codigo: "pdv.produtos", nome: "Produtos e estoque", sistema: "pdv", grupo: "estoque", rota: "/produtos", area: "produtos", perfis: TODOS },
-  { codigo: "pdv.lotes", nome: "Lotes", sistema: "pdv", grupo: "estoque", rota: "/lotes", area: "lotes", perfis: ESTOQUE },
-  { codigo: "pdv.etiquetas", nome: "Etiquetas", sistema: "pdv", grupo: "estoque", rota: "/etiquetas", area: "produtos", perfis: GESTOR },
-  { codigo: "pdv.mercadologico", nome: "Mercadológico", sistema: "pdv", grupo: "estoque", rota: "/mercadologico", area: "produtos", perfis: ESTOQUE },
-  { codigo: "pdv.transferencias", nome: "Transferências", sistema: "pdv", grupo: "estoque", rota: "/transferencias", area: "produtos", perfis: ESTOQUE },
-  { codigo: "pdv.mercado_livre", nome: "Mercado Livre (busca de anúncios)", sistema: "pdv", grupo: "estoque", rota: "/mercado-livre", perfis: ESTOQUE },
+  { codigo: "pdv.dashboard", nome: "Dashboard", sistema: "pdv", grupo: "dashboard", rota: "/dashboard", perfis: TODOS },
+  { codigo: "pdv.relatorios", nome: "Relatórios", sistema: "pdv", grupo: "dashboard", rota: "/relatorios", area: "relatorios", perfis: GESTOR },
+  { codigo: "pdv.pdv", nome: "PDV", sistema: "pdv", grupo: "frente", rota: "/pdv", area: "vendas", perfis: VENDA },
+  { codigo: "pdv.vendas", nome: "Vendas e notas", sistema: "pdv", grupo: "frente", rota: "/vendas", area: "vendas", perfis: VENDA },
+  { codigo: "pdv.produtos", nome: "Cadastro de produtos", sistema: "pdv", grupo: "produtos", rota: "/produtos", area: "produtos", perfis: TODOS },
+  { codigo: "pdv.mercadologico", nome: "Mercadológico", sistema: "pdv", grupo: "produtos", rota: "/mercadologico", area: "produtos", perfis: ESTOQUE },
+  { codigo: "pdv.lotes", nome: "Lotes", sistema: "pdv", grupo: "produtos", rota: "/lotes", area: "lotes", perfis: ESTOQUE },
+  { codigo: "pdv.etiquetas", nome: "Etiquetas", sistema: "pdv", grupo: "produtos", rota: "/etiquetas", area: "produtos", perfis: GESTOR },
+  { codigo: "pdv.transferencias", nome: "Transferências", sistema: "pdv", grupo: "produtos", rota: "/transferencias", area: "produtos", perfis: ESTOQUE },
+  { codigo: "pdv.mercado_livre", nome: "Mercado Livre (busca de anúncios)", sistema: "pdv", grupo: "produtos", rota: "/mercado-livre", perfis: ESTOQUE },
+  { codigo: "pdv.financeiro", nome: "Financeiro (pagar, receber, fluxo, DRE)", sistema: "pdv", grupo: "financeiro", rota: "/financeiro", area: "financeiro", perfis: GESTOR },
+  { codigo: "pdv.caixa", nome: "Movimentações de caixa", sistema: "pdv", grupo: "financeiro", rota: "/caixa", area: "caixa", perfis: VENDA },
+  { codigo: "pdv.pagamentos", nome: "Formas e meios de pagamento", sistema: "pdv", grupo: "financeiro", rota: "/pagamentos", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.contas_bancarias", nome: "Contas bancárias", sistema: "pdv", grupo: "financeiro", rota: "/contas-bancarias", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.plano_contas", nome: "Plano de contas", sistema: "pdv", grupo: "financeiro", rota: "/plano-contas", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.lojas", nome: "Empresas", sistema: "pdv", grupo: "cadastros", rota: "/lojas", somenteAdmin: true, perfis: ["admin"] },
   { codigo: "pdv.pessoas", nome: "Pessoas", sistema: "pdv", grupo: "cadastros", rota: "/pessoas", area: "pessoas", perfis: ["admin"] },
   { codigo: "pdv.login_acesso", nome: "Login de acesso", sistema: "pdv", grupo: "cadastros", rota: "/usuarios", somenteAdmin: true, perfis: ["admin"] },
-  { codigo: "pdv.pagamentos", nome: "Formas e meios de pagamento", sistema: "pdv", grupo: "cadastros", rota: "/pagamentos", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "pdv.contas_bancarias", nome: "Contas bancárias", sistema: "pdv", grupo: "cadastros", rota: "/contas-bancarias", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "pdv.plano_contas", nome: "Plano de contas", sistema: "pdv", grupo: "cadastros", rota: "/plano-contas", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "pdv.lojas", nome: "Lojas e configurações", sistema: "pdv", grupo: "cadastros", rota: "/lojas", somenteAdmin: true, perfis: ["admin"] },
-  { codigo: "pdv.financeiro", nome: "Financeiro (pagar, receber, fluxo, DRE)", sistema: "pdv", grupo: "financeiro", rota: "/financeiro", area: "financeiro", perfis: GESTOR },
-  { codigo: "pdv.dashboard", nome: "Dashboard", sistema: "pdv", grupo: "relatorios", rota: "/dashboard", perfis: TODOS },
-  { codigo: "pdv.relatorios", nome: "Relatórios", sistema: "pdv", grupo: "relatorios", rota: "/relatorios", area: "relatorios", perfis: GESTOR },
-  { codigo: "pdv.crm", nome: "CRM e WhatsApp", sistema: "pdv", grupo: "crm", rota: "/crm", area: "crm", perfis: VENDA },
+  { codigo: "pdv.crm", nome: "CRM", sistema: "pdv", grupo: "crm", rota: "/crm", area: "crm", perfis: VENDA },
   // Gestão RH (outro site, mesmo login). Antes: quem era membro de uma empresa do RH via estas telas.
   { codigo: "rh.painel", nome: "Painel", sistema: "rh", grupo: "lancamentos", rota: "/", perfis: [] },
   { codigo: "rh.historico", nome: "Histórico", sistema: "rh", grupo: "lancamentos", rota: "/historico", perfis: [] },
   { codigo: "rh.global", nome: "Visão Global", sistema: "rh", grupo: "consolidado", rota: "/global", perfis: [] },
   { codigo: "rh.empresas", nome: "Empresas", sistema: "rh", grupo: "consolidado", rota: "/empresas", perfis: [] },
   { codigo: "rh.usuarios", nome: "Usuários do Gestão RH", sistema: "rh", grupo: "consolidado", rota: "/usuarios", somenteAdmin: true, perfis: [] },
+  // Portal (fase 2): exclusivas do Admin
+  { codigo: "portal.usuarios", nome: "Usuários", sistema: "portal", grupo: "acessos", rota: "/usuarios", somenteAdmin: true, perfis: [] },
+  { codigo: "portal.redes", nome: "Redes e unidades", sistema: "portal", grupo: "acessos", rota: "/redes", somenteAdmin: true, perfis: [] },
+  { codigo: "portal.permissoes", nome: "Permissões", sistema: "portal", grupo: "acessos", rota: "/permissoes", somenteAdmin: true, perfis: [] },
 ];
 
 /** Telas que aparecem no editor (as "somente Admin" e as de sistemas inativos ficam de fora). */

@@ -3,6 +3,16 @@
   "ecossistema": "Ecossistema TB",
   "sistemas": [
     {
+      "codigo": "portal",
+      "nome": "Portal Grupo TB",
+      "pasta": "PORTAL",
+      "empresa": "GTB",
+      "descricao": "Cadastro único de usuários, redes/unidades e permissões do Ecossistema TB (só o admin)",
+      "status": "planejado",
+      "schema": "public",
+      "url": "https://portal-grupotb.vercel.app"
+    },
+    {
       "codigo": "crm",
       "nome": "CRM Super Mix Braz",
       "pasta": "CRM SUPER MIX BRAZ",

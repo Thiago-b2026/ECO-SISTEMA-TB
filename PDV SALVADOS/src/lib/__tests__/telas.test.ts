@@ -8,7 +8,10 @@ import {
   podeVerTela, sistemasDoUsuario, telaDaRota, telasLegado, telasVazias,
 } from "@/lib/telas";
 
-const SQL = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000017_permissao_por_tela.sql"), "utf8");
+const SQL17 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000017_permissao_por_tela.sql"), "utf8");
+const SQL18 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000018_portal_redes_unidades.sql"), "utf8");
+const SQL = `${SQL17}\n${SQL18}`;
+const CONF18 = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_portal_antes.sql"), "utf8");
 const CONFERIR = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_telas_antes.sql"), "utf8");
 const CATALOGO = JSON.parse(readFileSync(resolve(process.cwd(), "../MEU SUPERVISOR/sistemas.json"), "utf8")) as { sistemas: { codigo?: string; nome: string }[] };
 const tudoVe = () => true;
@@ -32,8 +35,8 @@ describe("regra de tela", () => {
     expect(podeVerTela("pdv.transferencias", { admin: false, liberadas })).toBe(false);
   });
 
-  it("Login de acesso, Lojas e Usuários do RH são só do Admin (sem checkbox); Pessoas é liberável", () => {
-    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios"];
+  it("Login de acesso, Lojas, Usuários do RH e o Portal são só do Admin (sem checkbox); Pessoas é liberável", () => {
+    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios", "portal.usuarios", "portal.redes", "portal.permissoes"];
     const liberadas = new Set([...so, "pdv.pessoas"]);
     for (const c of so) {
       expect(podeVerTela(c, { admin: false, liberadas })).toBe(false);
@@ -52,19 +55,26 @@ describe("3 níveis: sistema → grupo → tela", () => {
   it("estado do SISTEMA e do GRUPO: nenhum, parcial e todos", () => {
     const m = telasVazias();
     expect(estadoSistema(m, "pdv")).toBe("nenhum");
-    expect(estadoGrupo(m, "pdv", "estoque")).toBe("nenhum");
+    expect(estadoGrupo(m, "pdv", "produtos")).toBe("nenhum");
     m["pdv.etiquetas"] = true;
-    expect(estadoGrupo(m, "pdv", "estoque")).toBe("parcial");
+    expect(estadoGrupo(m, "pdv", "produtos")).toBe("parcial");
     expect(estadoSistema(m, "pdv")).toBe("parcial");
     expect(estadoSistema(m, "rh")).toBe("nenhum");
-    for (const t of TELAS_EDITAVEIS) if (t.grupo === "estoque") m[t.codigo] = true;
-    expect(estadoGrupo(m, "pdv", "estoque")).toBe("todos");
+    for (const t of TELAS_EDITAVEIS) if (t.grupo === "produtos") m[t.codigo] = true;
+    expect(estadoGrupo(m, "pdv", "produtos")).toBe("todos");
     for (const t of TELAS_EDITAVEIS) if (t.sistema === "rh") m[t.codigo] = true;
     expect(estadoSistema(m, "rh")).toBe("todos");
   });
 
-  it("grupos do PDV e do RH como combinado", () => {
-    expect(GRUPOS.filter((g) => g.sistema === "pdv").map((g) => g.nome)).toEqual(["Vendas", "Caixa", "Estoque", "Cadastros", "Financeiro", "Relatórios", "CRM"]);
+  it("grupos do PDV = organização nova do menu, e do RH como combinado", () => {
+    expect(GRUPOS.filter((g) => g.sistema === "pdv").map((g) => g.nome)).toEqual(["Dashboard", "PDV · Frente de loja", "Produtos", "Financeiro", "Cadastros", "CRM e WhatsApp"]);
+    const pdv = (g: string) => TELAS.filter((t) => t.sistema === "pdv" && t.grupo === g).map((t) => t.codigo);
+    expect(pdv("dashboard")).toEqual(["pdv.dashboard", "pdv.relatorios"]);
+    expect(pdv("frente")).toEqual(["pdv.pdv", "pdv.vendas"]);
+    expect(pdv("produtos")).toEqual(["pdv.produtos", "pdv.mercadologico", "pdv.lotes", "pdv.etiquetas", "pdv.transferencias", "pdv.mercado_livre"]);
+    expect(pdv("financeiro")).toEqual(["pdv.financeiro", "pdv.caixa", "pdv.pagamentos", "pdv.contas_bancarias", "pdv.plano_contas"]);
+    expect(pdv("cadastros")).toEqual(["pdv.lojas", "pdv.pessoas", "pdv.login_acesso"]);
+    expect(pdv("crm")).toEqual(["pdv.crm"]);
     const rh = (g: string) => TELAS.filter((t) => t.sistema === "rh" && t.grupo === g && !t.somenteAdmin).map((t) => t.codigo);
     expect(rh("lancamentos")).toEqual(["rh.painel", "rh.historico"]);
     expect(rh("consolidado")).toEqual(["rh.global", "rh.empresas"]);
@@ -77,7 +87,7 @@ describe("3 níveis: sistema → grupo → tela", () => {
     }
   });
 
-  it("editor mostra só sistemas ativos com tela (PDV e RH)", () => {
+  it("editor mostra só sistemas ativos com tela (PDV e RH; o Portal fica de fora até a fase 2)", () => {
     expect(SISTEMAS_EDITAVEIS.map((s) => s.codigo)).toEqual(["pdv", "rh"]);
   });
 
@@ -138,12 +148,33 @@ describe("migração dos usuários atuais (ninguém perde acesso)", () => {
 });
 
 describe("catálogo", () => {
-  it("toda tela do front existe na migration e vice-versa, com sistema, grupo e somente_admin iguais", () => {
+  it("toda tela do front existe nas migrations e vice-versa, com sistema, grupo (após o regrupamento) e somente_admin iguais", () => {
     const doSql = [...SQL.matchAll(/^\s+\('([a-z_]+\.[a-z_]+)',\s+'[^']+',\s+'([a-z]+)',\s+'([a-z]+)',\s+'[^']+',\s+\d+,\s+(true|false)\)/gm)];
     expect(doSql.map((m) => m[1]).sort()).toEqual(TELAS.map((t) => t.codigo).sort());
+    const bloco = SQL18.slice(SQL18.indexOf("-- REGRUPAMENTO_PDV"), SQL18.indexOf("-- FIM_REGRUPAMENTO_PDV"));
+    const novoGrupo = new Map([...bloco.matchAll(/\('(pdv\.[a-z_]+)',\s+'([a-z]+)',\s+'([^']+)',\s+\d+\)/g)].map((m) => [m[1], { grupo: m[2], nome: m[3] }]));
+    expect([...novoGrupo.keys()].sort()).toEqual(TELAS.filter((t) => t.sistema === "pdv").map((t) => t.codigo).sort());
     for (const m of doSql) {
       const t = TELAS.find((x) => x.codigo === m[1])!;
-      expect([m[2], m[3], m[4] === "true"], t.codigo).toEqual([t.sistema, t.grupo, !!t.somenteAdmin]);
+      const grupo = novoGrupo.get(t.codigo)?.grupo ?? m[3];
+      expect([m[2], grupo, m[4] === "true"], t.codigo).toEqual([t.sistema, t.grupo, !!t.somenteAdmin]);
+      if (novoGrupo.has(t.codigo)) expect(novoGrupo.get(t.codigo)!.nome, t.codigo).toBe(t.nome);
+    }
+  });
+
+  it("a conferência da fase 1 usa exatamente as mesmas regras de conversão da migration", () => {
+    const semCR = (t: string) => t.split(String.fromCharCode(13)).join("");
+    const pega = (bruto: string) => { const txt = semCR(bruto); return txt.slice(txt.indexOf("('pdv.pdv',              'ver'"), txt.indexOf("('pdv.crm',              'exportar'")); };
+    expect(pega(CONF18).length).toBeGreaterThan(100);
+    expect(pega(CONF18)).toBe(pega(SQL18));
+  });
+
+  it("toda tela/ação usada na conversão existe no catálogo de ações da tela (tela_acoes)", () => {
+    const ta = SQL18.slice(SQL18.indexOf("insert into public.tela_acoes"), SQL18.indexOf(") as x(t, a);"));
+    const mapa = new Map([...ta.matchAll(/\('([a-z_]+\.[a-z_]+)',\s+array\[([^\]]+)\]\)/g)].map((m) => [m[1], m[2].replace(/'/g, "").split(",")]));
+    expect([...mapa.keys()].sort()).toEqual(TELAS.map((t) => t.codigo).sort());
+    for (const m of SQL18.matchAll(/\('((?:pdv|rh)\.[a-z_]+)',\s+'([a-z_]+)',\s+(?:array|true|false)/g)) {
+      expect(mapa.get(m[1]), `${m[1]} / ${m[2]}`).toContain(m[2]);
     }
   });
 

@@ -34,6 +34,9 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
 - Tabelas centrais no schema `public`: `sistemas` (cada sistema), `grupos` (grupos de telas dentro de
   cada sistema), `telas` (cada tela; a coluna `app` é o código do sistema, mais o `grupo`) e
   `usuario_telas` (o que cada usuário pode abrir).
+- Permissões por UNIDADE (Portal, fase 1): `public.acoes`, `public.tela_acoes`, `public.usuario_permissoes`
+  (usuário + unidade + tela + ação) e `pode(tela, ação, unidade)`, `minhas_unidades(sistema)`, `minhas_permissoes(sistema, unidade)`.
+  Estrutura: Grupo TB → REDE (`public.redes`) → UNIDADE (`public.lojas`, CNPJ; matriz se final /0001).
 - Funções: `minhas_telas('<sistema>')` (telas liberadas do usuário logado), `meus_sistemas()`
   (sistemas com pelo menos uma tela, para o menu "Sistemas") e `pode_ver_tela('<código>')` (para políticas).
 - **Tela sem flag = bloqueada.** O admin vê tudo. Telas `somente_admin` não têm checkbox
@@ -59,7 +62,10 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
 5. **Front-end:** ler `public.minhas_telas('<código do sistema>')` (com `.schema("public")` se o
    cliente usar outro schema). Menu só com as telas liberadas; rota bloqueada mostra "Acesso negado";
    se a consulta der erro, não bloquear todo mundo (mostrar aviso).
-   Remover uma pessoa de um sistema NUNCA apaga a conta de login (ela é compartilhada).
-6. Dados de um sistema não são gravados no schema de outro. O que é comum a todos é só o login e as permissões.
+   Remover uma pessoa de um sistema NUNCA apaga a conta de login (ela é compartilhada). Só o "Excluir usuário" do
+   Portal apaga o login, e apenas de quem nunca teve movimento; quem tem histórico é Inativado.
+6. Dados de um sistema não são gravados no schema de outro. O que é comum a todos é só o login, as permissões
+   e o cadastro de **redes e unidades** (`public.redes` e `public.lojas` = unidades, com `sistemas` dizendo em quais
+   sistemas cada unidade aparece). Cada sistema liga as suas tabelas à unidade (`unidade_id` / `loja_id`).
 7. Segredos só em `.env` (fora do Git); `service_role` nunca no front-end.
 8. Publicar na Vercel (time `grupotb`) e cadastrar a `url` do sistema em `public.sistemas`.
