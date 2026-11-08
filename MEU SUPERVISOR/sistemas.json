@@ -8,7 +8,7 @@
       "pasta": "PORTAL",
       "empresa": "GTB",
       "descricao": "Cadastro único de usuários, redes/unidades e permissões do Ecossistema TB (só o admin)",
-      "status": "planejado",
+      "status": "em-construcao",
       "schema": "public",
       "url": "https://portal-grupotb.vercel.app"
     },

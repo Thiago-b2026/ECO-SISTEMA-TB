@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mesmas cores do PDV Salvados */
+:root {
+  --radius: 0.75rem;
+  /* valores "L C H" do oklch, para o Tailwind aplicar transparência (ex.: bg-primary/10) */
+  --background: 0.99 0.005 145;
+  --foreground: 0.18 0.02 240;
+  --card: 1 0 0;
+  --primary: 0.55 0.18 145;
+  --primary-foreground: 0.99 0 0;
+  --muted: 0.96 0.005 240;
+  --muted-foreground: 0.5 0.02 240;
+  --destructive: 0.58 0.22 25;
+  --border: 0.9 0.01 240;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+body {
+  background: oklch(var(--background));
+  color: oklch(var(--foreground));
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Títulos e botões em letra de forma e negrito */
+@layer components {
+.titulo {
+  @apply font-bold uppercase tracking-wide;
+}
+.botao {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold uppercase tracking-wide transition-colors disabled:opacity-60;
+}
+.botao-primario {
+  @apply botao bg-primary text-primary-foreground hover:brightness-95;
+}
+.botao-secundario {
+  @apply botao border border-border bg-card text-foreground hover:bg-muted;
+}
+.campo {
+  @apply w-full rounded-lg border border-border bg-card px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-primary/40;
+}
+}

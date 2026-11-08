@@ -1,6 +1,8 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
+**AGORA (pedido do usuário, 08/11 noite): recomeço pelo simples.** Etapa 1 do Portal = só login + tela inicial com os quadros (Sessão 2). O resto está pausado.
+
 **Fase 1 (banco): APLICADA e conferida em 08/11** (294 linhas convertidas, 140 liberadas; Natália só RH nas 3 lojas da Supermix; PDV com Monte Sinai e Eldorado). Antes disso: Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
 
 **Etapas combinadas (08/11):** 0 (RH no Git, publicando pelo push) → A (menu novo do PDV) → B (Portal) → C (PDV lê o Portal) → D (RH lê o Portal + tela de entrada) → E (limpeza).
@@ -139,6 +141,23 @@ Regras:
 12. 88 testes OK; build OK no PDV e no Gestão RH.
 
 **Onde parou:** aplicar a 0018 de verdade.
+
+---
+### Sessão 2 – 08/11/2026 – Recomeço pelo simples: TELA INICIAL (etapa 1)
+**Pedido do usuário:** parar tudo e fazer uma coisa de cada vez.
+- A 0019 NÃO foi aplicada: está só no commit 1918825.
+- A troca de nomes "Caixa" / "Formas de pagamento" está commitada, mas NÃO publicada.
+- O PDV e o RH não foram mexidos.
+
+**O que foi feito:**
+1. Site do Portal criado nesta pasta (Vite + React + Supabase, cores do PDV):
+   - **login:** mesmo login, sem "Criar conta";
+   - **tela inicial:** cabeçalho "ECOSSISTEMA TB" e botão SAIR. Um quadro grande por sistema liberado, lido de `public.meus_sistemas()`: GESTÃO SALVADOS (PDV) e GESTÃO RH. Clicar abre na mesma aba.
+2. Nesta etapa os quadros só abrem o site, e a pessoa entra com o login lá. **"Já logado" fica para a próxima etapa, separada.**
+3. O site usa só a chave pública (anon). Script `scripts/vercel-variaveis.mjs` cadastra as 2 variáveis públicas na Vercel.
+4. Build OK.
+
+**Onde parou:** publicar (link do projeto `portal-grupotb`, variáveis e deploy), um comando de cada vez.
 
 ---
 <!-- NOVAS SESSÕES ENTRAM ABAIXO, NO MESMO FORMATO -->

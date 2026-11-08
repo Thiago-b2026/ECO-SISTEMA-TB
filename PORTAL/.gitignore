@@ -1,0 +1,16 @@
+# Dependências e saída do build
+node_modules
+dist
+tsconfig.tsbuildinfo
+
+# Segredos: NUNCA vão para o Git
+.env
+.env.*
+!.env.example
+.vercel
+
+# Arquivos de apoio
+*.png
+*.jpg
+*.jpeg
+*.csv
