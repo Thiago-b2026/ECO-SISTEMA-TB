@@ -57,7 +57,11 @@ const PAPEIS: { id: AppRole; label: string }[] = [
   { id: "vendedor", label: "Vendedor" }, { id: "estoquista", label: "Estoquista" }, { id: "gerente", label: "Gerente" }, { id: "admin", label: "Admin" },
 ];
 
-export function PessoaForm({ pessoa, inicial, onClose, onSalvo }: { pessoa: Pessoa | null; inicial?: Partial<Pessoa>; onClose: () => void; onSalvo: () => void }) {
+export function PessoaForm({ pessoa, inicial, onClose, onSalvo, onLoginCriado }: {
+  pessoa: Pessoa | null; inicial?: Partial<Pessoa>; onClose: () => void; onSalvo: () => void;
+  /** Chamado quando um login novo foi criado (para abrir as Permissões com o modelo do perfil). */
+  onLoginCriado?: (pessoaId: string, papel: AppRole) => void;
+}) {
   const { role } = useAuth();
   const { lojas } = useLoja();
   const admin = role === "admin";
@@ -144,6 +148,11 @@ export function PessoaForm({ pessoa, inicial, onClose, onSalvo }: { pessoa: Pess
         return;
       }
       toast.success(`Cadastro salvo e acesso criado para ${login}.`);
+      setSalvando(false);
+      onSalvo();
+      onClose();
+      onLoginCriado?.(r.data.id, papel);
+      return;
     } else {
       toast.success("Cadastro salvo.");
     }

@@ -15,17 +15,18 @@ function EscolhaVisual() {
   return <PermissoesProvider>{visual === "erp" ? <LayoutTopo /> : <AppShell />}</PermissoesProvider>;
 }
 import { useAuth, homeRouteFor } from "@/lib/auth";
-import { NAV, canAccess } from "@/lib/nav";
+import { NAV, itemDaRota, itemVisivel } from "@/lib/nav";
+import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Layout protegido: exige login, perfil e permissão para a tela pedida. */
+/** Layout protegido: exige login e perfil. A permissão da TELA é checada no GuardTela (acesso por tela). */
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ context, location }) => {
     const { user, role } = context.auth;
     if (!user) throw redirect({ to: "/login" });
     if (!role) throw redirect({ to: "/sem-acesso" });
-    if (!canAccess(location.pathname, role)) throw redirect({ to: homeRouteFor(role) });
+    if (!itemDaRota(location.pathname)) throw redirect({ to: homeRouteFor(role) });
   },
   component: () => (
     <LojaProvider>
@@ -71,8 +72,8 @@ function AppShell() {
   const { role, profile, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [open, setOpen] = useState(false);
-  const { pode } = usePermissoes();
-  const items = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto && (!n.modulo || pode(n.modulo)));
+  const perm = usePermissoes();
+  const items = NAV.filter((n) => itemVisivel(n, perm));
   const ativo = (to: string) => pathname === to || pathname.startsWith(to + "/");
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
   // Monta o menu: itens soltos e grupos (na ordem em que aparecem)
@@ -85,7 +86,20 @@ function AppShell() {
       else blocos.push({ tipo: "grupo", nome: it.grupo, itens: [it] });
     }
   }
-  const link = (n: (typeof items)[number], sub = false) => (
+  const link = (n: (typeof items)[number], sub = false) => n.externo ? (
+    <a
+      key={n.to}
+      href={n.externo}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => setOpen(false)}
+      className={cn("flex items-center gap-3 rounded-lg font-medium transition-colors hover:bg-sidebar-accent", sub ? "px-3 py-2 pl-9 text-[13px]" : "px-3 py-2.5 text-sm")}
+      title="Abre o Gestão RH em outra aba (mesmo login)"
+    >
+      <n.icon className={sub ? "size-4" : "size-5"} />
+      {n.label}
+    </a>
+  ) : (
     <Link
       key={n.to}
       to={n.to}
@@ -163,8 +177,9 @@ function AppShell() {
           </Button>
           <span className="font-semibold">Eco Sistema TB</span>
         </header>
+        <AvisoModoLegado />
         <main className="flex-1">
-          <Outlet />
+          <GuardTela><Outlet /></GuardTela>
         </main>
       </div>
     </div>

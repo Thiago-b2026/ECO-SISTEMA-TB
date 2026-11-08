@@ -8,14 +8,22 @@ import { lerTerminal, salvarTerminal } from "@/lib/terminal";
 import { Button } from "@/components/ui/button";
 import { PdvTela } from "@/components/pdv-tela";
 import { EscolherEmpresa } from "@/components/escolher-empresa";
-import { PermissoesProvider } from "@/lib/permissoes";
+import { PermissoesProvider, usePermissoes } from "@/lib/permissoes";
+import { AcessoNegado } from "@/components/guard-tela";
+import type { ReactNode } from "react";
 
-// Janela própria da frente de loja: só o caixa, sem o menu do sistema.
+function TravaPdv({ children }: { children: ReactNode }) {
+  const { podeTela, carregandoTelas } = usePermissoes();
+  if (carregandoTelas) return <p className="p-6 text-sm text-muted-foreground">Carregando…</p>;
+  return podeTela("vendas.pdv") ? <>{children}</> : <AcessoNegado />;
+}
+
+// Janela própria da frente de loja: só o caixa, sem o menu do sistema. Exige a tela "vendas.pdv".
 export const Route = createFileRoute("/frente")({
   beforeLoad: ({ context }) => {
     const { user, role } = context.auth;
     if (!user) throw redirect({ to: "/login" });
-    if (!role || !["admin", "gerente", "vendedor"].includes(role)) throw redirect({ to: "/sem-acesso" });
+    if (!role) throw redirect({ to: "/sem-acesso" });
   },
   component: () => (
     <LojaProvider>
@@ -59,7 +67,7 @@ function Frente() {
         <Button size="sm" variant="ghost" className="text-sidebar-foreground hover:bg-sidebar-accent" onClick={signOut}><LogOut /> Sair</Button>
       </header>
       <main className="flex-1">
-        {precisaEscolher ? <EscolherEmpresa /> : filtroLoja ? <PermissoesProvider><PdvTela /></PermissoesProvider> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
+        {precisaEscolher ? <EscolherEmpresa /> : filtroLoja ? <PermissoesProvider><TravaPdv><PdvTela /></TravaPdv></PermissoesProvider> : <p className="p-6 text-sm text-muted-foreground">Escolha a loja no topo para começar.</p>}
       </main>
     </div>
   );

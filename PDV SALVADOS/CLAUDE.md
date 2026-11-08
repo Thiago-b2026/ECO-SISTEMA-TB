@@ -48,7 +48,7 @@ estoque, PDV, caixa, relatórios e financeiro. Substitui o "SuperMix PDV" feito 
 | vendedor | PDV, Produtos (consulta), Vendas, Caixa |
 | estoquista | Lotes, Produtos e estoque |
 
-O menu e as permissões de tela ficam em `src/lib/nav.ts`. O primeiro usuário criado no
+O menu fica em `src/lib/nav.ts`. Quem vê cada tela: controle POR TELA (`src/lib/telas.ts`, tabelas `telas`/`usuario_telas`, padrão bloqueado, admin vê tudo); a tabela acima é só o acesso padrão de cada perfil. O primeiro usuário criado no
 Supabase vira admin automaticamente (trigger `handle_new_user`).
 
 ## Roadmap

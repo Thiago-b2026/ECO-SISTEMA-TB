@@ -1,5 +1,5 @@
 // Janela de permissões de um usuário (só o admin edita):
-// empresas, modelo pronto, áreas (ver/inserir/editar/excluir) e ações especiais.
+// empresas, modelo pronto, TELAS (acesso por tela), áreas (ver/inserir/editar/excluir) e ações especiais.
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Building2, Copy, Loader2, Save, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
@@ -12,25 +12,41 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { SecaoTelas } from "@/components/editor-telas";
+import { TELAS_EDITAVEIS, mapaDeLinhas, type MapaTelas } from "@/lib/telas";
 import { cn } from "@/lib/utils";
 
 const ACOES: { id: Acao; nome: string }[] = [
   { id: "ver", nome: "Ver" }, { id: "inserir", nome: "Inserir" }, { id: "editar", nome: "Editar" }, { id: "excluir", nome: "Excluir" },
 ];
 
-interface Snapshot { modulos: MapaModulos; acoes: MapaAcoes; lojas: string[] }
+interface Snapshot { modulos: MapaModulos; acoes: MapaAcoes; lojas: string[]; telas: MapaTelas }
+interface Leitura { snap: Snapshot; semTelas: boolean; telasIndisponiveis: boolean }
 
-async function lerPermissoes(userId: string): Promise<Snapshot> {
-  const [a, b, c] = await Promise.all([
+async function lerPermissoes(userId: string): Promise<Leitura> {
+  const [a, b, c, d] = await Promise.all([
     supabase.from("permissoes").select("modulo, ver, inserir, editar, excluir").eq("user_id", userId),
     supabase.from("permissoes_acoes").select("chave, permitido").eq("user_id", userId),
     supabase.from("usuario_lojas").select("loja_id").eq("user_id", userId),
+    supabase.from("usuario_telas").select("tela_codigo, permitido").eq("user_id", userId),
   ]);
   const modulos = mapaLiberado();
   for (const l of (a.data ?? []) as LinhaPermissao[]) modulos[l.modulo] = l;
   const acoes = acoesLiberadas();
   for (const f of (b.data ?? []) as { chave: ChaveAcao; permitido: boolean }[]) acoes[f.chave] = f.permitido;
-  return { modulos, acoes, lojas: (c.data ?? []).map((x) => x.loja_id as string) };
+  const linhasTelas = (d.data ?? []) as { tela_codigo: string; permitido: boolean }[];
+  return {
+    snap: { modulos, acoes, lojas: (c.data ?? []).map((x) => x.loja_id as string), telas: mapaDeLinhas(linhasTelas) },
+    semTelas: !d.error && linhasTelas.length === 0,
+    telasIndisponiveis: !!d.error,
+  };
+}
+
+/** Tela marcada, mas a área dela está sem "ver": a tela abre vazia. */
+function avisosTelas(s: Snapshot): string[] {
+  return TELAS_EDITAVEIS.filter((t) => s.telas[t.codigo] && t.area && !s.modulos[t.area].ver).map(
+    (t) => `A tela "${t.nome}" está marcada, mas a área ${MODULOS.find((m) => m.id === t.area)?.nome} está sem "Ver": ela vai abrir sem dados.`,
+  );
 }
 
 /** Regras para não deixar o usuário "quebrado". */
@@ -46,25 +62,38 @@ function corrigir(m: MapaModulos): { m: MapaModulos; avisos: string[] } {
   return { m: x, avisos };
 }
 
-export function PermissoesDialog({ userId, nome, papel, outros, onClose, onSalvo }: {
+export function PermissoesDialog({ userId, nome, papel, outros, onClose, onSalvo, modeloSugerido }: {
   userId: string; nome: string; papel: string | null;
   outros: { id: string; nome: string }[]; onClose: () => void; onSalvo?: () => void;
+  /** Login recém-criado: se ele ainda não tem nenhuma tela, já aplica este modelo (sem salvar). */
+  modeloSugerido?: string;
 }) {
   const { lojas } = useLoja();
   const [original, setOriginal] = useState<Snapshot | null>(null);
   const [atual, setAtual] = useState<Snapshot | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [avisos, setAvisos] = useState<string[]>([]);
+  const [telasIndisponiveis, setTelasIndisponiveis] = useState(false);
   const admin = papel === "admin";
 
   useEffect(() => {
-    lerPermissoes(userId).then((s) => { setOriginal(s); setAtual(structuredClone(s)); });
+    lerPermissoes(userId).then(({ snap, semTelas, telasIndisponiveis: ind }) => {
+      setOriginal(snap);
+      setTelasIndisponiveis(ind);
+      const md = modeloSugerido && semTelas ? MODELOS.find((x) => x.id === modeloSugerido) : undefined;
+      if (md) {
+        setAtual({ ...structuredClone(snap), modulos: structuredClone(md.modulos), acoes: { ...md.acoes }, telas: { ...md.telas } });
+        toast.info(`Login novo: apliquei o modelo "${md.nome}" (perfil escolhido). Confira as telas e clique em Salvar.`);
+      } else {
+        setAtual(structuredClone(snap));
+      }
+    });
   }, [userId]);
 
   const mudou = useMemo(() => JSON.stringify(original) !== JSON.stringify(atual), [original, atual]);
   const contagem = useMemo(() => {
     if (!atual) return { on: 0, total: 0 };
-    const vals = [...Object.values(atual.modulos).flatMap((l) => [l.ver, l.inserir, l.editar, l.excluir]), ...Object.values(atual.acoes)];
+    const vals = [...Object.values(atual.telas), ...Object.values(atual.modulos).flatMap((l) => [l.ver, l.inserir, l.editar, l.excluir]), ...Object.values(atual.acoes)];
     return { on: vals.filter(Boolean).length, total: vals.length };
   }, [atual]);
 
@@ -89,18 +118,19 @@ export function PermissoesDialog({ userId, nome, papel, outros, onClose, onSalvo
     for (const k of Object.keys(m) as Modulo[]) { m[k][a] = v; if (a === "ver" && !v) Object.assign(m[k], { inserir: false, editar: false, excluir: false }); }
   });
   const flag = (c: ChaveAcao, v: boolean) => setAtual((s) => (s ? { ...s, acoes: { ...s.acoes, [c]: v } } : s));
+  const setTelas = (fn: (m: MapaTelas) => void) => setAtual((s) => { if (!s) return s; const t = { ...s.telas }; fn(t); return { ...s, telas: t }; });
   const loja = (id: string, v: boolean) => setAtual((s) => (s ? { ...s, lojas: v ? [...s.lojas, id] : s.lojas.filter((x) => x !== id) } : s));
 
   function aplicarModelo(id: string) {
     const md = MODELOS.find((x) => x.id === id)!;
-    setAtual((s) => (s ? { ...s, modulos: structuredClone(md.modulos), acoes: { ...md.acoes } } : s));
+    setAtual((s) => (s ? { ...s, modulos: structuredClone(md.modulos), acoes: { ...md.acoes }, telas: { ...md.telas } } : s));
     setAvisos([]);
     toast.info(`Modelo "${md.nome}" aplicado. Ajuste se quiser e clique em Salvar.`);
   }
   async function copiarDe(outroId: string) {
     if (!outroId) return;
-    const s = await lerPermissoes(outroId);
-    setAtual((a) => (a ? { ...a, modulos: s.modulos, acoes: s.acoes } : a));
+    const { snap: s } = await lerPermissoes(outroId);
+    setAtual((a) => (a ? { ...a, modulos: s.modulos, acoes: s.acoes, telas: s.telas } : a));
     toast.info(`Permissões copiadas de ${outros.find((o) => o.id === outroId)?.nome}. Clique em Salvar para gravar.`);
   }
 
@@ -114,6 +144,10 @@ export function PermissoesDialog({ userId, nome, papel, outros, onClose, onSalvo
     if (r1.error) erros.push(r1.error.message);
     const r2 = await supabase.from("permissoes_acoes").upsert(Object.entries(atual.acoes).map(([chave, permitido]) => ({ user_id: userId, chave, permitido, updated_at: agora })));
     if (r2.error) erros.push(r2.error.message);
+    if (!telasIndisponiveis) {
+      const r3 = await supabase.from("usuario_telas").upsert(TELAS_EDITAVEIS.map((t) => ({ user_id: userId, tela_codigo: t.codigo, permitido: !!atual.telas[t.codigo] })));
+      if (r3.error) erros.push(r3.error.message);
+    }
     const novas = atual.lojas.filter((x) => !original.lojas.includes(x));
     const tiradas = original.lojas.filter((x) => !atual.lojas.includes(x));
     if (novas.length) { const r = await supabase.from("usuario_lojas").insert(novas.map((loja_id) => ({ user_id: userId, loja_id }))); if (r.error) erros.push(r.error.message); }
@@ -189,9 +223,16 @@ export function PermissoesDialog({ userId, nome, papel, outros, onClose, onSalvo
               </div>
             </section>
 
+            {/* Telas */}
+            {telasIndisponiveis ? (
+              <p className="flex items-start gap-1.5 rounded-md bg-warning/15 p-2 text-xs"><AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" /> O controle por tela ainda não está ativo no banco (falta aplicar a migration 0017). As telas seguem o perfil por enquanto.</p>
+            ) : (
+              <SecaoTelas telas={atual.telas} onChange={setTelas} avisos={avisosTelas(atual)} />
+            )}
+
             {/* Áreas */}
             <section className="space-y-2">
-              <h3 className="text-sm font-semibold">O que ele pode fazer em cada área</h3>
+              <h3 className="text-sm font-semibold">O que ele pode fazer em cada área <span className="font-normal text-muted-foreground">(dados: ver, inserir, editar, excluir)</span></h3>
               <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-sm [&_td]:!bg-transparent">
                   <thead>

@@ -1,10 +1,12 @@
 // Permissões por usuário:
 //  - por ÁREA (ver / inserir / editar / excluir)
 //  - AÇÕES ESPECIAIS (cancelar venda, desconto, sangria, alterar preço...)
+//  - acesso POR TELA (src/lib/telas.ts): tela sem flag = bloqueada; admin vê tudo
 // Quem manda de verdade é o banco (políticas e gatilhos); aqui escondemos o que não pode.
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { TELAS, TELAS_EDITAVEIS, podeVerTela, telasLegado, type MapaTelas } from "@/lib/telas";
 
 export type Modulo = "pessoas" | "produtos" | "lotes" | "vendas" | "caixa" | "financeiro" | "cadastros_financeiros" | "crm" | "relatorios";
 export type Acao = "ver" | "inserir" | "editar" | "excluir";
@@ -45,26 +47,35 @@ const mapa = (padrao: string, exc: Partial<Record<Modulo, string>> = {}) =>
 const acoes = (on: ChaveAcao[] | "todas") =>
   Object.fromEntries(ACOES_ESPECIAIS.map((a) => [a.id, on === "todas" || on.includes(a.id)])) as MapaAcoes;
 
+const telas = (on: string[] | "eco" | "todas") =>
+  Object.fromEntries(TELAS_EDITAVEIS.map((t) => [t.codigo, on === "todas" || (on === "eco" ? t.app === "eco" : on.includes(t.codigo))])) as MapaTelas;
+
 /** Modelos prontos: um clique e depois ajusta o que quiser. */
-export const MODELOS: { id: string; nome: string; desc: string; modulos: MapaModulos; acoes: MapaAcoes }[] = [
+export const MODELOS: { id: string; nome: string; desc: string; modulos: MapaModulos; acoes: MapaAcoes; telas: MapaTelas }[] = [
   {
     id: "vendedor", nome: "Vendedor(a) / caixa", desc: "vende, abre e fecha caixa, cadastra cliente",
     modulos: mapa("", { vendas: "VI", caixa: "VIE", pessoas: "VIE", crm: "VIE", produtos: "V" }),
     acoes: acoes(["caixa.suprimento", "caixa.sangria"]),
+    telas: telas(["vendas.pdv", "vendas.notas", "caixa.movimentacoes", "estoque.produtos", "cadastros.pessoas", "crm.whatsapp", "relatorios.dashboard"]),
   },
   {
     id: "estoquista", nome: "Estoquista", desc: "lotes, produtos, etiquetas e estoque",
     modulos: mapa("", { produtos: "VIE", lotes: "VIE", pessoas: "V" }),
     acoes: acoes(["produtos.ajustar_estoque", "produtos.ver_custo", "dados.exportar"]),
+    telas: telas(["estoque.produtos", "estoque.lotes", "estoque.etiquetas", "estoque.mercadologico", "estoque.transferencias", "estoque.mercado_livre", "relatorios.dashboard"]),
   },
   {
     id: "gerente", nome: "Gerente", desc: "tudo da loja, sem excluir cadastros e financeiro",
     modulos: mapa("VIEX", { pessoas: "VIE", financeiro: "VIE", cadastros_financeiros: "VIE" }),
     acoes: acoes("todas"),
+    telas: telas("eco"),
   },
-  { id: "consulta", nome: "Só consulta", desc: "vê tudo, não altera nada", modulos: mapa("V"), acoes: acoes(["dados.exportar", "produtos.ver_custo"]) },
-  { id: "tudo", nome: "Liberar tudo", desc: "todas as áreas e ações", modulos: mapa("VIEX"), acoes: acoes("todas") },
+  { id: "consulta", nome: "Só consulta", desc: "vê todas as telas do ECO, não altera nada", modulos: mapa("V"), acoes: acoes(["dados.exportar", "produtos.ver_custo"]), telas: telas("eco") },
+  { id: "tudo", nome: "Liberar tudo", desc: "todas as telas (inclusive RH), áreas e ações", modulos: mapa("VIEX"), acoes: acoes("todas"), telas: telas("todas") },
 ];
+
+/** Modelo sugerido ao criar um login novo, conforme o perfil escolhido. */
+export const MODELO_DO_PERFIL: Partial<Record<string, string>> = { vendedor: "vendedor", estoquista: "estoquista", gerente: "gerente" };
 
 export const mapaLiberado = () => mapa("VIEX");
 export const acoesLiberadas = () => acoes("todas");
@@ -72,24 +83,47 @@ export const acoesLiberadas = () => acoes("todas");
 interface Estado {
   pode: (m: Modulo, a?: Acao) => boolean;
   podeAcao: (c: ChaveAcao) => boolean;
+  /** Pode ver a tela (código de src/lib/telas.ts)? */
+  podeTela: (codigo: string | undefined) => boolean;
+  /** Tem alguma tela do Gestão RH? (mostra o atalho no menu) */
+  temRh: boolean;
+  /** true enquanto as telas não carregaram. */
+  carregandoTelas: boolean;
+  /** true = minhas_telas deu erro (migration ainda não aplicada): usando o acesso antigo por perfil. */
+  modoLegado: boolean;
   recarregar: () => Promise<void>;
 }
-const Ctx = createContext<Estado>({ pode: () => true, podeAcao: () => true, recarregar: async () => {} });
+const Ctx = createContext<Estado>({
+  pode: () => true, podeAcao: () => true, podeTela: () => true, temRh: false, carregandoTelas: false, modoLegado: false, recarregar: async () => {},
+});
 
 export function PermissoesProvider({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const [linhas, setLinhas] = useState<LinhaPermissao[]>([]);
   const [flags, setFlags] = useState<{ chave: ChaveAcao; permitido: boolean }[]>([]);
+  const [liberadas, setLiberadas] = useState<Set<string> | null>(null);
+  const [modoLegado, setModoLegado] = useState(false);
   async function recarregar() {
-    if (!user) { setLinhas([]); setFlags([]); return; }
-    const [a, b] = await Promise.all([
+    if (!user) { setLinhas([]); setFlags([]); setLiberadas(new Set()); return; }
+    const [a, b, c] = await Promise.all([
       supabase.from("permissoes").select("modulo, ver, inserir, editar, excluir").eq("user_id", user.id),
       supabase.from("permissoes_acoes").select("chave, permitido").eq("user_id", user.id),
+      supabase.rpc("minhas_telas", { _app: null }),
     ]);
     setLinhas((a.data ?? []) as LinhaPermissao[]);
     setFlags((b.data ?? []) as { chave: ChaveAcao; permitido: boolean }[]);
+    if (c.error) {
+      // Proteção na publicação: sem a migration (ou com erro), NÃO bloqueia todo mundo.
+      console.warn("minhas_telas indisponível; usando acesso por perfil.", c.error.message);
+      setModoLegado(true);
+      setLiberadas(null);
+    } else {
+      setModoLegado(false);
+      setLiberadas(new Set(((c.data ?? []) as unknown[]).map((x) => (typeof x === "string" ? x : String(Object.values(x as object)[0])))));
+    }
   }
   useEffect(() => {
+    setLiberadas(null);
     recarregar();
   }, [user?.id]);
   const pode = (m: Modulo, a: Acao = "ver") => {
@@ -98,7 +132,17 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     return l ? l[a] : true;
   };
   const podeAcao = (c: ChaveAcao) => role === "admin" || (flags.find((f) => f.chave === c)?.permitido ?? true);
-  return <Ctx.Provider value={{ pode, podeAcao, recarregar }}>{children}</Ctx.Provider>;
+  const efetivas = useMemo(
+    () => (modoLegado ? telasLegado(role, (m) => pode(m, "ver")) : liberadas ?? new Set<string>()),
+    [modoLegado, liberadas, role, linhas],
+  );
+  const podeTela = (codigo: string | undefined) => !codigo || podeVerTela(codigo, { admin: role === "admin", liberadas: efetivas });
+  const temRh = role === "admin" || TELAS.some((t) => t.app === "rh" && efetivas.has(t.codigo));
+  return (
+    <Ctx.Provider value={{ pode, podeAcao, podeTela, temRh, carregandoTelas: !modoLegado && liberadas === null, modoLegado, recarregar }}>
+      {children}
+    </Ctx.Provider>
+  );
 }
 
 export const usePermissoes = () => useContext(Ctx);

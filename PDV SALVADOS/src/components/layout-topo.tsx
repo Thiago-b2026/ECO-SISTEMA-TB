@@ -3,7 +3,8 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Building2, ChevronDown, LogOut, Menu, Store, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { NAV } from "@/lib/nav";
+import { NAV, itemVisivel } from "@/lib/nav";
+import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
 import { TODAS, useLoja } from "@/lib/loja";
 import { cn } from "@/lib/utils";
 import { usePermissoes } from "@/lib/permissoes";
@@ -15,8 +16,8 @@ export function LayoutTopo() {
   const [aberto, setAberto] = useState<string | null>(null);
   const [mobile, setMobile] = useState(false);
   const barra = useRef<HTMLDivElement>(null);
-  const { pode } = usePermissoes();
-  const itens = NAV.filter((n) => role && n.roles.includes(role) && !n.oculto && (!n.modulo || pode(n.modulo)));
+  const perm = usePermissoes();
+  const itens = NAV.filter((n) => itemVisivel(n, perm));
   const ativo = (to: string) => pathname === to || pathname.startsWith(to + "/");
 
   // fecha o submenu ao clicar fora ou ao trocar de tela
@@ -58,6 +59,9 @@ export function LayoutTopo() {
             {ordem.map((o) => {
               if (o.tipo === "item") {
                 const n = soltos.find((x) => x.to === o.to)!;
+                if (n.externo) return (
+                  <a key={n.to} href={n.externo} target="_blank" rel="noopener noreferrer" className="rounded px-2.5 py-1.5 hover:bg-muted" title="Abre o Gestão RH em outra aba (mesmo login)">{n.label}</a>
+                );
                 return (
                   <Link key={n.to} to={n.to} className={cn("rounded px-2.5 py-1.5 hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
                     {n.label.replace("PDV · ", "")}
@@ -94,7 +98,11 @@ export function LayoutTopo() {
         {mobile && (
           <div className="lg:hidden border-t bg-card p-2 space-y-1 max-h-[75vh] overflow-y-auto">
             <div className="flex items-center justify-between gap-2 p-1 sm:hidden">{seletor}<button onClick={signOut} className="text-xs flex items-center gap-1"><LogOut className="size-3.5" /> Sair</button></div>
-            {itens.map((n) => (
+            {itens.map((n) => n.externo ? (
+              <a key={n.to} href={n.externo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted">
+                <n.icon className="size-4" /> {n.label}
+              </a>
+            ) : (
               <Link key={n.to} to={n.to} className={cn("flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
                 <n.icon className="size-4" /> {n.grupo ? `${n.grupo} · ` : ""}{n.label}
               </Link>
@@ -102,7 +110,8 @@ export function LayoutTopo() {
           </div>
         )}
       </header>
-      <main><Outlet /></main>
+      <AvisoModoLegado />
+      <main><GuardTela><Outlet /></GuardTela></main>
     </div>
   );
 }

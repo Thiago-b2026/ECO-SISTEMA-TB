@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PessoaForm, type Pessoa } from "@/components/pessoa-form";
 import { PermissoesDialog } from "@/components/editor-permissoes";
+import { MODELO_DO_PERFIL } from "@/lib/permissoes";
+import { TELAS_EDITAVEIS } from "@/lib/telas";
 import { VendedorasLegado } from "@/components/vendedoras-legado";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,8 @@ interface Linha {
   lojas: string[];
   /** quantas permissões estão bloqueadas (null = nunca configurado: padrão do perfil) */
   bloqueios: number | null;
+  /** quantas telas liberadas (null = controle por tela ainda não ativo) */
+  telas: number | null;
 }
 
 const FILTROS: { id: "todos" | Situacao; nome: string }[] = [
@@ -47,17 +51,21 @@ function PaginaUsuarios() {
   const [filtroLoja, setFiltroLoja] = useState("");
   const [editando, setEditando] = useState<Pessoa | "novo" | null>(null);
   const [permissoes, setPermissoes] = useState<Linha | null>(null);
+  const [modeloSugerido, setModeloSugerido] = useState<string | undefined>();
 
-  async function carregar() {
+  async function carregar(): Promise<Linha[]> {
     try {
-      const [ps, roles, profs, vinc, perm, acoes] = await Promise.all([
+      const [ps, roles, profs, vinc, perm, acoes, telas] = await Promise.all([
         fetchAllRows<Pessoa>(() => supabase.from("pessoas").select("*").eq("eh_usuario", true).order("nome")),
         supabase.from("user_roles").select("user_id, role"),
         supabase.from("profiles").select("id, ativo"),
         supabase.from("usuario_lojas").select("user_id, loja_id"),
         supabase.from("permissoes").select("user_id, ver, inserir, editar, excluir"),
         supabase.from("permissoes_acoes").select("user_id, permitido"),
+        supabase.from("usuario_telas").select("user_id, permitido").eq("permitido", true),
       ]);
+      const nTelas = new Map<string, number>();
+      for (const t of telas.data ?? []) nTelas.set(t.user_id, (nTelas.get(t.user_id) ?? 0) + 1);
       const papel = new Map((roles.data ?? []).map((r) => [r.user_id, r.role as AppRole]));
       const ativo = new Map((profs.data ?? []).map((p) => [p.id, p.ativo as boolean]));
       const lj = new Map<string, string[]>();
@@ -65,17 +73,30 @@ function PaginaUsuarios() {
       const bloq = new Map<string, number>();
       for (const p of perm.data ?? []) bloq.set(p.user_id, (bloq.get(p.user_id) ?? 0) + [p.ver, p.inserir, p.editar, p.excluir].filter((x) => !x).length);
       for (const a of acoes.data ?? []) bloq.set(a.user_id, (bloq.get(a.user_id) ?? 0) + (a.permitido ? 0 : 1));
-      setLinhas(ps.map((p) => ({
+      const novas: Linha[] = ps.map((p) => ({
         pessoa: p,
         papel: p.user_id ? papel.get(p.user_id) ?? null : null,
         situacao: !p.user_id ? "pendente" : ativo.get(p.user_id) ?? true ? "ativo" : "inativo",
         lojas: p.user_id ? lj.get(p.user_id) ?? [] : [],
         bloqueios: p.user_id && bloq.has(p.user_id) ? bloq.get(p.user_id)! : null,
-      })));
+        telas: telas.error ? null : p.user_id ? nTelas.get(p.user_id) ?? 0 : 0,
+      }));
+      setLinhas(novas);
+      return novas;
     } catch (e) {
       toast.error((e as Error).message);
       setLinhas([]);
+      return [];
     }
+  }
+
+  /** Login novo criado: abre as Permissões já com o modelo do perfil sugerido. */
+  async function aposCriarLogin(pessoaId: string, papel: AppRole) {
+    const lista = await carregar();
+    const l = lista.find((x) => x.pessoa.id === pessoaId && x.pessoa.user_id);
+    if (!l || papel === "admin") return;
+    setModeloSugerido(MODELO_DO_PERFIL[papel]);
+    setPermissoes(l);
   }
   useEffect(() => {
     carregar();
@@ -160,6 +181,9 @@ function PaginaUsuarios() {
                         : <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success"><span className="size-1.5 rounded-full bg-success" /> Ativo</span>}
                     </td>
                     <td className="text-xs">
+                      {l.papel !== "admin" && l.pessoa.user_id && l.telas !== null && (
+                        <div className={cn("mb-0.5", l.telas === 0 ? "font-medium text-destructive" : "text-muted-foreground")}>{l.telas === 0 ? "nenhuma tela liberada" : `${l.telas} de ${TELAS_EDITAVEIS.length} telas`}</div>
+                      )}
                       {l.papel === "admin" ? <span className="text-muted-foreground">pode tudo</span>
                         : !l.pessoa.user_id ? <span className="text-muted-foreground">—</span>
                         : l.bloqueios == null ? <span className="font-medium">padrão do perfil (não configurado)</span>
@@ -169,7 +193,7 @@ function PaginaUsuarios() {
                     <td>
                       <div className="flex justify-end gap-1">
                         {l.pessoa.user_id && l.papel !== "admin" && (
-                          <Button size="sm" variant="outline" onClick={() => setPermissoes(l)}><ShieldCheck /> Permissões</Button>
+                          <Button size="sm" variant="outline" onClick={() => { setModeloSugerido(undefined); setPermissoes(l); }}><ShieldCheck /> Permissões</Button>
                         )}
                         <Button size="sm" variant={l.situacao === "pendente" ? "default" : "ghost"} onClick={() => setEditando(l.pessoa)} title="Cadastro, perfil, senha e situação">
                           {l.situacao === "pendente" ? <><KeyRound /> Criar login</> : <><Pencil /> Cadastro</>}
@@ -192,6 +216,7 @@ function PaginaUsuarios() {
           inicial={{ eh_usuario: true, eh_funcionario: true, eh_cliente: false }}
           onClose={() => setEditando(null)}
           onSalvo={carregar}
+          onLoginCriado={aposCriarLogin}
         />
       )}
       {permissoes?.pessoa.user_id && (
@@ -200,7 +225,8 @@ function PaginaUsuarios() {
           nome={permissoes.pessoa.nome}
           papel={permissoes.papel}
           outros={comLogin.filter((o) => o.id !== permissoes.pessoa.user_id)}
-          onClose={() => setPermissoes(null)}
+          modeloSugerido={modeloSugerido}
+          onClose={() => { setPermissoes(null); setModeloSugerido(undefined); }}
           onSalvo={carregar}
         />
       )}
