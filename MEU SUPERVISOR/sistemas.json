@@ -1,0 +1,67 @@
+{
+  "dono": "GTB - Grupo TB",
+  "ecossistema": "Ecossistema TB",
+  "sistemas": [
+    {
+      "codigo": "crm",
+      "nome": "CRM Super Mix Braz",
+      "pasta": "CRM SUPER MIX BRAZ",
+      "empresa": "Supermix Braz",
+      "descricao": "CRM próprio para substituir o Mercafácil (ERP/PDV CISS)",
+      "status": "em-construcao",
+      "schema": "crm",
+      "url": null
+    },
+    {
+      "codigo": "rh",
+      "nome": "Gestão RH",
+      "pasta": "GESTAO-RH",
+      "empresa": "",
+      "descricao": "Gestão de RH (Vite + React + Supabase, deploy na Vercel)",
+      "status": "em-construcao",
+      "schema": "rh",
+      "url": "https://gestao-rh-tau.vercel.app"
+    },
+    {
+      "codigo": "pdv",
+      "nome": "PDV Salvados",
+      "pasta": "PDV SALVADOS",
+      "empresa": "",
+      "descricao": "PDV de salvados com lotes e multiloja (Vite + React, deploy na Vercel)",
+      "status": "em-construcao",
+      "schema": "public",
+      "url": "https://eco-sistema-tb.vercel.app"
+    },
+    {
+      "codigo": "checklist",
+      "nome": "Check List Operacional",
+      "pasta": "CHECK LIST OPERACIONAL",
+      "empresa": "",
+      "descricao": "Check list gerencial",
+      "status": "planejado",
+      "schema": "checklist",
+      "url": null
+    },
+    {
+      "codigo": "pop",
+      "nome": "Treinamentos com POP",
+      "pasta": "TREINAMENTOS COM POP",
+      "empresa": "",
+      "descricao": "Treinamentos com Procedimentos Operacionais Padrão",
+      "status": "planejado",
+      "schema": "pop",
+      "url": null
+    },
+    {
+      "codigo": "supervisor",
+      "nome": "Meu Supervisor",
+      "pasta": "MEU SUPERVISOR",
+      "empresa": "GTB",
+      "descricao": "Supervisor do ecossistema: cria, revisa e mantém os sistemas; conversa pelo WhatsApp",
+      "status": "em-construcao",
+      "schema": null,
+      "url": null
+    }
+  ],
+  "observacao": "'codigo' = public.sistemas.codigo no Supabase ECO-SISTEMA-TB (prefixo das telas: <codigo>.<tela>)."
+}

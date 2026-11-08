@@ -1,33 +1,36 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
-## Sessão 08/11/2026 — Permissão POR TELA (ECO + Gestão RH)
-- **Pastas novas**: tudo está em `C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB` (repare no espaço depois de `GTB_`).
-  O sistema continua em `PDV SALVADOS\`; o app de RH fica em `GESTAO-RH\` (schema `rh` no mesmo Supabase, mesmo login;
-  site https://gestao-rh-tau.vercel.app). Os caminhos `C:\PROJETOS_CLAUDE\...` citados abaixo são antigos.
-- **Camada nova de acesso por tela**, acima das permissões por área e das ações especiais (que continuam valendo):
-  - Migration `20261108000017_permissao_por_tela.sql`: `public.telas` (catálogo, 24 telas: 19 do ECO + 5 do RH),
-    `public.usuario_telas` (flags; **sem linha = bloqueado**), `pode_ver_tela(codigo)`, `minhas_telas(app)`.
-    Políticas restritivas de gravação em tabelas de uma tela só (etiquetas, mercadológico, CRM, lançamentos, DRE,
-    cadastros financeiros). Leitura continua pela área (o PDV precisa). Gera as flags dos usuários atuais pelo acesso
-    de hoje. Auditoria registra mudanças em `usuario_telas`. Trava: ninguém tira o próprio acesso a Login de acesso.
-  - **Login de acesso** e **Lojas e configurações** são exclusivas do Admin (sem checkbox). Pessoas é liberável.
-  - Front: `src/lib/telas.ts` (lista oficial + regras puras), `nav.ts` (campo `tela`, `itemVisivel`, item externo
-    "Gestão RH" só para quem tem tela de RH), `permissoes.tsx` (`podeTela`, `temRh`, `modoLegado`),
-    `components/guard-tela.tsx` ("Acesso negado"), `components/editor-telas.tsx` (seção Telas do editor),
-    `/frente` exige `vendas.pdv`. O `roles` do nav.ts virou só a base da migração e do modo de segurança.
-  - **Modo de segurança**: se `minhas_telas` der erro (migration não aplicada), o site usa o acesso antigo por perfil
-    e mostra um aviso ao admin. O Gestão RH libera tudo como antes e mostra aviso.
-  - Login novo: ao criar, a janela de Permissões abre com o modelo do perfil (vendedor/estoquista/gerente) aplicado,
-    sem salvar. Modelos e "copiar de" incluem as telas.
-  - Testes: `src/lib/__tests__/telas.test.ts` (81 testes no total passando). Build OK nos dois apps.
-  - Conferência só leitura ANTES de aplicar: `supabase/scripts/conferir_telas_antes.sql` (rodada em 08/11: os 5 usuários OK).
-    Teste da migration em transação com rollback em 08/11: 24 telas, 88 linhas, 34 liberadas, 45 políticas; nada gravado.
-- **Como cadastrar uma tela nova no controle**: (1) crie a rota; (2) adicione em `TELAS` (`src/lib/telas.ts`) com código
-  `modulo.nome`, rota, área e perfis; (3) no `NAV` (`nav.ts`) ponha `tela: "<código>"`; (4) migration NOVA com
-  `insert into public.telas (...) values (...)` (e, se quiser, `insert into public.usuario_telas` para quem já deve ver);
-  (5) atualize o modelo pronto em `permissoes.tsx` se fizer sentido; (6) `npm test` (o teste acusa se faltar em algum lugar).
-- **Pendente (usuário)**: rodar a conferência, aplicar a 0017, publicar ECO e Gestão RH, testar com um vendedor.
-
+## Sessão 08/11/2026 — Permissões do Ecossistema: SISTEMA → GRUPO → TELA
+- **Pastas novas**: tudo está em `C:\GTB_ PROJETOS_CLAUDE\ECO-SISTEMA-TB` (espaço depois de `GTB_`). O sistema
+  continua em `PDV SALVADOS\`; o Gestão RH fica em `GESTAO-RH\` (schema `rh`, mesmo login, https://gestao-rh-tau.vercel.app).
+  Regras de TODO sistema da pasta: `CLAUDE.md` da raiz (seção "Ecossistema TB"). Catálogo: `MEU SUPERVISOR/sistemas.json`.
+  Os caminhos `C:\PROJETOS_CLAUDE\...` citados abaixo são antigos.
+- **Migration `20261108000017_permissao_por_tela.sql` (AINDA NÃO APLICADA; ensaiada com rollback em 08/11)**:
+  `public.sistemas` (pdv, rh ativos; crm, checklist, pop, supervisor inativos), `public.grupos` (PDV: Vendas, Caixa, Estoque,
+  Cadastros, Financeiro, Relatórios, CRM; RH: Lançamentos, Consolidado), `public.telas` (24; `app` = FK do sistema, código
+  `<sistema>.<tela>`), `public.usuario_telas` (**sem linha = bloqueado**), `pode_ver_tela`, `minhas_telas(app)`, `meus_sistemas()`.
+  Exclusivas do Admin: `pdv.login_acesso`, `pdv.lojas`, `rh.usuarios`. Políticas restritivas de gravação em tabelas de uma tela
+  só. Flags dos usuários atuais geradas pelo acesso de hoje. Auditoria em `usuario_telas`; ninguém tira o próprio Login de acesso.
+  RH: `rh.criar_empresa` só para admin. Ensaio: 6 sistemas, 9 grupos, 24 telas, 84 linhas, 34 liberadas, 45 políticas;
+  vendedor barrado ao criar empresa.
+- Permissões por área (`permissoes`) e ações especiais (`permissoes_acoes`) continuam valendo, abaixo das telas.
+- **Front PDV**: `src/lib/telas.ts` (SISTEMAS, GRUPOS, TELAS e regras puras), `nav.ts` (campo `tela`, item "Sistemas"),
+  `permissoes.tsx` (`podeTela`, `sistemas`, `modoLegado`), `components/guard-tela.tsx` ("Acesso negado"),
+  `components/editor-telas.tsx` (3 níveis com estado parcial, busca, marcar/desmarcar tudo), `components/menu-sistemas.tsx`.
+  Login novo abre as Permissões com o modelo do perfil. `/frente` exige `pdv.pdv`.
+- **Gestão RH**: `TelasContext` lê `minhas_telas('rh')` e `is_admin()`; menu/rotas por tela; sem "Criar conta"; só o admin cria
+  empresa e dá acesso (`api/admin-users.ts` exige `user_roles.role = 'admin'`); remover da empresa NÃO apaga mais o login.
+- **Modo de segurança**: se `minhas_telas`/`meus_sistemas` derem erro, o PDV usa o acesso antigo por perfil (aviso para o admin)
+  e o RH libera como antes (aviso).
+- Testes: `src/lib/__tests__/telas.test.ts` (86 testes no total). Build OK nos dois apps.
+- Conferência só leitura: `supabase/scripts/conferir_telas_antes.sql` (hoje x depois por sistema/grupo/tela, `confere`,
+  `alerta_admin` se houver mais de 1 admin). Em 08/11: 5 usuários OK, 1 admin.
+- **Como cadastrar uma tela nova**: (1) rota; (2) `TELAS` em `src/lib/telas.ts` (código `<sistema>.<tela>`, grupo, rota, área,
+  perfis); (3) no `NAV` (só PDV) `tela: "<código>"`; (4) migration NOVA com `insert into public.telas` (e `public.grupos` se for
+  grupo novo); (5) modelos em `permissoes.tsx`; (6) `npm test`.
+- **Sistema novo**: checklist do `CLAUDE.md` da raiz (ativar em `public.sistemas` com a url, grupos, telas, `sistemas.json`).
+- **Pendente (usuário)**: conferência → aplicar 0017 → publicar PDV e RH → testar com vendedor. Depois: pôr `GESTAO-RH` no Git
+  (sem .env, CSVs, prints, senhas-temporarias.txt). Desligar "Allow new users to sign up" no Supabase (pendência antiga).
 
 ## Mudança de pasta (03/11/2026)
 - A raiz do git `C:\PROJETOS_CLAUDE\ECO-SISTEMA-TB` agora é uma pasta guarda-chuva. O sistema fica em

@@ -54,7 +54,7 @@ export function GuardTela({ children }: { children: ReactNode }) {
   const item = itemDaRota(pathname);
   if (!item?.tela || perm.podeTela(item.tela)) return <>{children}</>;
 
-  const primeira = NAV.find((n) => !n.externo && itemVisivel(n, perm));
+  const primeira = NAV.find((n) => !n.menuSistemas && itemVisivel(n, perm));
   // Caiu na tela inicial do perfil mas ela não está liberada: vai para a primeira tela liberada.
   if (primeira && pathname === homeRouteFor(role)) return <Navigate to={primeira.to} replace />;
   return <AcessoNegado destino={primeira ? { to: primeira.to, label: primeira.label } : undefined} />;

@@ -5,6 +5,7 @@ import { Building2, ChevronDown, LogOut, Menu, Store, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { NAV, itemVisivel } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
+import { MenuSistemasMobile, MenuSistemasTopo } from "@/components/menu-sistemas";
 import { TODAS, useLoja } from "@/lib/loja";
 import { cn } from "@/lib/utils";
 import { usePermissoes } from "@/lib/permissoes";
@@ -59,9 +60,7 @@ export function LayoutTopo() {
             {ordem.map((o) => {
               if (o.tipo === "item") {
                 const n = soltos.find((x) => x.to === o.to)!;
-                if (n.externo) return (
-                  <a key={n.to} href={n.externo} target="_blank" rel="noopener noreferrer" className="rounded px-2.5 py-1.5 hover:bg-muted" title="Abre o Gestão RH em outra aba (mesmo login)">{n.label}</a>
-                );
+                if (n.menuSistemas) return <MenuSistemasTopo key={n.to} />;
                 return (
                   <Link key={n.to} to={n.to} className={cn("rounded px-2.5 py-1.5 hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
                     {n.label.replace("PDV · ", "")}
@@ -98,15 +97,12 @@ export function LayoutTopo() {
         {mobile && (
           <div className="lg:hidden border-t bg-card p-2 space-y-1 max-h-[75vh] overflow-y-auto">
             <div className="flex items-center justify-between gap-2 p-1 sm:hidden">{seletor}<button onClick={signOut} className="text-xs flex items-center gap-1"><LogOut className="size-3.5" /> Sair</button></div>
-            {itens.map((n) => n.externo ? (
-              <a key={n.to} href={n.externo} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted">
-                <n.icon className="size-4" /> {n.label}
-              </a>
-            ) : (
+            {itens.filter((n) => !n.menuSistemas).map((n) => (
               <Link key={n.to} to={n.to} className={cn("flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
                 <n.icon className="size-4" /> {n.grupo ? `${n.grupo} · ` : ""}{n.label}
               </Link>
             ))}
+            {itens.some((n) => n.menuSistemas) && <MenuSistemasMobile />}
           </div>
         )}
       </header>

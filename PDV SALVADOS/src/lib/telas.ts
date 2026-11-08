@@ -1,22 +1,39 @@
-// Acesso POR TELA (camada acima das permissões por área e das ações especiais).
+// Permissões do Ecossistema TB em 3 níveis: SISTEMA → GRUPO → TELA
+// (camada acima das permissões por área e das ações especiais do PDV).
 // - Tela sem flag marcada = BLOQUEADA (não aparece no menu, rota mostra "Acesso negado").
-// - Admin vê tudo. Telas "somente_admin" não têm checkbox: só o Admin entra.
-// - Fonte da verdade no banco: public.telas / public.usuario_telas / public.minhas_telas().
+// - Admin vê tudo. Telas "somente_admin" não têm checkbox: só o Admin entra (e só o Admin dá acessos).
+// - Fonte da verdade no banco: public.sistemas / public.grupos / public.telas / public.usuario_telas,
+//   funções public.minhas_telas(app) e public.meus_sistemas().
 //   Esta lista é o espelho dela no front e precisa bater com a migration
 //   20261108000017_permissao_por_tela.sql (um teste confere).
+// - Código da tela: "<sistema>.<tela>" (regra do CLAUDE.md da raiz do Ecossistema).
 import type { AppRole } from "@/lib/auth";
 import type { Modulo } from "@/lib/permissoes";
 
-export type ModuloTela = "vendas" | "caixa" | "estoque" | "cadastros" | "financeiro" | "relatorios" | "crm" | "rh";
-export type AppTela = "eco" | "rh";
+export type CodigoSistema = "pdv" | "rh" | "crm" | "checklist" | "pop" | "supervisor";
+
+export interface Sistema {
+  codigo: CodigoSistema;
+  nome: string;
+  url: string | null;
+  ordem: number;
+  ativo: boolean;
+}
+
+export interface Grupo {
+  sistema: CodigoSistema;
+  codigo: string;
+  nome: string;
+  ordem: number;
+}
 
 export interface Tela {
   codigo: string;
   nome: string;
-  modulo: ModuloTela;
+  sistema: CodigoSistema;
+  grupo: string;
   rota: string;
-  app: AppTela;
-  /** Área de permissão (ver/inserir/editar/excluir) que os dados desta tela usam. */
+  /** Área de permissão do PDV (ver/inserir/editar/excluir) que os dados desta tela usam. */
   area?: Modulo;
   /** Só o Admin entra; não aparece no editor. */
   somenteAdmin?: boolean;
@@ -24,17 +41,29 @@ export interface Tela {
   perfis: AppRole[];
 }
 
-export const URL_GESTAO_RH = "https://gestao-rh-tau.vercel.app";
+/** Sistemas do ecossistema (espelho de public.sistemas e de MEU SUPERVISOR/sistemas.json). */
+export const SISTEMAS: Sistema[] = [
+  { codigo: "pdv", nome: "PDV Salvados", url: "https://eco-sistema-tb.vercel.app", ordem: 10, ativo: true },
+  { codigo: "rh", nome: "Gestão RH", url: "https://gestao-rh-tau.vercel.app", ordem: 20, ativo: true },
+  { codigo: "crm", nome: "CRM Super Mix Braz", url: null, ordem: 30, ativo: false },
+  { codigo: "checklist", nome: "Check List Operacional", url: null, ordem: 40, ativo: false },
+  { codigo: "pop", nome: "Treinamentos com POP", url: null, ordem: 50, ativo: false },
+  { codigo: "supervisor", nome: "Meu Supervisor", url: null, ordem: 90, ativo: false },
+];
 
-export const MODULOS_TELA: { id: ModuloTela; nome: string }[] = [
-  { id: "vendas", nome: "Vendas" },
-  { id: "caixa", nome: "Caixa" },
-  { id: "estoque", nome: "Estoque" },
-  { id: "cadastros", nome: "Cadastros" },
-  { id: "financeiro", nome: "Financeiro" },
-  { id: "relatorios", nome: "Relatórios" },
-  { id: "crm", nome: "CRM" },
-  { id: "rh", nome: "RH (Gestão RH)" },
+/** Sistema deste site. */
+export const SISTEMA_ATUAL: CodigoSistema = "pdv";
+
+export const GRUPOS: Grupo[] = [
+  { sistema: "pdv", codigo: "vendas", nome: "Vendas", ordem: 10 },
+  { sistema: "pdv", codigo: "caixa", nome: "Caixa", ordem: 20 },
+  { sistema: "pdv", codigo: "estoque", nome: "Estoque", ordem: 30 },
+  { sistema: "pdv", codigo: "cadastros", nome: "Cadastros", ordem: 40 },
+  { sistema: "pdv", codigo: "financeiro", nome: "Financeiro", ordem: 50 },
+  { sistema: "pdv", codigo: "relatorios", nome: "Relatórios", ordem: 60 },
+  { sistema: "pdv", codigo: "crm", nome: "CRM", ordem: 70 },
+  { sistema: "rh", codigo: "lancamentos", nome: "Lançamentos", ordem: 10 },
+  { sistema: "rh", codigo: "consolidado", nome: "Consolidado", ordem: 20 },
 ];
 
 const TODOS: AppRole[] = ["admin", "gerente", "vendedor", "estoquista"];
@@ -43,35 +72,39 @@ const VENDA: AppRole[] = ["admin", "gerente", "vendedor"];
 const ESTOQUE: AppRole[] = ["admin", "gerente", "estoquista"];
 
 export const TELAS: Tela[] = [
-  { codigo: "vendas.pdv", nome: "PDV · Frente de loja", modulo: "vendas", rota: "/pdv", app: "eco", area: "vendas", perfis: VENDA },
-  { codigo: "vendas.notas", nome: "Vendas e notas", modulo: "vendas", rota: "/vendas", app: "eco", area: "vendas", perfis: VENDA },
-  { codigo: "caixa.movimentacoes", nome: "Movimentações de caixa", modulo: "caixa", rota: "/caixa", app: "eco", area: "caixa", perfis: VENDA },
-  { codigo: "estoque.produtos", nome: "Produtos e estoque", modulo: "estoque", rota: "/produtos", app: "eco", area: "produtos", perfis: TODOS },
-  { codigo: "estoque.lotes", nome: "Lotes", modulo: "estoque", rota: "/lotes", app: "eco", area: "lotes", perfis: ESTOQUE },
-  { codigo: "estoque.etiquetas", nome: "Etiquetas", modulo: "estoque", rota: "/etiquetas", app: "eco", area: "produtos", perfis: GESTOR },
-  { codigo: "estoque.mercadologico", nome: "Mercadológico", modulo: "estoque", rota: "/mercadologico", app: "eco", area: "produtos", perfis: ESTOQUE },
-  { codigo: "estoque.transferencias", nome: "Transferências", modulo: "estoque", rota: "/transferencias", app: "eco", area: "produtos", perfis: ESTOQUE },
-  { codigo: "estoque.mercado_livre", nome: "Mercado Livre (busca de anúncios)", modulo: "estoque", rota: "/mercado-livre", app: "eco", perfis: ESTOQUE },
-  { codigo: "cadastros.pessoas", nome: "Pessoas", modulo: "cadastros", rota: "/pessoas", app: "eco", area: "pessoas", perfis: ["admin"] },
-  { codigo: "cadastros.login_acesso", nome: "Login de acesso", modulo: "cadastros", rota: "/usuarios", app: "eco", somenteAdmin: true, perfis: ["admin"] },
-  { codigo: "cadastros.pagamentos", nome: "Formas e meios de pagamento", modulo: "cadastros", rota: "/pagamentos", app: "eco", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "cadastros.contas_bancarias", nome: "Contas bancárias", modulo: "cadastros", rota: "/contas-bancarias", app: "eco", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "cadastros.plano_contas", nome: "Plano de contas", modulo: "cadastros", rota: "/plano-contas", app: "eco", area: "cadastros_financeiros", perfis: GESTOR },
-  { codigo: "cadastros.lojas", nome: "Lojas e configurações", modulo: "cadastros", rota: "/lojas", app: "eco", somenteAdmin: true, perfis: ["admin"] },
-  { codigo: "financeiro.financeiro", nome: "Financeiro (pagar, receber, fluxo, DRE)", modulo: "financeiro", rota: "/financeiro", app: "eco", area: "financeiro", perfis: GESTOR },
-  { codigo: "relatorios.dashboard", nome: "Dashboard", modulo: "relatorios", rota: "/dashboard", app: "eco", perfis: TODOS },
-  { codigo: "relatorios.relatorios", nome: "Relatórios", modulo: "relatorios", rota: "/relatorios", app: "eco", area: "relatorios", perfis: GESTOR },
-  { codigo: "crm.whatsapp", nome: "CRM e WhatsApp", modulo: "crm", rota: "/crm", app: "eco", area: "crm", perfis: VENDA },
-  // Gestão RH (outro app, mesmo login). Antes: quem era membro de uma empresa do RH via estas telas.
-  { codigo: "rh.painel", nome: "Painel", modulo: "rh", rota: "/", app: "rh", perfis: [] },
-  { codigo: "rh.historico", nome: "Histórico", modulo: "rh", rota: "/historico", app: "rh", perfis: [] },
-  { codigo: "rh.global", nome: "Visão Global", modulo: "rh", rota: "/global", app: "rh", perfis: [] },
-  { codigo: "rh.empresas", nome: "Empresas", modulo: "rh", rota: "/empresas", app: "rh", perfis: [] },
-  { codigo: "rh.usuarios", nome: "Usuários do Gestão RH", modulo: "rh", rota: "/usuarios", app: "rh", perfis: [] },
+  // PDV Salvados
+  { codigo: "pdv.pdv", nome: "PDV · Frente de loja", sistema: "pdv", grupo: "vendas", rota: "/pdv", area: "vendas", perfis: VENDA },
+  { codigo: "pdv.vendas", nome: "Vendas e notas", sistema: "pdv", grupo: "vendas", rota: "/vendas", area: "vendas", perfis: VENDA },
+  { codigo: "pdv.caixa", nome: "Movimentações de caixa", sistema: "pdv", grupo: "caixa", rota: "/caixa", area: "caixa", perfis: VENDA },
+  { codigo: "pdv.produtos", nome: "Produtos e estoque", sistema: "pdv", grupo: "estoque", rota: "/produtos", area: "produtos", perfis: TODOS },
+  { codigo: "pdv.lotes", nome: "Lotes", sistema: "pdv", grupo: "estoque", rota: "/lotes", area: "lotes", perfis: ESTOQUE },
+  { codigo: "pdv.etiquetas", nome: "Etiquetas", sistema: "pdv", grupo: "estoque", rota: "/etiquetas", area: "produtos", perfis: GESTOR },
+  { codigo: "pdv.mercadologico", nome: "Mercadológico", sistema: "pdv", grupo: "estoque", rota: "/mercadologico", area: "produtos", perfis: ESTOQUE },
+  { codigo: "pdv.transferencias", nome: "Transferências", sistema: "pdv", grupo: "estoque", rota: "/transferencias", area: "produtos", perfis: ESTOQUE },
+  { codigo: "pdv.mercado_livre", nome: "Mercado Livre (busca de anúncios)", sistema: "pdv", grupo: "estoque", rota: "/mercado-livre", perfis: ESTOQUE },
+  { codigo: "pdv.pessoas", nome: "Pessoas", sistema: "pdv", grupo: "cadastros", rota: "/pessoas", area: "pessoas", perfis: ["admin"] },
+  { codigo: "pdv.login_acesso", nome: "Login de acesso", sistema: "pdv", grupo: "cadastros", rota: "/usuarios", somenteAdmin: true, perfis: ["admin"] },
+  { codigo: "pdv.pagamentos", nome: "Formas e meios de pagamento", sistema: "pdv", grupo: "cadastros", rota: "/pagamentos", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.contas_bancarias", nome: "Contas bancárias", sistema: "pdv", grupo: "cadastros", rota: "/contas-bancarias", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.plano_contas", nome: "Plano de contas", sistema: "pdv", grupo: "cadastros", rota: "/plano-contas", area: "cadastros_financeiros", perfis: GESTOR },
+  { codigo: "pdv.lojas", nome: "Lojas e configurações", sistema: "pdv", grupo: "cadastros", rota: "/lojas", somenteAdmin: true, perfis: ["admin"] },
+  { codigo: "pdv.financeiro", nome: "Financeiro (pagar, receber, fluxo, DRE)", sistema: "pdv", grupo: "financeiro", rota: "/financeiro", area: "financeiro", perfis: GESTOR },
+  { codigo: "pdv.dashboard", nome: "Dashboard", sistema: "pdv", grupo: "relatorios", rota: "/dashboard", perfis: TODOS },
+  { codigo: "pdv.relatorios", nome: "Relatórios", sistema: "pdv", grupo: "relatorios", rota: "/relatorios", area: "relatorios", perfis: GESTOR },
+  { codigo: "pdv.crm", nome: "CRM e WhatsApp", sistema: "pdv", grupo: "crm", rota: "/crm", area: "crm", perfis: VENDA },
+  // Gestão RH (outro site, mesmo login). Antes: quem era membro de uma empresa do RH via estas telas.
+  { codigo: "rh.painel", nome: "Painel", sistema: "rh", grupo: "lancamentos", rota: "/", perfis: [] },
+  { codigo: "rh.historico", nome: "Histórico", sistema: "rh", grupo: "lancamentos", rota: "/historico", perfis: [] },
+  { codigo: "rh.global", nome: "Visão Global", sistema: "rh", grupo: "consolidado", rota: "/global", perfis: [] },
+  { codigo: "rh.empresas", nome: "Empresas", sistema: "rh", grupo: "consolidado", rota: "/empresas", perfis: [] },
+  { codigo: "rh.usuarios", nome: "Usuários do Gestão RH", sistema: "rh", grupo: "consolidado", rota: "/usuarios", somenteAdmin: true, perfis: [] },
 ];
 
-/** Telas que aparecem no editor (as "somente Admin" ficam de fora). */
-export const TELAS_EDITAVEIS = TELAS.filter((t) => !t.somenteAdmin);
+/** Telas que aparecem no editor (as "somente Admin" e as de sistemas inativos ficam de fora). */
+export const TELAS_EDITAVEIS = TELAS.filter((t) => !t.somenteAdmin && SISTEMAS.find((s) => s.codigo === t.sistema)?.ativo);
+
+/** Sistemas que aparecem no editor (ativos e com pelo menos uma tela editável). */
+export const SISTEMAS_EDITAVEIS = SISTEMAS.filter((s) => s.ativo && TELAS_EDITAVEIS.some((t) => t.sistema === s.codigo));
 
 export type MapaTelas = Record<string, boolean>;
 
@@ -100,34 +133,48 @@ export function podeVerTela(codigo: string, ctx: { admin: boolean; liberadas: Re
   return ctx.liberadas.has(codigo);
 }
 
+/** Sistemas que o usuário vê (pelo menos uma tela liberada). Admin: todos os ativos. */
+export function sistemasDoUsuario(ctx: { admin: boolean; liberadas: ReadonlySet<string> }): Sistema[] {
+  return SISTEMAS.filter((s) => s.ativo && (ctx.admin || TELAS.some((t) => t.sistema === s.codigo && podeVerTela(t.codigo, ctx))));
+}
+
 /**
  * Acesso que o usuário tinha ANTES do controle por tela (perfil + área com "ver").
  * É a regra que a migration usa para gerar as flags de quem já existe, e o modo de
  * segurança do site enquanto a migration não foi aplicada.
+ * No RH, "Usuários do Gestão RH" passou a ser só do Admin (decisão de 08/11/2026).
  */
-export function telasLegado(role: AppRole | null, podeVerArea: (m: Modulo) => boolean, rh?: { membro: boolean; gestor: boolean }): Set<string> {
+export function telasLegado(role: AppRole | null, podeVerArea: (m: Modulo) => boolean, rh?: { membro: boolean }): Set<string> {
   const s = new Set<string>();
   if (!role) return s;
   for (const t of TELAS) {
-    if (t.app === "rh") {
-      if (role === "admin" || (rh?.membro && (t.codigo !== "rh.usuarios" || rh.gestor))) s.add(t.codigo);
+    if (t.somenteAdmin && role !== "admin") continue;
+    if (t.sistema === "rh") {
+      if (role === "admin" || rh?.membro) s.add(t.codigo);
       continue;
     }
-    if (t.somenteAdmin && role !== "admin") continue;
     if (t.perfis.includes(role) && (!t.area || podeVerArea(t.area))) s.add(t.codigo);
   }
   return s;
 }
 
-/** Tela dona de um caminho (a rota mais específica ganha). */
-export function telaDaRota(path: string, app: AppTela = "eco"): Tela | undefined {
-  return TELAS.filter((t) => t.app === app && (path === t.rota || (t.rota !== "/" && path.startsWith(t.rota + "/"))))
+/** Tela dona de um caminho no sistema informado (a rota mais específica ganha). */
+export function telaDaRota(path: string, sistema: CodigoSistema = SISTEMA_ATUAL): Tela | undefined {
+  return TELAS.filter((t) => t.sistema === sistema && (path === t.rota || (t.rota !== "/" && path.startsWith(t.rota + "/"))))
     .sort((a, b) => b.rota.length - a.rota.length)[0];
 }
 
-/** Estado do checkbox de um módulo no editor. */
-export function estadoModulo(mapa: MapaTelas, modulo: ModuloTela): "todos" | "nenhum" | "parcial" {
-  const ts = TELAS_EDITAVEIS.filter((t) => t.modulo === modulo);
-  const on = ts.filter((t) => mapa[t.codigo]).length;
-  return on === 0 ? "nenhum" : on === ts.length ? "todos" : "parcial";
+export type EstadoMarcacao = "todos" | "nenhum" | "parcial";
+
+function estadoDe(mapa: MapaTelas, telas: Tela[]): EstadoMarcacao {
+  const on = telas.filter((t) => mapa[t.codigo]).length;
+  return on === 0 ? "nenhum" : on === telas.length ? "todos" : "parcial";
 }
+
+/** Estado do checkbox de um SISTEMA inteiro no editor. */
+export const estadoSistema = (mapa: MapaTelas, sistema: CodigoSistema): EstadoMarcacao =>
+  estadoDe(mapa, TELAS_EDITAVEIS.filter((t) => t.sistema === sistema));
+
+/** Estado do checkbox de um GRUPO inteiro no editor. */
+export const estadoGrupo = (mapa: MapaTelas, sistema: CodigoSistema, grupo: string): EstadoMarcacao =>
+  estadoDe(mapa, TELAS_EDITAVEIS.filter((t) => t.sistema === sistema && t.grupo === grupo));

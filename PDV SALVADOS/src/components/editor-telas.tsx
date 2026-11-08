@@ -1,11 +1,17 @@
-// Seção "Telas" do editor de permissões: um checkbox por tela, agrupado por módulo,
-// checkbox do módulo inteiro (com estado parcial), marcar/desmarcar tudo e busca.
+// Seção "Sistemas e telas" do editor de permissões, em 3 níveis:
+//   SISTEMA (checkbox do sistema inteiro, estado parcial, abre/fecha)
+//   → GRUPO (checkbox do grupo inteiro, estado parcial)
+//   → TELA  (um checkbox por tela)
+// Com busca e "Marcar tudo" / "Desmarcar tudo".
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, LayoutGrid, Search } from "lucide-react";
-import { MODULOS_TELA, TELAS, TELAS_EDITAVEIS, estadoModulo, type MapaTelas, type ModuloTela } from "@/lib/telas";
+import {
+  GRUPOS, SISTEMAS_EDITAVEIS, TELAS, TELAS_EDITAVEIS, estadoGrupo, estadoSistema,
+  type CodigoSistema, type EstadoMarcacao, type MapaTelas,
+} from "@/lib/telas";
 import { cn } from "@/lib/utils";
 
-function CaixaMarcar({ estado, onChange, label }: { estado: "todos" | "nenhum" | "parcial"; onChange: (v: boolean) => void; label: string }) {
+function CaixaMarcar({ estado, onChange, label }: { estado: EstadoMarcacao; onChange: (v: boolean) => void; label: string }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (ref.current) ref.current.indeterminate = estado === "parcial";
@@ -18,7 +24,7 @@ function CaixaMarcar({ estado, onChange, label }: { estado: "todos" | "nenhum" |
       title={label}
       checked={estado === "todos"}
       onChange={(e) => onChange(e.target.checked)}
-      className="size-4 cursor-pointer accent-[var(--primary)]"
+      className="size-4 shrink-0 cursor-pointer accent-[var(--primary)]"
     />
   );
 }
@@ -33,69 +39,96 @@ export function SecaoTelas({ telas, onChange, avisos }: {
   const termo = busca.trim().toLowerCase();
   const total = TELAS_EDITAVEIS.length;
   const marcadas = TELAS_EDITAVEIS.filter((t) => telas[t.codigo]).length;
-  const somenteAdmin = TELAS.filter((t) => t.somenteAdmin).map((t) => t.nome).join(" e ");
+  const somenteAdmin = TELAS.filter((t) => t.somenteAdmin).map((t) => t.nome);
 
-  const grupos = useMemo(
+  // Árvore filtrada pela busca (nome da tela, do grupo ou do sistema)
+  const arvore = useMemo(
     () =>
-      MODULOS_TELA.map((m) => ({
-        ...m,
-        telas: TELAS_EDITAVEIS.filter((t) => t.modulo === m.id && (!termo || t.nome.toLowerCase().includes(termo) || m.nome.toLowerCase().includes(termo))),
-      })).filter((g) => g.telas.length > 0),
+      SISTEMAS_EDITAVEIS.map((s) => ({
+        ...s,
+        grupos: GRUPOS.filter((g) => g.sistema === s.codigo)
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((g) => ({
+            ...g,
+            telas: TELAS_EDITAVEIS.filter(
+              (t) => t.sistema === s.codigo && t.grupo === g.codigo &&
+                (!termo || t.nome.toLowerCase().includes(termo) || g.nome.toLowerCase().includes(termo) || s.nome.toLowerCase().includes(termo)),
+            ),
+          }))
+          .filter((g) => g.telas.length > 0),
+      })).filter((s) => s.grupos.length > 0),
     [termo],
   );
 
-  const todas = (v: boolean) => onChange((m) => { for (const t of TELAS_EDITAVEIS) m[t.codigo] = v; });
-  const modulo = (id: ModuloTela, v: boolean) => onChange((m) => { for (const t of TELAS_EDITAVEIS) if (t.modulo === id) m[t.codigo] = v; });
-  const uma = (codigo: string, v: boolean) => onChange((m) => { m[codigo] = v; });
+  const marcar = (filtro: (t: (typeof TELAS_EDITAVEIS)[number]) => boolean, v: boolean) =>
+    onChange((m) => { for (const t of TELAS_EDITAVEIS) if (filtro(t)) m[t.codigo] = v; });
+  const doSistema = (s: CodigoSistema) => TELAS_EDITAVEIS.filter((t) => t.sistema === s);
 
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <LayoutGrid className="size-4 text-primary" /> Telas que ele pode abrir
-          <span className="font-normal text-muted-foreground">({marcadas} de {total})</span>
+          <LayoutGrid className="size-4 text-primary" /> Sistemas e telas que ele pode abrir
+          <span className="font-normal text-muted-foreground">({marcadas} de {total} telas)</span>
         </h3>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2 top-2 size-3.5 text-muted-foreground" />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar tela…" className="h-8 w-44 rounded-md border bg-background pl-7 pr-2 text-xs" />
           </div>
-          <button type="button" onClick={() => todas(true)} className="rounded border px-2 py-1 text-xs hover:bg-muted">Marcar tudo</button>
-          <button type="button" onClick={() => todas(false)} className="rounded border px-2 py-1 text-xs hover:bg-muted">Desmarcar tudo</button>
+          <button type="button" onClick={() => marcar(() => true, true)} className="rounded border px-2 py-1 text-xs hover:bg-muted">Marcar tudo</button>
+          <button type="button" onClick={() => marcar(() => true, false)} className="rounded border px-2 py-1 text-xs hover:bg-muted">Desmarcar tudo</button>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Tela desmarcada não aparece no menu e mostra "Acesso negado". {somenteAdmin} são exclusivas do Admin.
+        Tela desmarcada não aparece no menu e mostra "Acesso negado". Sistema sem nenhuma tela marcada não aparece para ele.
+        Exclusivas do Admin (sem checkbox): {somenteAdmin.join(", ")}.
       </p>
 
-      {grupos.length === 0 ? (
+      {arvore.length === 0 ? (
         <p className="rounded-lg border p-4 text-center text-xs text-muted-foreground">Nenhuma tela com "{busca}".</p>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {grupos.map((g) => {
-            const est = estadoModulo(telas, g.id);
-            const aberto = termo ? true : !fechados[g.id];
-            const on = TELAS_EDITAVEIS.filter((t) => t.modulo === g.id && telas[t.codigo]).length;
-            const tot = TELAS_EDITAVEIS.filter((t) => t.modulo === g.id).length;
+        <div className="space-y-2">
+          {arvore.map((s) => {
+            const est = estadoSistema(telas, s.codigo);
+            const aberto = termo ? true : !fechados[s.codigo];
+            const on = doSistema(s.codigo).filter((t) => telas[t.codigo]).length;
             return (
-              <div key={g.id} className={cn("rounded-lg border", est !== "nenhum" && "border-primary/40")}>
-                <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-2">
-                  <CaixaMarcar estado={est} onChange={(v) => modulo(g.id, v)} label={`Módulo ${g.nome} inteiro`} />
-                  <button type="button" onClick={() => setFechados((f) => ({ ...f, [g.id]: aberto }))} className="flex flex-1 items-center justify-between text-left">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide">{g.nome}</span>
+              <div key={s.codigo} className={cn("rounded-lg border", est !== "nenhum" && "border-primary/50")}>
+                {/* Nível 1: SISTEMA */}
+                <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2">
+                  <CaixaMarcar estado={est} onChange={(v) => marcar((t) => t.sistema === s.codigo, v)} label={`Sistema ${s.nome} inteiro`} />
+                  <button type="button" onClick={() => setFechados((f) => ({ ...f, [s.codigo]: aberto }))} className="flex flex-1 items-center justify-between text-left">
+                    <span className="text-sm font-semibold">{s.nome}</span>
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                      {on}/{tot}
-                      <ChevronDown className={cn("size-3.5 transition-transform", aberto && "rotate-180")} />
+                      {on}/{doSistema(s.codigo).length} telas
+                      <ChevronDown className={cn("size-4 transition-transform", aberto && "rotate-180")} />
                     </span>
                   </button>
                 </div>
-                {aberto && g.telas.map((t) => (
-                  <label key={t.codigo} className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-sm last:border-0 hover:bg-muted/30">
-                    <input type="checkbox" checked={!!telas[t.codigo]} onChange={(e) => uma(t.codigo, e.target.checked)} className="size-4 cursor-pointer accent-[var(--primary)]" />
-                    <span className="flex-1">{t.nome}</span>
-                    {t.app === "rh" && <span className="rounded bg-muted px-1 text-[10px] text-muted-foreground">outro site</span>}
-                  </label>
-                ))}
+                {aberto && (
+                  <div className="grid gap-2 p-2 sm:grid-cols-2">
+                    {s.grupos.map((g) => {
+                      const eg = estadoGrupo(telas, s.codigo, g.codigo);
+                      return (
+                        <div key={g.codigo} className={cn("rounded-md border", eg !== "nenhum" && "border-primary/30")}>
+                          {/* Nível 2: GRUPO */}
+                          <label className="flex cursor-pointer items-center gap-2 border-b bg-muted/20 px-3 py-1.5">
+                            <CaixaMarcar estado={eg} onChange={(v) => marcar((t) => t.sistema === s.codigo && t.grupo === g.codigo, v)} label={`Grupo ${g.nome} inteiro`} />
+                            <span className="flex-1 text-[12px] font-semibold uppercase tracking-wide">{g.nome}</span>
+                          </label>
+                          {/* Nível 3: TELAS */}
+                          {g.telas.map((t) => (
+                            <label key={t.codigo} className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-sm last:border-0 hover:bg-muted/30">
+                              <input type="checkbox" checked={!!telas[t.codigo]} onChange={(e) => marcar((x) => x.codigo === t.codigo, e.target.checked)} className="size-4 cursor-pointer accent-[var(--primary)]" />
+                              <span className="flex-1">{t.nome}</span>
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

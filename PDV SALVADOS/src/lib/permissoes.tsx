@@ -6,7 +6,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { TELAS, TELAS_EDITAVEIS, podeVerTela, telasLegado, type MapaTelas } from "@/lib/telas";
+import { SISTEMAS, SISTEMA_ATUAL, TELAS_EDITAVEIS, podeVerTela, sistemasDoUsuario, telasLegado, type MapaTelas, type Sistema } from "@/lib/telas";
 
 export type Modulo = "pessoas" | "produtos" | "lotes" | "vendas" | "caixa" | "financeiro" | "cadastros_financeiros" | "crm" | "relatorios";
 export type Acao = "ver" | "inserir" | "editar" | "excluir";
@@ -47,8 +47,8 @@ const mapa = (padrao: string, exc: Partial<Record<Modulo, string>> = {}) =>
 const acoes = (on: ChaveAcao[] | "todas") =>
   Object.fromEntries(ACOES_ESPECIAIS.map((a) => [a.id, on === "todas" || on.includes(a.id)])) as MapaAcoes;
 
-const telas = (on: string[] | "eco" | "todas") =>
-  Object.fromEntries(TELAS_EDITAVEIS.map((t) => [t.codigo, on === "todas" || (on === "eco" ? t.app === "eco" : on.includes(t.codigo))])) as MapaTelas;
+const telas = (on: string[] | "pdv" | "todas") =>
+  Object.fromEntries(TELAS_EDITAVEIS.map((t) => [t.codigo, on === "todas" || (on === "pdv" ? t.sistema === "pdv" : on.includes(t.codigo))])) as MapaTelas;
 
 /** Modelos prontos: um clique e depois ajusta o que quiser. */
 export const MODELOS: { id: string; nome: string; desc: string; modulos: MapaModulos; acoes: MapaAcoes; telas: MapaTelas }[] = [
@@ -56,21 +56,21 @@ export const MODELOS: { id: string; nome: string; desc: string; modulos: MapaMod
     id: "vendedor", nome: "Vendedor(a) / caixa", desc: "vende, abre e fecha caixa, cadastra cliente",
     modulos: mapa("", { vendas: "VI", caixa: "VIE", pessoas: "VIE", crm: "VIE", produtos: "V" }),
     acoes: acoes(["caixa.suprimento", "caixa.sangria"]),
-    telas: telas(["vendas.pdv", "vendas.notas", "caixa.movimentacoes", "estoque.produtos", "cadastros.pessoas", "crm.whatsapp", "relatorios.dashboard"]),
+    telas: telas(["pdv.pdv", "pdv.vendas", "pdv.caixa", "pdv.produtos", "pdv.pessoas", "pdv.crm", "pdv.dashboard"]),
   },
   {
     id: "estoquista", nome: "Estoquista", desc: "lotes, produtos, etiquetas e estoque",
     modulos: mapa("", { produtos: "VIE", lotes: "VIE", pessoas: "V" }),
     acoes: acoes(["produtos.ajustar_estoque", "produtos.ver_custo", "dados.exportar"]),
-    telas: telas(["estoque.produtos", "estoque.lotes", "estoque.etiquetas", "estoque.mercadologico", "estoque.transferencias", "estoque.mercado_livre", "relatorios.dashboard"]),
+    telas: telas(["pdv.produtos", "pdv.lotes", "pdv.etiquetas", "pdv.mercadologico", "pdv.transferencias", "pdv.mercado_livre", "pdv.dashboard"]),
   },
   {
     id: "gerente", nome: "Gerente", desc: "tudo da loja, sem excluir cadastros e financeiro",
     modulos: mapa("VIEX", { pessoas: "VIE", financeiro: "VIE", cadastros_financeiros: "VIE" }),
     acoes: acoes("todas"),
-    telas: telas("eco"),
+    telas: telas("pdv"),
   },
-  { id: "consulta", nome: "Só consulta", desc: "vê todas as telas do ECO, não altera nada", modulos: mapa("V"), acoes: acoes(["dados.exportar", "produtos.ver_custo"]), telas: telas("eco") },
+  { id: "consulta", nome: "Só consulta", desc: "vê todas as telas do PDV, não altera nada", modulos: mapa("V"), acoes: acoes(["dados.exportar", "produtos.ver_custo"]), telas: telas("pdv") },
   { id: "tudo", nome: "Liberar tudo", desc: "todas as telas (inclusive RH), áreas e ações", modulos: mapa("VIEX"), acoes: acoes("todas"), telas: telas("todas") },
 ];
 
@@ -85,8 +85,8 @@ interface Estado {
   podeAcao: (c: ChaveAcao) => boolean;
   /** Pode ver a tela (código de src/lib/telas.ts)? */
   podeTela: (codigo: string | undefined) => boolean;
-  /** Tem alguma tela do Gestão RH? (mostra o atalho no menu) */
-  temRh: boolean;
+  /** Sistemas do ecossistema em que ele tem pelo menos uma tela (menu "Sistemas"). */
+  sistemas: Sistema[];
   /** true enquanto as telas não carregaram. */
   carregandoTelas: boolean;
   /** true = minhas_telas deu erro (migration ainda não aplicada): usando o acesso antigo por perfil. */
@@ -94,7 +94,7 @@ interface Estado {
   recarregar: () => Promise<void>;
 }
 const Ctx = createContext<Estado>({
-  pode: () => true, podeAcao: () => true, podeTela: () => true, temRh: false, carregandoTelas: false, modoLegado: false, recarregar: async () => {},
+  pode: () => true, podeAcao: () => true, podeTela: () => true, sistemas: [], carregandoTelas: false, modoLegado: false, recarregar: async () => {},
 });
 
 export function PermissoesProvider({ children }: { children: ReactNode }) {
@@ -103,23 +103,30 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
   const [flags, setFlags] = useState<{ chave: ChaveAcao; permitido: boolean }[]>([]);
   const [liberadas, setLiberadas] = useState<Set<string> | null>(null);
   const [modoLegado, setModoLegado] = useState(false);
+  const [sistemas, setSistemas] = useState<Sistema[]>([]);
   async function recarregar() {
     if (!user) { setLinhas([]); setFlags([]); setLiberadas(new Set()); return; }
-    const [a, b, c] = await Promise.all([
+    const [a, b, c, d] = await Promise.all([
       supabase.from("permissoes").select("modulo, ver, inserir, editar, excluir").eq("user_id", user.id),
       supabase.from("permissoes_acoes").select("chave, permitido").eq("user_id", user.id),
-      supabase.rpc("minhas_telas", { _app: null }),
+      supabase.rpc("minhas_telas", { _app: SISTEMA_ATUAL }),
+      supabase.rpc("meus_sistemas"),
     ]);
     setLinhas((a.data ?? []) as LinhaPermissao[]);
     setFlags((b.data ?? []) as { chave: ChaveAcao; permitido: boolean }[]);
-    if (c.error) {
+    if (c.error || d.error) {
       // Proteção na publicação: sem a migration (ou com erro), NÃO bloqueia todo mundo.
-      console.warn("minhas_telas indisponível; usando acesso por perfil.", c.error.message);
+      console.warn("minhas_telas indisponível; usando acesso por perfil.", (c.error ?? d.error)?.message);
       setModoLegado(true);
       setLiberadas(null);
     } else {
       setModoLegado(false);
       setLiberadas(new Set(((c.data ?? []) as unknown[]).map((x) => (typeof x === "string" ? x : String(Object.values(x as object)[0])))));
+      // nome/url vêm do banco (public.sistemas); a ordem também
+      setSistemas(((d.data ?? []) as { codigo: string; nome: string; url: string | null; ordem: number }[]).map((x) => ({
+        ...(SISTEMAS.find((s) => s.codigo === x.codigo) ?? { ativo: true }),
+        codigo: x.codigo as Sistema["codigo"], nome: x.nome, url: x.url, ordem: x.ordem, ativo: true,
+      })));
     }
   }
   useEffect(() => {
@@ -137,9 +144,10 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     [modoLegado, liberadas, role, linhas],
   );
   const podeTela = (codigo: string | undefined) => !codigo || podeVerTela(codigo, { admin: role === "admin", liberadas: efetivas });
-  const temRh = role === "admin" || TELAS.some((t) => t.app === "rh" && efetivas.has(t.codigo));
+  // Modo de segurança: admin vê todos os sistemas; os demais só o PDV (acesso antigo).
+  const listaSistemas = modoLegado ? sistemasDoUsuario({ admin: role === "admin", liberadas: efetivas }) : sistemas;
   return (
-    <Ctx.Provider value={{ pode, podeAcao, podeTela, temRh, carregandoTelas: !modoLegado && liberadas === null, modoLegado, recarregar }}>
+    <Ctx.Provider value={{ pode, podeAcao, podeTela, sistemas: listaSistemas, carregandoTelas: !modoLegado && liberadas === null, modoLegado, recarregar }}>
       {children}
     </Ctx.Provider>
   );

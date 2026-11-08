@@ -17,6 +17,7 @@ function EscolhaVisual() {
 import { useAuth, homeRouteFor } from "@/lib/auth";
 import { NAV, itemDaRota, itemVisivel } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
+import { MenuSistemasLateral } from "@/components/menu-sistemas";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -86,19 +87,8 @@ function AppShell() {
       else blocos.push({ tipo: "grupo", nome: it.grupo, itens: [it] });
     }
   }
-  const link = (n: (typeof items)[number], sub = false) => n.externo ? (
-    <a
-      key={n.to}
-      href={n.externo}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={() => setOpen(false)}
-      className={cn("flex items-center gap-3 rounded-lg font-medium transition-colors hover:bg-sidebar-accent", sub ? "px-3 py-2 pl-9 text-[13px]" : "px-3 py-2.5 text-sm")}
-      title="Abre o Gestão RH em outra aba (mesmo login)"
-    >
-      <n.icon className={sub ? "size-4" : "size-5"} />
-      {n.label}
-    </a>
+  const link = (n: (typeof items)[number], sub = false) => n.menuSistemas ? (
+    <MenuSistemasLateral key={n.to} onEscolher={() => setOpen(false)} />
   ) : (
     <Link
       key={n.to}

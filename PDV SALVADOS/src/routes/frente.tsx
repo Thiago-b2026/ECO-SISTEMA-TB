@@ -15,10 +15,10 @@ import type { ReactNode } from "react";
 function TravaPdv({ children }: { children: ReactNode }) {
   const { podeTela, carregandoTelas } = usePermissoes();
   if (carregandoTelas) return <p className="p-6 text-sm text-muted-foreground">Carregando…</p>;
-  return podeTela("vendas.pdv") ? <>{children}</> : <AcessoNegado />;
+  return podeTela("pdv.pdv") ? <>{children}</> : <AcessoNegado />;
 }
 
-// Janela própria da frente de loja: só o caixa, sem o menu do sistema. Exige a tela "vendas.pdv".
+// Janela própria da frente de loja: só o caixa, sem o menu do sistema. Exige a tela "pdv.pdv".
 export const Route = createFileRoute("/frente")({
   beforeLoad: ({ context }) => {
     const { user, role } = context.auth;
