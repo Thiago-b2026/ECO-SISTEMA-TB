@@ -1,5 +1,16 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
+## Sessão 08/11/2026 (noite) — Etapa 0 (RH no Git) e Etapa A (menu novo do PDV)
+- **GESTAO-RH entrou no Git** (sem .env/.env.local/.env.db, CSVs, prints, senhas, supabase/.temp). Vercel do gestao-rh precisa de
+  **Root Directory = `GESTAO-RH`**; depois disso o RH publica pelo push no `main` (igual ao PDV) e o deploy pela CLI de dentro da pasta deixa de funcionar.
+- **Menu novo** (`nav.ts`: `GRUPOS_MENU`, `montarMenu()`; os dois visuais): DASHBOARD (Dashboard, Relatórios) · PDV · FRENTE DE LOJA (PDV,
+  Vendas e notas) · PRODUTOS (Cadastro de produtos, Mercadológico, Lotes, Etiquetas, Transferências) · FINANCEIRO (Financeiro, Movimentações
+  de caixa, Formas e meios de pagamento, Contas bancárias, Plano de contas) · CADASTROS (Empresas, Pessoas, Login de acesso) · CRM E WHATSAPP (CRM).
+  Clicar no grupo abre a 1ª tela liberada e mostra as subtelas; grupo com 1 tela só vira link direto. Grupos = `public.grupos` (teste confere).
+- "Lojas e configurações" → **Empresas** (rede → unidades, Tipo matriz/filial, rede ao criar unidade, "Unidades de outros sistemas" só consulta).
+  "Produtos e estoque" → **Cadastro de produtos**. **Pessoas**: colunas "Tem login" e "Abrir no Portal" (desligado até o Portal existir).
+- Testes: 94 (novo `src/lib/__tests__/menu.test.ts`).
+
 ## Sessão 08/11/2026 (tarde) — Portal, fase 1: Grupo TB → REDE → UNIDADE e permissões por unidade
 - Migration **`20261108000018_portal_redes_unidades.sql` (APLICADA e conferida em 08/11)**. Histórico completo e requisitos da
   fase 2 em `../PORTAL/HISTORICO_PORTAL.md`.

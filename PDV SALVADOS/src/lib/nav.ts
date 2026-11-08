@@ -19,6 +19,7 @@ import {
   ListTree,
   Gauge,
   MessagesSquare,
+  FolderOpen,
   LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
@@ -32,8 +33,8 @@ export interface NavItem {
   roles: AppRole[];
   /** Fase do roadmap em que a tela fica pronta (mostra "em breve" antes). */
   fase: 0 | 1 | 2;
-  /** Grupo do menu (submenu). Sem grupo = item solto. */
-  grupo?: "Cadastros" | "Movimento";
+  /** Grupo do menu = grupo da tela no banco (public.grupos do sistema "pdv"). Sem grupo = item solto. */
+  grupo?: GrupoMenu;
   /** Rota existe (permissão), mas não aparece no menu. */
   oculto?: boolean;
   /** Área de permissão (sem "ver" o item some do menu). */
@@ -44,6 +45,18 @@ export interface NavItem {
   menuSistemas?: true;
 }
 
+export type GrupoMenu = "dashboard" | "frente" | "produtos" | "financeiro" | "cadastros" | "crm";
+
+/** Grupos do menu, na ordem do menu (nomes iguais aos de public.grupos / src/lib/telas.ts). */
+export const GRUPOS_MENU: { codigo: GrupoMenu; nome: string; icon: LucideIcon }[] = [
+  { codigo: "dashboard", nome: "Dashboard", icon: Gauge },
+  { codigo: "frente", nome: "PDV · Frente de loja", icon: ShoppingCart },
+  { codigo: "produtos", nome: "Produtos", icon: Package },
+  { codigo: "financeiro", nome: "Financeiro", icon: Landmark },
+  { codigo: "cadastros", nome: "Cadastros", icon: FolderOpen },
+  { codigo: "crm", nome: "CRM e WhatsApp", icon: MessagesSquare },
+];
+
 const TODOS: AppRole[] = ["admin", "gerente", "vendedor", "estoquista"];
 const GESTOR: AppRole[] = ["admin", "gerente"];
 
@@ -53,34 +66,41 @@ const GESTOR: AppRole[] = ["admin", "gerente"];
  * usado como base da migração e no modo de segurança (enquanto a migration não existir).
  */
 export const NAV: NavItem[] = [
-  { to: "/dashboard", label: "Dashboard", icon: Gauge, roles: TODOS, fase: 1, tela: "pdv.dashboard" },
-  { to: "/pdv", label: "PDV · Frente de loja", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "vendas", tela: "pdv.pdv" },
+  // DASHBOARD
+  { to: "/dashboard", label: "Dashboard", icon: Gauge, roles: TODOS, fase: 1, grupo: "dashboard", tela: "pdv.dashboard" },
+  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, grupo: "dashboard", modulo: "relatorios", tela: "pdv.relatorios" },
 
-  // Cadastros
-  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin"], fase: 1, grupo: "Cadastros", modulo: "pessoas", tela: "pdv.pessoas" },
-  { to: "/usuarios", label: "Login de acesso", icon: Users, roles: ["admin"], fase: 1, grupo: "Cadastros", tela: "pdv.login_acesso" },
-  { to: "/produtos", label: "Produtos e estoque", icon: Package, roles: TODOS, fase: 1, grupo: "Cadastros", modulo: "produtos", tela: "pdv.produtos" },
-  { to: "/etiquetas", label: "Etiquetas", icon: Tag, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "produtos", tela: "pdv.etiquetas" },
-  { to: "/mercadologico", label: "Mercadológico", icon: Network, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Cadastros", modulo: "produtos", tela: "pdv.mercadologico" },
-  { to: "/pagamentos", label: "Formas e meios de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros", tela: "pdv.pagamentos" },
-  { to: "/contas-bancarias", label: "Contas bancárias", icon: Banknote, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros", tela: "pdv.contas_bancarias" },
-  { to: "/plano-contas", label: "Plano de contas", icon: ListTree, roles: GESTOR, fase: 1, grupo: "Cadastros", modulo: "cadastros_financeiros", tela: "pdv.plano_contas" },
+  // PDV · FRENTE DE LOJA
+  { to: "/pdv", label: "PDV", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "frente", modulo: "vendas", tela: "pdv.pdv" },
+  { to: "/vendas", label: "Vendas e notas", icon: ListOrdered, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "frente", modulo: "vendas", tela: "pdv.vendas" },
 
-  { to: "/lotes", label: "Lotes", icon: Boxes, roles: ["admin", "gerente", "estoquista"], fase: 1, modulo: "lotes", tela: "pdv.lotes" },
+  // PRODUTOS
+  { to: "/produtos", label: "Cadastro de produtos", icon: Package, roles: TODOS, fase: 1, grupo: "produtos", modulo: "produtos", tela: "pdv.produtos" },
+  { to: "/mercadologico", label: "Mercadológico", icon: Network, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "produtos", modulo: "produtos", tela: "pdv.mercadologico" },
+  { to: "/lotes", label: "Lotes", icon: Boxes, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "produtos", modulo: "lotes", tela: "pdv.lotes" },
+  { to: "/etiquetas", label: "Etiquetas", icon: Tag, roles: GESTOR, fase: 1, grupo: "produtos", modulo: "produtos", tela: "pdv.etiquetas" },
+  { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "produtos", modulo: "produtos", tela: "pdv.transferencias" },
 
-  // Movimento
-  { to: "/vendas", label: "Vendas e notas", icon: ListOrdered, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento", modulo: "vendas", tela: "pdv.vendas" },
-  { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "Movimento", modulo: "caixa", tela: "pdv.caixa" },
-  { to: "/transferencias", label: "Transferências", icon: ArrowRightLeft, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "Movimento", modulo: "produtos", tela: "pdv.transferencias" },
+  // FINANCEIRO
+  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "financeiro", tela: "pdv.financeiro" },
+  { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "financeiro", modulo: "caixa", tela: "pdv.caixa" },
+  { to: "/pagamentos", label: "Formas e meios de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.pagamentos" },
+  { to: "/contas-bancarias", label: "Contas bancárias", icon: Banknote, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.contas_bancarias" },
+  { to: "/plano-contas", label: "Plano de contas", icon: ListTree, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.plano_contas" },
 
-  { to: "/crm", label: "CRM e WhatsApp", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1, modulo: "crm", tela: "pdv.crm" },
-  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, modulo: "relatorios", tela: "pdv.relatorios" },
-  { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1, modulo: "financeiro", tela: "pdv.financeiro" },
+  // CADASTROS
+  { to: "/lojas", label: "Empresas", icon: Building2, roles: ["admin"], fase: 0, grupo: "cadastros", tela: "pdv.lojas" },
+  { to: "/pessoas", label: "Pessoas", icon: Contact, roles: ["admin"], fase: 1, grupo: "cadastros", modulo: "pessoas", tela: "pdv.pessoas" },
+  { to: "/usuarios", label: "Login de acesso", icon: Users, roles: ["admin"], fase: 1, grupo: "cadastros", tela: "pdv.login_acesso" },
+
+  // CRM E WHATSAPP
+  { to: "/crm", label: "CRM", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "crm", modulo: "crm", tela: "pdv.crm" },
+
+  // Outros sistemas do Ecossistema TB
   { to: "/sistemas", label: "Sistemas", icon: LayoutGrid, roles: ["admin"], fase: 1, menuSistemas: true },
-  { to: "/lojas", label: "Lojas e configurações", icon: Building2, roles: ["admin"], fase: 0, tela: "pdv.lojas" },
 
   // Rotas sem item no menu
-  { to: "/mercado-livre", label: "Mercado Livre", icon: Store, roles: ["admin", "gerente", "estoquista"], fase: 1, oculto: true, tela: "pdv.mercado_livre" },
+  { to: "/mercado-livre", label: "Mercado Livre", icon: Store, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "produtos", oculto: true, tela: "pdv.mercado_livre" },
   { to: "/conta", label: "Minha conta", icon: UserCog, roles: TODOS, fase: 0, oculto: true },
 ];
 
@@ -100,4 +120,23 @@ export function itemVisivel(n: NavItem, p: { podeTela: (c: string | undefined) =
 export function canAccess(path: string, role: AppRole | null): boolean {
   const item = itemDaRota(path);
   return !!item && !!role && item.roles.includes(role);
+}
+
+export type BlocoMenu =
+  | { tipo: "grupo"; codigo: GrupoMenu; nome: string; icon: LucideIcon; itens: NavItem[] }
+  | { tipo: "item"; item: NavItem };
+
+/**
+ * Monta o menu: um bloco por GRUPO (na ordem de GRUPOS_MENU) com as telas liberadas dele,
+ * mais os itens soltos (ex.: "Sistemas"). A 1ª tela liberada do grupo é a tela principal:
+ * clicar no grupo abre ela e mostra as subtelas logo abaixo.
+ */
+export function montarMenu(itens: NavItem[]): BlocoMenu[] {
+  const blocos: BlocoMenu[] = [];
+  for (const g of GRUPOS_MENU) {
+    const doGrupo = itens.filter((i) => i.grupo === g.codigo && !i.menuSistemas);
+    if (doGrupo.length) blocos.push({ tipo: "grupo", codigo: g.codigo, nome: g.nome, icon: g.icon, itens: doGrupo });
+  }
+  for (const i of itens) if (!i.grupo || i.menuSistemas) blocos.push({ tipo: "item", item: i });
+  return blocos;
 }

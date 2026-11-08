@@ -1,6 +1,6 @@
-import { Link, Outlet, createFileRoute, redirect, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, ChevronDown, FolderOpen, LogOut, Menu, Repeat, Store } from "lucide-react";
+import { Building2, ChevronDown, LogOut, Menu, Store } from "lucide-react";
 import { LojaProvider, TODAS, useLoja } from "@/lib/loja";
 import { useVisual } from "@/lib/visual";
 import { LayoutTopo } from "@/components/layout-topo";
@@ -15,7 +15,7 @@ function EscolhaVisual() {
   return <PermissoesProvider>{visual === "erp" ? <LayoutTopo /> : <AppShell />}</PermissoesProvider>;
 }
 import { useAuth, homeRouteFor } from "@/lib/auth";
-import { NAV, itemDaRota, itemVisivel } from "@/lib/nav";
+import { NAV, itemDaRota, itemVisivel, montarMenu } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
 import { MenuSistemasLateral } from "@/components/menu-sistemas";
 import { Button } from "@/components/ui/button";
@@ -77,16 +77,9 @@ function AppShell() {
   const items = NAV.filter((n) => itemVisivel(n, perm));
   const ativo = (to: string) => pathname === to || pathname.startsWith(to + "/");
   const [abertos, setAbertos] = useState<Record<string, boolean>>({});
-  // Monta o menu: itens soltos e grupos (na ordem em que aparecem)
-  const blocos: ({ tipo: "item"; item: (typeof items)[number] } | { tipo: "grupo"; nome: string; itens: typeof items })[] = [];
-  for (const it of items) {
-    if (!it.grupo) blocos.push({ tipo: "item", item: it });
-    else {
-      const g = blocos.find((b) => b.tipo === "grupo" && b.nome === it.grupo) as { tipo: "grupo"; nome: string; itens: typeof items } | undefined;
-      if (g) g.itens.push(it);
-      else blocos.push({ tipo: "grupo", nome: it.grupo, itens: [it] });
-    }
-  }
+  const navigate = useNavigate();
+  // Menu em grupos (Dashboard, PDV · Frente de loja, Produtos, Financeiro, Cadastros, CRM e WhatsApp)
+  const blocos = montarMenu(items);
   const link = (n: (typeof items)[number], sub = false) => n.menuSistemas ? (
     <MenuSistemasLateral key={n.to} onEscolher={() => setOpen(false)} />
   ) : (
@@ -126,18 +119,39 @@ function AppShell() {
         <nav className="flex-1 p-3 space-y-1 overflow-auto">
           {blocos.map((b) => {
             if (b.tipo === "item") return link(b.item);
-            const aberto = abertos[b.nome] ?? b.itens.some((i) => ativo(i.to));
-            return (
-              <div key={b.nome}>
-                <button
-                  onClick={() => setAbertos((x) => ({ ...x, [b.nome]: !aberto }))}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold hover:bg-sidebar-accent"
+            // grupo com uma tela só: o próprio grupo é o link
+            if (b.itens.length === 1) {
+              const so = b.itens[0];
+              return (
+                <Link
+                  key={b.codigo}
+                  to={so.to}
+                  onClick={() => setOpen(false)}
+                  className={cn("flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold uppercase tracking-wide transition-colors",
+                    ativo(so.to) ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent")}
                 >
-                  {b.nome === "Cadastros" ? <FolderOpen className="size-5" /> : <Repeat className="size-5" />}
-                  <span className="flex-1 text-left">{b.nome}</span>
-                  <ChevronDown className={cn("size-4 transition-transform", aberto && "rotate-180")} />
-                </button>
-                {aberto && <div className="space-y-0.5">{b.itens.map((i) => link(i, true))}</div>}
+                  <b.icon className="size-5" /> {b.nome}
+                </Link>
+              );
+            }
+            const algumAtivo = b.itens.some((i) => ativo(i.to));
+            const aberto = abertos[b.codigo] ?? algumAtivo;
+            return (
+              <div key={b.codigo}>
+                <div className={cn("flex w-full items-center rounded-lg text-sm font-semibold uppercase tracking-wide", algumAtivo ? "bg-sidebar-accent" : "hover:bg-sidebar-accent")}>
+                  {/* clicar no nome do grupo abre a tela principal e mostra as subtelas */}
+                  <button
+                    onClick={() => { setAbertos((x) => ({ ...x, [b.codigo]: true })); navigate({ to: b.itens[0].to }); setOpen(false); }}
+                    className="flex flex-1 items-center gap-3 px-3 py-2.5 text-left"
+                  >
+                    <b.icon className="size-5" />
+                    <span className="flex-1">{b.nome}</span>
+                  </button>
+                  <button onClick={() => setAbertos((x) => ({ ...x, [b.codigo]: !aberto }))} className="px-3 py-2.5" aria-label={aberto ? `Fechar ${b.nome}` : `Abrir ${b.nome}`}>
+                    <ChevronDown className={cn("size-4 transition-transform", aberto && "rotate-180")} />
+                  </button>
+                </div>
+                {aberto && <div className="space-y-0.5 py-0.5">{b.itens.map((i) => link(i, true))}</div>}
               </div>
             );
           })}

@@ -127,11 +127,11 @@ function PaginaProdutos() {
     <div className="p-4 lg:p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Produtos e estoque</h1>
+          <h1 className="text-2xl font-bold">Cadastro de produtos</h1>
           <p className="text-sm text-muted-foreground">{visiveis.length} produtos · {totalUn} unidades · {fmtBRL(totalVenda)} em venda</p>
         </div>
         <div className="flex gap-2">
-          <Exportar titulo="Produtos e estoque" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
+          <Exportar titulo="Cadastro de produtos" subtitulo={filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"}
             colunas={[{ titulo: "SKU" }, { titulo: "Cód. barras" }, { titulo: "Produto" }, { titulo: "Loja" }, { titulo: "Grade" }, { titulo: "Estoque", numero: true }, { titulo: "Preço (R$)", numero: true }, { titulo: "Custo (R$)", numero: true }, { titulo: "NCM" }]}
             linhas={() => visiveis.map((p) => [p.sku, p.codigo_barras ?? "", p.titulo, nomeLoja(p.loja_id), p.grade, Number(p.estoque_atual), Number(p.preco_venda), verCusto && p.custo_unit != null ? Number(p.custo_unit) : null, p.ncm ?? ""])} />
           <Button variant="outline" disabled={selecionados.size === 0} onClick={() => setEtiquetas(true)}><Printer /> Etiquetas ({selecionados.size})</Button>

@@ -1,9 +1,9 @@
 // Visual "ERP": claro, compacto, menu no topo com submenus (Cadastros / Movimento).
-import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Building2, ChevronDown, LogOut, Menu, Store, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { NAV, itemVisivel } from "@/lib/nav";
+import { NAV, itemVisivel, montarMenu } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
 import { MenuSistemasMobile, MenuSistemasTopo } from "@/components/menu-sistemas";
 import { TODAS, useLoja } from "@/lib/loja";
@@ -27,17 +27,11 @@ export function LayoutTopo() {
     document.addEventListener("mousedown", f);
     return () => document.removeEventListener("mousedown", f);
   }, []);
-  useEffect(() => { setAberto(null); setMobile(false); }, [pathname]);
+  useEffect(() => { setMobile(false); }, [pathname]);
 
-  const grupos = ["Cadastros", "Movimento"] as const;
-  const soltos = itens.filter((i) => !i.grupo);
-  const doGrupo = (g: string) => itens.filter((i) => i.grupo === g);
-  // ordem: Dashboard, PDV, [Cadastros], Lotes, [Movimento], resto
-  const ordem: ({ tipo: "item"; to: string } | { tipo: "grupo"; nome: (typeof grupos)[number] })[] = [];
-  for (const n of itens) {
-    if (!n.grupo) ordem.push({ tipo: "item", to: n.to });
-    else if (!ordem.some((o) => o.tipo === "grupo" && o.nome === n.grupo)) ordem.push({ tipo: "grupo", nome: n.grupo });
-  }
+  const navigate = useNavigate();
+  // Menu em grupos: clicar no grupo abre a tela principal e mostra as subtelas logo abaixo
+  const blocos = montarMenu(itens);
 
   const seletor = lojas.length > 0 && role !== "admin" ? (
     <span className="text-xs">Empresa: <b>{(lojas.find((l) => l.id === lojaAtual) ?? lojas[0]).nome}</b></span>
@@ -57,27 +51,34 @@ export function LayoutTopo() {
         <div className="flex h-12 items-center gap-3 px-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-bold text-primary"><Store className="size-5" /> Eco Sistema TB</Link>
           <nav className="hidden lg:flex items-center gap-0.5 text-sm">
-            {ordem.map((o) => {
-              if (o.tipo === "item") {
-                const n = soltos.find((x) => x.to === o.to)!;
+            {blocos.map((bl) => {
+              if (bl.tipo === "item") {
+                const n = bl.item;
                 if (n.menuSistemas) return <MenuSistemasTopo key={n.to} />;
                 return (
-                  <Link key={n.to} to={n.to} className={cn("rounded px-2.5 py-1.5 hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
-                    {n.label.replace("PDV · ", "")}
+                  <Link key={n.to} to={n.to} className={cn("rounded px-2.5 py-1.5 hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>{n.label}</Link>
+                );
+              }
+              const algumAtivo = bl.itens.some((f) => ativo(f.to));
+              if (bl.itens.length === 1) {
+                return (
+                  <Link key={bl.codigo} to={bl.itens[0].to} className={cn("rounded px-2.5 py-1.5 text-[13px] font-semibold uppercase tracking-wide hover:bg-muted", algumAtivo && "bg-primary/10 text-primary")}>
+                    {bl.nome}
                   </Link>
                 );
               }
-              const filhos = doGrupo(o.nome);
-              const algumAtivo = filhos.some((f) => ativo(f.to));
               return (
-                <div key={o.nome} className="relative">
-                  <button onClick={() => setAberto(aberto === o.nome ? null : o.nome)} className={cn("flex items-center gap-1 rounded px-2.5 py-1.5 hover:bg-muted", algumAtivo && "bg-primary/10 text-primary font-semibold")}>
-                    {o.nome} <ChevronDown className="size-3.5" />
+                <div key={bl.codigo} className="relative">
+                  <button
+                    onClick={() => { navigate({ to: bl.itens[0].to }); setAberto(bl.codigo); }}
+                    className={cn("flex items-center gap-1 rounded px-2.5 py-1.5 text-[13px] font-semibold uppercase tracking-wide hover:bg-muted", algumAtivo && "bg-primary/10 text-primary")}
+                  >
+                    {bl.nome} <ChevronDown className="size-3.5" />
                   </button>
-                  {aberto === o.nome && (
+                  {aberto === bl.codigo && (
                     <div className="absolute left-0 top-full mt-1 w-64 rounded-md border bg-card p-1 shadow-lg">
-                      {filhos.map((f) => (
-                        <Link key={f.to} to={f.to} className={cn("flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted", ativo(f.to) && "text-primary font-semibold")}>
+                      {bl.itens.map((f) => (
+                        <Link key={f.to} to={f.to} onClick={() => setAberto(null)} className={cn("flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted", ativo(f.to) && "text-primary font-semibold")}>
                           <f.icon className="size-4" /> {f.label}
                         </Link>
                       ))}
@@ -97,11 +98,16 @@ export function LayoutTopo() {
         {mobile && (
           <div className="lg:hidden border-t bg-card p-2 space-y-1 max-h-[75vh] overflow-y-auto">
             <div className="flex items-center justify-between gap-2 p-1 sm:hidden">{seletor}<button onClick={signOut} className="text-xs flex items-center gap-1"><LogOut className="size-3.5" /> Sair</button></div>
-            {itens.filter((n) => !n.menuSistemas).map((n) => (
-              <Link key={n.to} to={n.to} className={cn("flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
-                <n.icon className="size-4" /> {n.grupo ? `${n.grupo} · ` : ""}{n.label}
-              </Link>
-            ))}
+            {blocos.map((bl) => bl.tipo === "grupo" ? (
+              <div key={bl.codigo} className="pt-1">
+                <div className="flex items-center gap-2 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"><bl.icon className="size-3.5" /> {bl.nome}</div>
+                {bl.itens.map((n) => (
+                  <Link key={n.to} to={n.to} className={cn("flex items-center gap-2 rounded px-2 py-2 pl-6 text-sm hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>
+                    <n.icon className="size-4" /> {n.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null)}
             {itens.some((n) => n.menuSistemas) && <MenuSistemasMobile />}
           </div>
         )}

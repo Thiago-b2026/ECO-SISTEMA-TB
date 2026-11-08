@@ -11,6 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PessoaForm, type Pessoa } from "@/components/pessoa-form";
 import { Exportar } from "@/components/exportar";
+import { SISTEMAS } from "@/lib/telas";
+
+const PORTAL = SISTEMAS.find((x) => x.codigo === "portal");
 
 
 export const Route = createFileRoute("/_app/pessoas")({ component: PaginaPessoas });
@@ -86,7 +89,7 @@ function PaginaPessoas() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr className="border-b"><th className="py-2 pr-2">Nome</th><th className="py-2 pr-2">CPF/CNPJ</th><th className="py-2 pr-2 hidden md:table-cell">Contato</th><th className="py-2 pr-2 hidden lg:table-cell">Cidade</th><th className="py-2 pr-2">É</th></tr>
+                <tr className="border-b"><th className="py-2 pr-2">Nome</th><th className="py-2 pr-2">CPF/CNPJ</th><th className="py-2 pr-2 hidden md:table-cell">Contato</th><th className="py-2 pr-2 hidden lg:table-cell">Cidade</th><th className="py-2 pr-2">É</th><th className="py-2 pr-2">Tem login</th><th className="py-2"></th></tr>
               </thead>
               <tbody>
                 {visiveis.slice(0, 500).map((p) => (
@@ -103,6 +106,18 @@ function PaginaPessoas() {
                         {p.eh_funcionario && <Badge variant="secondary">Funcionário{p.cargo ? ` · ${p.cargo}` : ""}</Badge>}
                         {p.eh_usuario && <Badge>{p.user_id ? "Login de acesso" : "Login (não criado)"}</Badge>}
                       </div>
+                    </td>
+                    <td className="py-2 pr-2">{p.user_id ? <span className="font-medium text-success">Sim</span> : <span className="text-muted-foreground">Não</span>}</td>
+                    <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!PORTAL?.ativo}
+                        title={PORTAL?.ativo ? "Abrir esta pessoa no Portal (login e acessos)" : "O Portal ainda não está no ar"}
+                        onClick={() => PORTAL?.url && window.open(PORTAL.url, "_blank", "noopener")}
+                      >
+                        Abrir no Portal
+                      </Button>
                     </td>
                   </tr>
                 ))}

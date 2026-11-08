@@ -3,7 +3,9 @@
 ## 📍 ONDE PARAMOS
 **Fase 1 (banco): APLICADA e conferida em 08/11** (294 linhas convertidas, 140 liberadas; Natália só RH nas 3 lojas da Supermix; PDV com Monte Sinai e Eldorado). Antes disso: Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
 
-**Próximo passo:** publicar o PDV (push no `main`) e o Gestão RH (CLI); depois, a fase 2.
+**Etapas combinadas (08/11):** 0 (RH no Git, publicando pelo push) → A (menu novo do PDV) → B (Portal) → C (PDV lê o Portal) → D (RH lê o Portal + tela de entrada) → E (limpeza).
+**Etapa 0 e Etapa A: código pronto e commitado.** Falta o usuário configurar o Root Directory do gestao-rh na Vercel (`GESTAO-RH`) e publicar com push no `main`.
+**Próximo passo depois disso:** Etapa B (Portal).
 
 **Depois:** fase 2, a tela do Portal (requisitos abaixo).
 

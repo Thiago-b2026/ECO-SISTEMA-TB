@@ -24,15 +24,23 @@ interface LojaCompleta extends Loja {
   razao_social: string | null;
   cidade: string | null;
   uf: string | null;
+  tipo: "matriz" | "filial" | null;
+  sistemas: string[];
+  rede_id: string | null;
+  redes: { nome: string } | null;
 }
+interface Rede { id: string; nome: string; ordem: number }
 
-/** Lojas (filiais) e configurações: criar pelo CNPJ, dados de cada loja e equipe. */
+/** Empresas: redes do Grupo TB e as suas unidades (cada unidade tem o seu CNPJ; /0001 = matriz). Dados de cada unidade e equipe. */
 function PaginaLojas() {
   const { role } = useAuth();
   const admin = role === "admin";
   const { recarregar } = useLoja();
   const [aba, setAba] = useState<"lojas" | "dados" | "equipe">("lojas");
   const [lojas, setLojas] = useState<LojaCompleta[] | null>(null);
+  const [outras, setOutras] = useState<LojaCompleta[]>([]);
+  const [redes, setRedes] = useState<Rede[]>([]);
+  const [redeNova, setRedeNova] = useState("");
   const [perfis, setPerfis] = useState<Perfil[]>([]);
   const [vinculos, setVinculos] = useState<Set<string>>(new Set());
   // nova loja
@@ -43,13 +51,18 @@ function PaginaLojas() {
   const [salvando, setSalvando] = useState(false);
 
   async function carregar() {
-    const [l, p, v] = await Promise.all([
-      supabase.from("lojas").select("*").contains("sistemas", ["pdv"]).order("nome"),
+    const [l, p, v, r, o] = await Promise.all([
+      supabase.from("lojas").select("*, redes(nome)").contains("sistemas", ["pdv"]).order("nome"),
       supabase.from("profiles").select("id, nome, email").order("nome"),
       supabase.from("usuario_lojas").select("user_id, loja_id"),
+      supabase.from("redes").select("id, nome, ordem").eq("ativo", true).order("ordem"),
+      // unidades de outros sistemas (ex.: Supermix, só Gestão RH): só para consulta aqui
+      supabase.from("lojas").select("*, redes(nome)").not("sistemas", "cs", "{pdv}").order("nome"),
     ]);
-    if (l.error) return toast.error("Não foi possível carregar as lojas: " + l.error.message);
+    if (l.error) return toast.error("Não foi possível carregar as empresas: " + l.error.message);
     setLojas((l.data ?? []) as LojaCompleta[]);
+    setRedes((r.data ?? []) as Rede[]);
+    setOutras((o.data ?? []) as LojaCompleta[]);
     setPerfis((p.data ?? []) as Perfil[]);
     setVinculos(new Set((v.data ?? []).map((x) => `${x.user_id}|${x.loja_id}`)));
   }
@@ -73,12 +86,13 @@ function PaginaLojas() {
   }
 
   async function criar() {
-    if (!nome.trim()) return toast.error("Informe o nome da loja no sistema.");
+    if (!nome.trim()) return toast.error("Informe o nome da unidade no sistema.");
     if (dig && !cnpjValido(dig)) return toast.error("CNPJ inválido.");
     setSalvando(true);
     const e = achado;
     const { error } = await supabase.from("lojas").insert({
       nome: nome.trim(),
+      rede_id: redeNova || null,
       cnpj: dig || null,
       razao_social: e?.nome ?? null,
       nome_fantasia: e?.nome_fantasia ?? null,
@@ -96,8 +110,8 @@ function PaginaLojas() {
       atividade: e?.atividade ?? null,
     });
     setSalvando(false);
-    if (error) return toast.error(error.message.includes("duplicate") ? "Já existe uma loja com esse nome ou CNPJ." : error.message);
-    toast.success(`Loja ${nome.trim()} criada. Marque quem trabalha nela na aba Equipe.`);
+    if (error) return toast.error(error.message.includes("duplicate") ? "Já existe uma unidade com esse nome ou CNPJ." : error.message);
+    toast.success(`Unidade ${nome.trim()} criada. Marque quem trabalha nela na aba Equipe.`);
     setCnpj(""); setAchado(null); setNome("");
     await carregar();
     recarregar();
@@ -130,13 +144,13 @@ function PaginaLojas() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold">Lojas e configurações</h1>
-        <p className="text-sm text-muted-foreground">Cada loja tem o seu CNPJ e as suas vendas, caixa e estoque. Em "Todas as lojas" você só consulta os números juntos.</p>
+        <h1 className="text-2xl font-bold">Empresas</h1>
+        <p className="text-sm text-muted-foreground">Cada empresa (rede) tem as suas unidades. Cada unidade tem o seu CNPJ (final /0001 = matriz; outro final = filial) e as suas vendas, caixa e estoque.</p>
       </div>
       <div className="flex flex-wrap gap-2 border-b pb-2">
-        <Button size="sm" variant={aba === "lojas" ? "default" : "ghost"} onClick={() => setAba("lojas")}>Lojas</Button>
-        <Button size="sm" variant={aba === "dados" ? "default" : "ghost"} onClick={() => setAba("dados")}>Dados da loja</Button>
-        {admin && <Button size="sm" variant={aba === "equipe" ? "default" : "ghost"} onClick={() => setAba("equipe")}>Equipe por loja</Button>}
+        <Button size="sm" variant={aba === "lojas" ? "default" : "ghost"} onClick={() => setAba("lojas")}>Redes e unidades</Button>
+        <Button size="sm" variant={aba === "dados" ? "default" : "ghost"} onClick={() => setAba("dados")}>Dados da unidade</Button>
+        {admin && <Button size="sm" variant={aba === "equipe" ? "default" : "ghost"} onClick={() => setAba("equipe")}>Equipe por unidade</Button>}
       </div>
 
       {aba === "dados" && <DadosLoja />}
@@ -145,7 +159,7 @@ function PaginaLojas() {
         <>
           {admin && (
             <Card className="p-4 space-y-3">
-              <h2 className="font-semibold">Nova loja pelo CNPJ</h2>
+              <h2 className="font-semibold">Nova unidade pelo CNPJ</h2>
               <div className="flex flex-wrap items-end gap-2">
                 <div className="w-60"><Label className="text-xs">CNPJ</Label><Input value={cnpj} onChange={(e) => { setCnpj(formatarDocumento(e.target.value)); setAchado(null); }} inputMode="numeric" /></div>
                 <Button variant="outline" onClick={pesquisar} disabled={buscando || dig.length !== 14}>{buscando ? <Loader2 className="animate-spin" /> : <Search />} Pesquisar</Button>
@@ -159,28 +173,59 @@ function PaginaLojas() {
                 </div>
               )}
               <div className="flex flex-wrap items-end gap-2">
-                <div className="flex-1 min-w-48"><Label className="text-xs">Nome da loja no sistema</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Loja Eldorado" /></div>
-                <Button onClick={criar} disabled={salvando}>{salvando ? <Loader2 className="animate-spin" /> : <Plus />} Criar loja</Button>
+                <div className="flex-1 min-w-48"><Label className="text-xs">Nome da unidade no sistema</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Eldorado" /></div>
+                <div className="w-56">
+                  <Label className="text-xs">Empresa (rede)</Label>
+                  <select value={redeNova} onChange={(e) => setRedeNova(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                    <option value="">escolha…</option>
+                    {redes.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+                  </select>
+                </div>
+                <Button onClick={criar} disabled={salvando}>{salvando ? <Loader2 className="animate-spin" /> : <Plus />} Criar unidade</Button>
               </div>
               <p className="text-xs text-muted-foreground">Sem CNPJ? Dá para criar só com o nome e completar depois em "Dados da loja".</p>
             </Card>
           )}
-          <Card className="p-4">
-            <table className="w-full text-sm">
-              <thead className="text-left text-muted-foreground"><tr className="border-b"><th className="py-2 pr-2">Loja</th><th className="py-2 pr-2">CNPJ</th><th className="py-2 pr-2">Cidade</th><th className="py-2 pr-2">Situação</th><th></th></tr></thead>
-              <tbody>
-                {lojas.map((l) => (
-                  <tr key={l.id} className="border-b last:border-0">
-                    <td className="py-2 pr-2"><div className="font-medium">{l.nome}</div>{l.razao_social && <div className="text-xs text-muted-foreground">{l.razao_social}</div>}</td>
-                    <td className="py-2 pr-2 whitespace-nowrap">{l.cnpj ? formatarDocumento(l.cnpj) : <span className="text-warning">sem CNPJ</span>}</td>
-                    <td className="py-2 pr-2">{l.cidade ? `${l.cidade}/${l.uf ?? ""}` : "—"}</td>
-                    <td className="py-2 pr-2">{l.ativo ? "Ativa" : <span className="text-destructive">Desativada</span>}</td>
-                    <td className="py-2 text-right">{admin && <Button size="sm" variant="ghost" onClick={() => alternarAtivo(l)}>{l.ativo ? "Desativar" : "Reativar"}</Button>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
+          {[...new Set(lojas.map((l) => l.redes?.nome ?? ""))].sort((x, y) => (x || "~").localeCompare(y || "~")).map((rede) => (
+            <Card key={rede || "sem-rede"} className="p-4">
+              <h2 className="mb-2 font-semibold uppercase tracking-wide">{rede || "Sem empresa (rede)"}</h2>
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted-foreground"><tr className="border-b"><th className="py-2 pr-2">Unidade</th><th className="py-2 pr-2">Tipo</th><th className="py-2 pr-2">CNPJ</th><th className="py-2 pr-2">Cidade</th><th className="py-2 pr-2">Situação</th><th></th></tr></thead>
+                <tbody>
+                  {lojas.filter((l) => (l.redes?.nome ?? "") === rede).map((l) => (
+                    <tr key={l.id} className="border-b last:border-0">
+                      <td className="py-2 pr-2"><div className="font-medium">{l.nome}</div>{l.razao_social && <div className="text-xs text-muted-foreground">{l.razao_social}</div>}</td>
+                      <td className="py-2 pr-2">{l.tipo === "matriz" ? "Matriz" : l.tipo === "filial" ? "Filial" : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="py-2 pr-2 whitespace-nowrap">{l.cnpj ? formatarDocumento(l.cnpj) : <span className="text-warning">sem CNPJ</span>}</td>
+                      <td className="py-2 pr-2">{l.cidade ? `${l.cidade}/${l.uf ?? ""}` : "—"}</td>
+                      <td className="py-2 pr-2">{l.ativo ? "Ativa" : <span className="text-destructive">Desativada</span>}</td>
+                      <td className="py-2 text-right">{admin && <Button size="sm" variant="ghost" onClick={() => alternarAtivo(l)}>{l.ativo ? "Desativar" : "Reativar"}</Button>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          ))}
+          {outras.length > 0 && (
+            <Card className="p-4">
+              <h2 className="mb-1 font-semibold uppercase tracking-wide">Unidades de outros sistemas</h2>
+              <p className="mb-2 text-xs text-muted-foreground">Não aparecem no PDV. Nome, CNPJ e acessos serão cuidados no Portal (em breve).</p>
+              <table className="w-full text-sm">
+                <thead className="text-left text-muted-foreground"><tr className="border-b"><th className="py-2 pr-2">Empresa (rede)</th><th className="py-2 pr-2">Unidade</th><th className="py-2 pr-2">Tipo</th><th className="py-2 pr-2">CNPJ</th><th className="py-2 pr-2">Sistema</th></tr></thead>
+                <tbody>
+                  {outras.map((l) => (
+                    <tr key={l.id} className="border-b last:border-0">
+                      <td className="py-2 pr-2">{l.redes?.nome ?? "—"}</td>
+                      <td className="py-2 pr-2 font-medium">{l.nome}</td>
+                      <td className="py-2 pr-2">{l.tipo === "matriz" ? "Matriz" : l.tipo === "filial" ? "Filial" : "—"}</td>
+                      <td className="py-2 pr-2 whitespace-nowrap">{l.cnpj ? formatarDocumento(l.cnpj) : <span className="text-muted-foreground">sem CNPJ</span>}</td>
+                      <td className="py-2 pr-2">{l.sistemas.map((x) => (x === "rh" ? "Gestão RH" : x)).join(", ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
         </>
       )}
 
