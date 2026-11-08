@@ -82,7 +82,7 @@ function PaginaPagamentos() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-5xl">
       <div>
-        <h1 className="text-2xl font-bold">Formas e meios de pagamento</h1>
+        <h1 className="text-2xl font-bold">Formas de pagamento</h1>
         <p className="text-sm text-muted-foreground">
           <b>Forma</b> é como o cliente paga (aparece no PDV). <b>Meio</b> é por onde o dinheiro entra (maquininha, bandeira, banco), com taxa e prazo, usado no financeiro.
         </p>

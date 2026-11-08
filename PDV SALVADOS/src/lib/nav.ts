@@ -83,8 +83,8 @@ export const NAV: NavItem[] = [
 
   // FINANCEIRO
   { to: "/financeiro", label: "Financeiro", icon: Landmark, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "financeiro", tela: "pdv.financeiro" },
-  { to: "/caixa", label: "Movimentações de caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "financeiro", modulo: "caixa", tela: "pdv.caixa" },
-  { to: "/pagamentos", label: "Formas e meios de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.pagamentos" },
+  { to: "/caixa", label: "Caixa", icon: Wallet, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "financeiro", modulo: "caixa", tela: "pdv.caixa" },
+  { to: "/pagamentos", label: "Formas de pagamento", icon: CreditCard, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.pagamentos" },
   { to: "/contas-bancarias", label: "Contas bancárias", icon: Banknote, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.contas_bancarias" },
   { to: "/plano-contas", label: "Plano de contas", icon: ListTree, roles: GESTOR, fase: 1, grupo: "financeiro", modulo: "cadastros_financeiros", tela: "pdv.plano_contas" },
 

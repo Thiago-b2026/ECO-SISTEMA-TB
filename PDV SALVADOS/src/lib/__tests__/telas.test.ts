@@ -10,6 +10,7 @@ import {
 
 const SQL17 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000017_permissao_por_tela.sql"), "utf8");
 const SQL18 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000018_portal_redes_unidades.sql"), "utf8");
+const SQL19 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000019_rh_supermix_uma_empresa.sql"), "utf8");
 const SQL = `${SQL17}\n${SQL18}`;
 const CONF18 = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_portal_antes.sql"), "utf8");
 const CONFERIR = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_telas_antes.sql"), "utf8");
@@ -158,7 +159,8 @@ describe("catálogo", () => {
       const t = TELAS.find((x) => x.codigo === m[1])!;
       const grupo = novoGrupo.get(t.codigo)?.grupo ?? m[3];
       expect([m[2], grupo, m[4] === "true"], t.codigo).toEqual([t.sistema, t.grupo, !!t.somenteAdmin]);
-      if (novoGrupo.has(t.codigo)) expect(novoGrupo.get(t.codigo)!.nome, t.codigo).toBe(t.nome);
+      const renomeada = SQL19.match(new RegExp(`\\('${t.codigo.replace(".", "\\.")}',\\s+'([^']+)'\\)`))?.[1];
+      if (novoGrupo.has(t.codigo)) expect(renomeada ?? novoGrupo.get(t.codigo)!.nome, t.codigo).toBe(t.nome);
     }
   });
 

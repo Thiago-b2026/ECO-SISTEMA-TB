@@ -27,7 +27,7 @@ describe("menu novo do PDV (Etapa A)", () => {
     expect(itens("Dashboard")).toEqual(["Dashboard", "Relatórios"]);
     expect(itens("PDV · Frente de loja")).toEqual(["PDV", "Vendas e notas"]);
     expect(itens("Produtos")).toEqual(["Cadastro de produtos", "Mercadológico", "Lotes", "Etiquetas", "Transferências"]);
-    expect(itens("Financeiro")).toEqual(["Financeiro", "Movimentações de caixa", "Formas e meios de pagamento", "Contas bancárias", "Plano de contas"]);
+    expect(itens("Financeiro")).toEqual(["Financeiro", "Caixa", "Formas de pagamento", "Contas bancárias", "Plano de contas"]);
     expect(itens("Cadastros")).toEqual(["Empresas", "Pessoas", "Login de acesso"]);
     expect(itens("CRM e WhatsApp")).toEqual(["CRM"]);
   });
@@ -36,7 +36,7 @@ describe("menu novo do PDV (Etapa A)", () => {
     const blocos = montarMenu(visiveisPara(telasLegado("vendedor", () => true)));
     const grupos = blocos.filter((b) => b.tipo === "grupo");
     expect(grupos.map((b) => b.nome)).toEqual(["Dashboard", "PDV · Frente de loja", "Produtos", "Financeiro", "CRM e WhatsApp"]);
-    expect(grupos.find((b) => b.nome === "Financeiro")!.itens.map((i) => i.label)).toEqual(["Movimentações de caixa"]);
+    expect(grupos.find((b) => b.nome === "Financeiro")!.itens.map((i) => i.label)).toEqual(["Caixa"]);
     expect(grupos.find((b) => b.nome === "Dashboard")!.itens.map((i) => i.label)).toEqual(["Dashboard"]);
   });
 
