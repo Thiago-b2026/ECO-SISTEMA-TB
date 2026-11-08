@@ -157,7 +157,11 @@ Regras:
 3. O site usa só a chave pública (anon). Script `scripts/vercel-variaveis.mjs` cadastra as 2 variáveis públicas na Vercel.
 4. Build OK.
 
-**Onde parou:** publicar (link do projeto `portal-grupotb`, variáveis e deploy), um comando de cada vez.
+5. **Publicado em 08/11:** https://portal-grupotb.vercel.app. Projeto `portal-grupotb` na Vercel, com as 2 variáveis públicas. A Vercel ligou o projeto ao GitHub sozinha.
+   - Hoje ele é publicado pela CLI, de dentro da pasta.
+   - Antes do próximo push no `main`, configurar **Root Directory = `PORTAL`** e passar a publicar pelo push.
+
+**Onde parou:** o usuário confere a tela inicial. Próxima etapa, separada: "já logado" ao clicar no quadro.
 
 ---
 <!-- NOVAS SESSÕES ENTRAM ABAIXO, NO MESMO FORMATO -->
