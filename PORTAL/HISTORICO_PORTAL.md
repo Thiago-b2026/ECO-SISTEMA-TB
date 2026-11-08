@@ -1,7 +1,7 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
-**AGORA (pedido do usuário, 08/11 noite): recomeço pelo simples.** Etapa 1 do Portal = só login + tela inicial com os quadros (Sessão 2). O resto está pausado.
+**AGORA (08/11 noite):** Portal = página aberta, SEM login, com os quadros fixos GESTÃO SALVADOS e GESTÃO RH (Sessão 3). Sistema novo → incluir o quadro em `PORTAL/src/pages/Inicio.tsx`. O resto está pausado.
 
 **Fase 1 (banco): APLICADA e conferida em 08/11** (294 linhas convertidas, 140 liberadas; Natália só RH nas 3 lojas da Supermix; PDV com Monte Sinai e Eldorado). Antes disso: Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
 
@@ -162,6 +162,19 @@ Regras:
    - Antes do próximo push no `main`, configurar **Root Directory = `PORTAL`** e passar a publicar pelo push.
 
 **Onde parou:** o usuário confere a tela inicial. Próxima etapa, separada: "já logado" ao clicar no quadro.
+
+---
+### Sessão 3 – 08/11/2026 – Portal SEM senha e nome "ECO SISTEMA TB"
+**O que foi feito (só no Portal; PDV, RH e banco intocados; migrations 0019 e 0020 continuam paradas):**
+1. O nome passa a ser **"ECO SISTEMA TB"** em letra de forma e negrito, no cabeçalho e na aba do navegador. Fica numa linha só, também no celular.
+2. **Página aberta, sem login.** Saem a tela de login e o botão SAIR, e o Portal não consulta mais o banco (sem Supabase).
+3. Os quadros são sempre os mesmos: **GESTÃO SALVADOS** (https://eco-sistema-tb.vercel.app) e **GESTÃO RH** (https://gestao-rh-tau.vercel.app), abrindo na mesma aba. A senha é pedida pelo próprio sistema, que mostra só o que a pessoa tem liberado.
+4. ⚠️ **SISTEMA NOVO = INCLUIR O QUADRO AQUI:** a lista de quadros é **fixa no código**, na constante `SISTEMAS` em `PORTAL/src/pages/Inicio.tsx`. Ao criar um sistema novo, incluir o quadro (código, título, descrição, endereço, ícone) e também em `MEU SUPERVISOR/sistemas.json`.
+5. O script de variáveis e o `.env.example` foram retirados, porque não há mais conexão com o banco. As variáveis antigas na Vercel ficaram, mas não fazem nada.
+
+**Observação:** existe a migration `20261108000020_rh_cadastro_filiais.sql` e há mudanças em `GESTAO-RH/src/pages/Empresas.tsx` que NÃO são desta sessão (outra sessão, talvez o Meu Supervisor). Não foram tocadas.
+
+**Onde parou:** publicar o Portal (`npx --yes vercel@latest deploy --prod --yes` dentro da pasta PORTAL).
 
 ---
 <!-- NOVAS SESSÕES ENTRAM ABAIXO, NO MESMO FORMATO -->
