@@ -8,17 +8,23 @@
   Endereços antigos (/mercadologico, /lotes, /etiquetas, /transferencias) abrem a aba; `/lotes/123` continua página própria.
 - **Pessoas**: ao abrir, abas DADOS | LOGIN E PERMISSÕES (`src/components/aba-login.tsx`, só admin): CRIAR LOGIN, perfil,
   senha, desativar, empresas e permissões, Excluir usuário. `/usuarios` → `/pessoas?filtro=usuario`.
-- **Excluir produto** (só admin, aba CADASTRO): só se nunca foi VENDIDO, TRANSFERIDO nem VEIO DE LOTE (entrada/ajuste manual
-  não bloqueia; o histórico de estoque dele sai junto). Etiqueta impressa ficou FORA da regra (decisão do usuário).
-  Filtro Ativos/Inativos/Todos e botão Reativar. Funções `excluir_produto`, `produtos_excluiveis`, `motivos_nao_excluir_produto`.
-- **Excluir usuário** (só admin, função `admin-usuarios` ações `motivos` e `excluir`): bloqueia se tem venda, caixa,
-  sangria/suprimento, lançamento financeiro, transferência, movimento de estoque, lote/triagem, produto cadastrado, CRM,
-  DRE, modelo de etiqueta ou se usa o Gestão RH (o login é o mesmo). Ninguém exclui a si mesmo; admin não é excluído.
-  Apaga o login e as permissões; a pessoa continua (`user_id` nulo, `eh_usuario` falso). Função `motivos_nao_excluir_usuario`.
-- **Migration `20261108000022_excluir_produto_usuario.sql`** (só cria funções). Ensaio com rollback:
-  `supabase/scripts/ensaio_0022_excluir.sql` (o erro "ENSAIO 0022" no fim é proposital e desfaz tudo).
-  A 0021 continua parada (não depende dela).
-- Testes: 97; build ok.
+- **REGRA RÍGIDA (corrigida a pedido do usuário): só exclui o que NUNCA teve nenhum movimento; NUNCA apagar histórico.**
+- **Excluir produto** (aba CADASTRO): admin, ou gerente com a área Produtos → Excluir (`pode_excluir_produto()`). Bloqueia se
+  tem QUALQUER `stock_movements` (inclusive entrada), venda, transferência, item de lote, etiqueta impressa, pedido no CRM ou
+  estoque. Com histórico: "Não pode excluir, já tem histórico. Use Inativar." Filtro Ativos/Inativos/Todos e Reativar.
+- **Etiquetas impressas pela tela Produtos agora ficam registradas** (`public.etiquetas_impressas`, `registrar_etiquetas()`),
+  sem apagar em cascata e sem edição. Etiqueta impressa conta como movimento.
+- **"Excluir" no catálogo da tela Produtos** (`tela_acoes`) + linhas em `usuario_permissoes` iguais às de hoje (gerente com a área).
+  Atenção: se um dia rodarem `sincronizar_permissoes_legado()` de novo, essas linhas somem (a regra dela não tem Produtos → Excluir).
+- **Excluir usuário** (só admin, função `admin-usuarios` ações `motivos` e `excluir`): qualquer registro bloqueia — venda, caixa,
+  sangria/suprimento, lançamento, transferência, movimento de estoque, lote/triagem, produto cadastrado, etiqueta, CRM, DRE,
+  pessoas cadastradas, conexão do Mercado Livre, alteração de permissões, auditoria ou uso do Gestão RH (o login é o mesmo).
+  Ninguém exclui a si mesmo; admin não é excluído. Apaga só o login e as permissões; a pessoa continua.
+- **Dashboard**: tirado o botão "Abrir frente de loja" (a frente continua no menu PDV · FRENTE DE LOJA).
+- **Migration `20261108000022_excluir_produto_usuario.sql`**. Ensaio com rollback: `supabase/scripts/ensaio_0022_excluir.sql`
+  (cria produtos de teste dentro da transação e prova: entrada e etiqueta BARRAM, só cadastrado exclui; o erro "ENSAIO 0022" no fim
+  é proposital e desfaz tudo). Regras travadas em `src/lib/__tests__/excluir-regras.test.ts`. A 0021 continua parada.
+- Testes: 127; build ok. **Ensaio ainda não rodado.**
 
 ## Sessão 08/11/2026 (noite, 2) — Dashboard com abas RESUMO | RELATÓRIOS
 - A tela **Dashboard** agora tem duas abas: **RESUMO** (vendas de hoje, caixas abertos, estoque, contas, gráficos) e **RELATÓRIOS**

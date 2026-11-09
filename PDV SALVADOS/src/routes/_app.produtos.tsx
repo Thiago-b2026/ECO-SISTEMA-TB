@@ -112,7 +112,7 @@ function CadastroProdutos() {
   const { role } = useAuth();
   const { filtroLoja, lojas } = useLoja();
   const podeEstoque = role === "admin" || role === "gerente" || role === "estoquista";
-  const { podeAcao } = usePermissoes();
+  const { podeAcao, pode } = usePermissoes();
   const verCusto = podeEstoque && podeAcao("produtos.ver_custo");
   const ajustar = podeEstoque && podeAcao("produtos.ajustar_estoque");
   const [produtos, setProdutos] = useState<Produto[] | null>(null);
@@ -125,9 +125,10 @@ function CadastroProdutos() {
   const [novo, setNovo] = useState(false);
   const [fiscal, setFiscal] = useState<Produto | null>(null);
   const gestor = role === "admin" || role === "gerente";
-  const admin = role === "admin";
+  // excluir produto: admin, ou gerente com a área Produtos → Excluir (o banco confere de novo)
+  const podeExcluir = role === "admin" || (role === "gerente" && pode("produtos", "excluir"));
   const [situacao, setSituacao] = useState<"ativos" | "inativos" | "todos">("ativos");
-  /** Produtos que nunca tiveram movimento (só o admin vê o botão Excluir neles). */
+  /** Produtos que nunca tiveram nenhum movimento (só neles o botão Excluir fica ativo). */
   const [excluiveis, setExcluiveis] = useState<Set<string>>(new Set());
   const [excluindo, setExcluindo] = useState<Produto | null>(null);
 
@@ -156,7 +157,7 @@ function CadastroProdutos() {
         return q;
       });
       setProdutos(ps);
-      if (admin) {
+      if (podeExcluir) {
         // sem a migration 0022 a função não existe: só não mostra o botão Excluir
         const { data } = await supabase.rpc("produtos_excluiveis", { _loja_id: filtroLoja });
         setExcluiveis(new Set(((data ?? []) as unknown[]).map((x) => (typeof x === "string" ? x : Object.values(x as object)[0] as string))));
@@ -191,7 +192,7 @@ function CadastroProdutos() {
 
   const paraEtiqueta = (produtos ?? [])
     .filter((p) => selecionados.has(p.id))
-    .map((p) => ({ titulo: p.titulo, sku: p.sku, preco: Number(p.preco_venda), precoDe: p.preco_de, grade: p.grade, copias: Math.max(1, Math.round(Number(p.estoque_atual))) }));
+    .map((p) => ({ produto_id: p.id, titulo: p.titulo, sku: p.sku, preco: Number(p.preco_venda), precoDe: p.preco_de, grade: p.grade, copias: Math.max(1, Math.round(Number(p.estoque_atual))) }));
 
   return (
     <div className="p-4 lg:p-6 space-y-4">
@@ -274,7 +275,7 @@ function CadastroProdutos() {
                       {gestor && (p.ativo
                         ? <Button size="icon" variant="ghost" title="Inativar produto" onClick={() => mudarAtivo(p, false)}><EyeOff /></Button>
                         : <Button size="icon" variant="ghost" title="Reativar produto" onClick={() => mudarAtivo(p, true)}><Eye /></Button>)}
-                      {admin && (excluiveis.has(p.id)
+                      {podeExcluir && (excluiveis.has(p.id)
                         ? <Button size="icon" variant="ghost" title="Excluir produto (nunca teve movimento)" onClick={() => setExcluindo(p)}><Trash2 className="text-destructive" /></Button>
                         : <Button size="icon" variant="ghost" title="Não pode excluir, já tem histórico. Use Inativar." disabled><Trash2 /></Button>)}
                     </td>
@@ -295,14 +296,15 @@ function CadastroProdutos() {
             <DialogDescription>{excluindo?.titulo} · {excluindo?.sku}</DialogDescription>
           </DialogHeader>
           <p className="text-sm font-semibold text-destructive">Tem certeza? Não dá para desfazer.</p>
-          <p className="text-xs text-muted-foreground">Este produto nunca foi vendido, transferido nem veio de lote. Entradas e ajustes de estoque dele saem junto.</p>
+          <p className="text-xs text-muted-foreground">Este produto foi só cadastrado: nunca teve entrada, ajuste, venda, transferência, lote nem etiqueta impressa.</p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setExcluindo(null)}>Cancelar</Button>
             <Button variant="destructive" onClick={() => excluindo && excluir(excluindo)}><Trash2 /> Excluir</Button>
           </div>
         </DialogContent>
       </Dialog>
-      <EtiquetasDialog open={etiquetas} onOpenChange={setEtiquetas} itens={paraEtiqueta} loja={filtroLoja ? nomeLoja(filtroLoja) : undefined} />
+      <EtiquetasDialog open={etiquetas} onOpenChange={setEtiquetas} itens={paraEtiqueta}
+        onImpresso={(ids) => setExcluiveis((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; })} loja={filtroLoja ? nomeLoja(filtroLoja) : undefined} />
       {fiscal && <FiscalDialog produto={fiscal} podeEmMassa={gestor} onClose={() => setFiscal(null)} onFeito={carregar} />}
       {mov && <MovimentarDialog produto={mov} onClose={() => setMov(null)} onFeito={carregar} />}
       {novo && filtroLoja !== undefined && <NovoProdutoDialog lojaId={filtroLoja ?? lojas[0]?.id} onClose={() => setNovo(false)} onFeito={carregar} />}

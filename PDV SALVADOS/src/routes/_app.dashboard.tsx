@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, BarChart3, Gauge, Loader2, ShoppingCart } from "lucide-react";
+import { AlertTriangle, BarChart3, Gauge, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { useLoja } from "@/lib/loja";
@@ -8,9 +8,7 @@ import { fetchAllRows } from "@/lib/fetch-all";
 import { fmtBRL, fmtDateOnly } from "@/lib/format";
 import { formatLocalDateInput } from "@/lib/sale-datetime";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Barras } from "@/components/relatorios-extra";
-import { abrirJanelaFrente } from "@/routes/_app.pdv";
 import { PaginaRelatorios } from "@/routes/_app.relatorios";
 import { usePermissoes } from "@/lib/permissoes";
 import { cn } from "@/lib/utils";
@@ -100,7 +98,6 @@ function Resumo() {
         <div>
           <p className="text-sm text-muted-foreground">{filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome : "Todas as lojas"} · hoje, {fmtDateOnly(hoje + "T12:00:00")}</p>
         </div>
-        {role !== "estoquista" && <Button onClick={abrirJanelaFrente} disabled={!filtroLoja}><ShoppingCart /> Abrir frente de loja</Button>}
       </div>
 
       {!hj ? <Loader2 className="animate-spin text-muted-foreground" /> : (

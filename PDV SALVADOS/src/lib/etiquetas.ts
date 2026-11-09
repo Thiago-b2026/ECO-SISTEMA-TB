@@ -47,6 +47,8 @@ export async function carregarModelos(): Promise<ModeloEtiqueta[]> {
 }
 
 export interface DadosEtiqueta {
+  /** Produto do cadastro: a impressão fica registrada (etiqueta impressa conta como movimento). */
+  produto_id?: string;
   titulo: string;
   sku: string;
   preco: number;

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 import { carregarModelos, imprimirEtiquetas, MODELOS_ETIQUETA, type DadosEtiqueta, type ModeloEtiqueta } from "@/lib/etiquetas";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,11 @@ import { Label } from "@/components/ui/label";
 
 const CHAVE = "eco.modeloEtiqueta";
 
-export function EtiquetasDialog({ open, onOpenChange, itens, loja }: { open: boolean; onOpenChange: (v: boolean) => void; itens: DadosEtiqueta[]; loja?: string }) {
+export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }: {
+  open: boolean; onOpenChange: (v: boolean) => void; itens: DadosEtiqueta[]; loja?: string;
+  /** Chamado com os produtos que tiveram etiqueta impressa (já registrada no banco). */
+  onImpresso?: (produtoIds: string[]) => void;
+}) {
   const [modelos, setModelos] = useState<ModeloEtiqueta[]>(MODELOS_ETIQUETA);
   const [modelo, setModelo] = useState(MODELOS_ETIQUETA[0].id);
   const [copias, setCopias] = useState<"estoque" | "uma">("estoque");
@@ -26,8 +31,16 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja }: { open: boo
     const m = modelos.find((x) => x.id === modelo)!;
     try { localStorage.setItem(CHAVE, modelo); } catch { /* sem storage */ }
     const lista = itens.map((i) => ({ ...i, copias: copias === "uma" ? 1 : i.copias }));
-    if (!imprimirEtiquetas(lista, m, loja)) toast.error("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");
-    else onOpenChange(false);
+    if (!imprimirEtiquetas(lista, m, loja)) return toast.error("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");
+    onOpenChange(false);
+    // registra a impressão (a partir de agora, etiqueta impressa conta como movimento do produto)
+    const doCadastro = lista.filter((i) => i.produto_id).map((i) => ({ produto_id: i.produto_id, copias: Math.max(1, i.copias) }));
+    if (doCadastro.length) {
+      supabase.rpc("registrar_etiquetas", { _itens: doCadastro }).then(({ error }) => {
+        if (error) toast.warning("Etiquetas enviadas para impressão, mas o registro não foi gravado: " + error.message);
+        else onImpresso?.(doCadastro.map((i) => i.produto_id!));
+      });
+    }
   }
 
   const total = itens.reduce((s, i) => s + (copias === "uma" ? 1 : Math.max(1, i.copias)), 0);
