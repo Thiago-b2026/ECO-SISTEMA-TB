@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { MODELOS, MODULOS, type Modulo } from "@/lib/permissoes";
-import { NAV, itemDaRota, itemVisivel } from "@/lib/nav";
+import { NAV, itemDaRota } from "@/lib/nav";
 import {
   GRUPOS, SISTEMAS, SISTEMAS_EDITAVEIS, TELAS, TELAS_EDITAVEIS, estadoGrupo, estadoSistema, mapaDeLinhas,
   podeVerTela, sistemasDoUsuario, telaDaRota, telasLegado, telasVazias,
@@ -96,10 +96,6 @@ describe("3 níveis: sistema → grupo → tela", () => {
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["rh.global"]) }).map((s) => s.codigo)).toEqual(["rh"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: nada })).toEqual([]);
     expect(sistemasDoUsuario({ admin: true, liberadas: nada }).map((s) => s.codigo)).toEqual(["pdv", "rh"]);
-    const item = NAV.find((n) => n.menuSistemas)!;
-    const base = { podeTela: () => true, pode: () => true };
-    expect(itemVisivel(item, { ...base, sistemas: [{ codigo: "pdv" }] })).toBe(false);
-    expect(itemVisivel(item, { ...base, sistemas: [{ codigo: "pdv" }, { codigo: "rh" }] })).toBe(true);
   });
 });
 
@@ -189,9 +185,9 @@ describe("catálogo", () => {
     for (const s of SISTEMAS) expect(CATALOGO.sistemas.find((x) => x.codigo === s.codigo)?.nome).toBe(s.nome);
   });
 
-  it("todo item do menu (menos Minha conta e Sistemas) tem tela do PDV com a mesma rota", () => {
+  it("todo item do menu (menos Minha conta) tem tela do PDV com a mesma rota", () => {
     for (const n of NAV) {
-      if (n.to === "/conta" || n.menuSistemas) continue;
+      if (n.to === "/conta") continue;
       expect(n.tela, n.to).toBeTruthy();
       expect(TELAS.find((t) => t.codigo === n.tela)?.rota, n.to).toBe(n.to);
       expect(n.tela!.startsWith("pdv."), n.to).toBe(true);

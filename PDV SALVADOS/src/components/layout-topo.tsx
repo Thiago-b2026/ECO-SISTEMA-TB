@@ -3,9 +3,8 @@ import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-route
 import { useEffect, useRef, useState } from "react";
 import { Building2, ChevronDown, LogOut, Menu, Store, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { NAV, itemVisivel, montarMenu } from "@/lib/nav";
+import { NAV, PORTAL_URL, itemVisivel, montarMenu } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
-import { MenuSistemasMobile, MenuSistemasTopo } from "@/components/menu-sistemas";
 import { TODAS, useLoja } from "@/lib/loja";
 import { cn } from "@/lib/utils";
 import { usePermissoes } from "@/lib/permissoes";
@@ -49,12 +48,11 @@ export function LayoutTopo() {
     <div className="min-h-screen bg-muted/30">
       <header className="sticky top-0 z-30 border-b bg-card shadow-sm" ref={barra}>
         <div className="flex h-12 items-center gap-3 px-3">
-          <Link to="/dashboard" className="flex items-center gap-2 font-bold text-primary"><Store className="size-5" /> Eco Sistema TB</Link>
+          <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="flex items-center gap-2 font-bold text-primary hover:underline"><Store className="size-5" /> Eco Sistema TB</a>
           <nav className="hidden lg:flex items-center gap-0.5 text-sm">
             {blocos.map((bl) => {
               if (bl.tipo === "item") {
                 const n = bl.item;
-                if (n.menuSistemas) return <MenuSistemasTopo key={n.to} />;
                 return (
                   <Link key={n.to} to={n.to} className={cn("rounded px-2.5 py-1.5 hover:bg-muted", ativo(n.to) && "bg-primary/10 text-primary font-semibold")}>{n.label}</Link>
                 );
@@ -108,7 +106,6 @@ export function LayoutTopo() {
                 ))}
               </div>
             ) : null)}
-            {itens.some((n) => n.menuSistemas) && <MenuSistemasMobile />}
           </div>
         )}
       </header>

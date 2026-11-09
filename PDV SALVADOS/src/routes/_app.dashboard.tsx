@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, Loader2, ShoppingCart } from "lucide-react";
+import { AlertTriangle, BarChart3, Gauge, Loader2, ShoppingCart } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { useLoja } from "@/lib/loja";
@@ -11,8 +11,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Barras } from "@/components/relatorios-extra";
 import { abrirJanelaFrente } from "@/routes/_app.pdv";
+import { PaginaRelatorios } from "@/routes/_app.relatorios";
+import { usePermissoes } from "@/lib/permissoes";
+import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/dashboard")({ component: Dashboard });
+type Aba = "resumo" | "relatorios";
+
+export const Route = createFileRoute("/_app/dashboard")({
+  validateSearch: (s: Record<string, unknown>): { aba?: Aba } => (s.aba === "relatorios" ? { aba: "relatorios" } : {}),
+  component: Dashboard,
+});
 
 interface Rel { faturamento: number; vendas: number; ticket_medio: number; por_dia: { dia: string; valor: number; vendas: number }[] }
 
@@ -32,7 +40,7 @@ function Kpi({ titulo, valor, sub, alerta }: { titulo: string; valor: string; su
   );
 }
 
-function Dashboard() {
+function Resumo() {
   const { role } = useAuth();
   const gestor = role === "admin" || role === "gerente";
   const { filtroLoja, lojas } = useLoja();
@@ -87,10 +95,9 @@ function Dashboard() {
   });
 
   return (
-    <div className="p-4 lg:p-6 space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
           <p className="text-sm text-muted-foreground">{filtroLoja ? lojas.find((l) => l.id === filtroLoja)?.nome : "Todas as lojas"} · hoje, {fmtDateOnly(hoje + "T12:00:00")}</p>
         </div>
         {role !== "estoquista" && <Button onClick={abrirJanelaFrente} disabled={!filtroLoja}><ShoppingCart /> Abrir frente de loja</Button>}
@@ -122,6 +129,39 @@ function Dashboard() {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/** Dashboard com duas abas: RESUMO (o dia da loja) e RELATÓRIOS (só para quem tem a tela Relatórios liberada). */
+function Dashboard() {
+  const { aba } = Route.useSearch();
+  const navigate = useNavigate({ from: "/dashboard" });
+  const { podeTela, pode } = usePermissoes();
+  const verRelatorios = podeTela("pdv.relatorios") && pode("relatorios");
+  const atual: Aba = aba === "relatorios" && verRelatorios ? "relatorios" : "resumo";
+  const abas = [
+    { id: "resumo" as const, nome: "RESUMO", Icone: Gauge },
+    ...(verRelatorios ? [{ id: "relatorios" as const, nome: "RELATÓRIOS", Icone: BarChart3 }] : []),
+  ];
+
+  return (
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1400px] mx-auto">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-2xl font-bold uppercase">Dashboard</h1>
+        {abas.length > 1 && (
+          <div className="inline-flex rounded-lg border bg-card p-1" role="tablist">
+            {abas.map(({ id, nome, Icone }) => (
+              <button key={id} role="tab" aria-selected={atual === id}
+                onClick={() => navigate({ search: id === "resumo" ? {} : { aba: id }, replace: true })}
+                className={cn("flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-bold", atual === id ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                <Icone className="size-4" /> {nome}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {atual === "relatorios" ? <PaginaRelatorios /> : <Resumo />}
     </div>
   );
 }

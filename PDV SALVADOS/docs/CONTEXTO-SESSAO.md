@@ -1,5 +1,16 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
+## Sessão 08/11/2026 (noite, 2) — Dashboard com abas RESUMO | RELATÓRIOS
+- A tela **Dashboard** agora tem duas abas: **RESUMO** (vendas de hoje, caixas abertos, estoque, contas, gráficos) e **RELATÓRIOS**
+  (o conteúdo da antiga tela Relatórios, com Resultados/Auditoria). Endereço da aba: `/dashboard?aba=relatorios`.
+- A aba RELATÓRIOS só aparece para quem tem a tela `pdv.relatorios` liberada (as permissões no banco não mudaram).
+- O item "Relatórios" saiu do menu (`oculto` em `nav.ts`); o endereço antigo `/relatorios` leva para a aba nova. Grupo DASHBOARD
+  ficou com uma tela só, então vira link direto.
+- **"Sistemas" saiu do menu** (lateral, topo/ERP e celular); `menu-sistemas.tsx` apagado. A escolha de sistema agora é pelo **Portal**.
+- Clicar em **"Eco Sistema TB"** no topo do menu (os dois visuais e o cabeçalho do celular) abre o Portal na mesma aba
+  (`PORTAL_URL` em `nav.ts` = https://portal-grupotb.vercel.app).
+- Testes: 95; build ok. Commitado na `fase1-lotes-pdv-multiloja`; **falta publicar (push)**.
+
 ## Sessão 08/11/2026 (noite) — Etapa 0 (RH no Git) e Etapa A (menu novo do PDV)
 - **GESTAO-RH entrou no Git** (sem .env/.env.local/.env.db, CSVs, prints, senhas, supabase/.temp). Vercel do gestao-rh precisa de
   **Root Directory = `GESTAO-RH`**; depois disso o RH publica pelo push no `main` (igual ao PDV) e o deploy pela CLI de dentro da pasta deixa de funcionar.

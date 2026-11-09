@@ -15,9 +15,8 @@ function EscolhaVisual() {
   return <PermissoesProvider>{visual === "erp" ? <LayoutTopo /> : <AppShell />}</PermissoesProvider>;
 }
 import { useAuth, homeRouteFor } from "@/lib/auth";
-import { NAV, itemDaRota, itemVisivel, montarMenu } from "@/lib/nav";
+import { NAV, PORTAL_URL, itemDaRota, itemVisivel, montarMenu } from "@/lib/nav";
 import { AvisoModoLegado, GuardTela } from "@/components/guard-tela";
-import { MenuSistemasLateral } from "@/components/menu-sistemas";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -80,9 +79,7 @@ function AppShell() {
   const navigate = useNavigate();
   // Menu em grupos (Dashboard, PDV · Frente de loja, Produtos, Financeiro, Cadastros, CRM e WhatsApp)
   const blocos = montarMenu(items);
-  const link = (n: (typeof items)[number], sub = false) => n.menuSistemas ? (
-    <MenuSistemasLateral key={n.to} onEscolher={() => setOpen(false)} />
-  ) : (
+  const link = (n: (typeof items)[number], sub = false) => (
     <Link
       key={n.to}
       to={n.to}
@@ -106,7 +103,7 @@ function AppShell() {
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="px-5 py-5 flex items-center gap-3 border-b border-sidebar-border">
+        <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="px-5 py-5 flex items-center gap-3 border-b border-sidebar-border hover:bg-sidebar-accent">
           <div className="size-10 rounded-lg bg-sidebar-primary grid place-items-center">
             <Store className="size-5 text-sidebar-primary-foreground" />
           </div>
@@ -114,7 +111,7 @@ function AppShell() {
             <div className="font-bold text-lg leading-tight">Eco Sistema TB</div>
             <div className="text-xs opacity-70">Gestão de salvados</div>
           </div>
-        </div>
+        </a>
         <SeletorLoja />
         <nav className="flex-1 p-3 space-y-1 overflow-auto">
           {blocos.map((b) => {
@@ -179,7 +176,7 @@ function AppShell() {
           <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Abrir menu">
             <Menu />
           </Button>
-          <span className="font-semibold">Eco Sistema TB</span>
+          <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="font-semibold hover:underline">Eco Sistema TB</a>
         </header>
         <AvisoModoLegado />
         <main className="flex-1">

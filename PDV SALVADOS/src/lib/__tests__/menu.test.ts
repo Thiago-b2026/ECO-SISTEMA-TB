@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { GRUPOS_MENU, NAV, itemVisivel, montarMenu } from "@/lib/nav";
+import { GRUPOS_MENU, NAV, PORTAL_URL, itemVisivel, montarMenu } from "@/lib/nav";
 import { GRUPOS, TELAS, telasLegado } from "@/lib/telas";
 
 const visiveisPara = (liberadas: Set<string>) =>
-  NAV.filter((n) => itemVisivel(n, { podeTela: (c) => !c || liberadas.has(c), pode: () => true, sistemas: [{ codigo: "pdv" }] }));
+  NAV.filter((n) => itemVisivel(n, { podeTela: (c) => !c || liberadas.has(c), pode: () => true }));
 
 describe("menu novo do PDV (Etapa A)", () => {
   it("os grupos do menu são os mesmos grupos das permissões (banco), na mesma ordem", () => {
@@ -24,7 +24,7 @@ describe("menu novo do PDV (Etapa A)", () => {
     const grupos = blocos.filter((b) => b.tipo === "grupo");
     expect(grupos.map((b) => b.nome)).toEqual(["Dashboard", "PDV · Frente de loja", "Produtos", "Financeiro", "Cadastros", "CRM e WhatsApp"]);
     const itens = (nome: string) => grupos.find((b) => b.nome === nome)!.itens.map((i) => i.label);
-    expect(itens("Dashboard")).toEqual(["Dashboard", "Relatórios"]);
+    expect(itens("Dashboard")).toEqual(["Dashboard"]); // Relatórios virou aba dentro do Dashboard
     expect(itens("PDV · Frente de loja")).toEqual(["PDV", "Vendas e notas"]);
     expect(itens("Produtos")).toEqual(["Cadastro de produtos", "Mercadológico", "Lotes", "Etiquetas", "Transferências"]);
     expect(itens("Financeiro")).toEqual(["Financeiro", "Movimentações de caixa", "Formas e meios de pagamento", "Contas bancárias", "Plano de contas"]);
@@ -49,5 +49,10 @@ describe("menu novo do PDV (Etapa A)", () => {
     expect(NAV.find((n) => n.to === "/lojas")!.label).toBe("Empresas");
     expect(NAV.find((n) => n.to === "/produtos")!.label).toBe("Cadastro de produtos");
     expect(NAV.some((n) => n.label === "Lojas e configurações" || n.label === "Produtos e estoque")).toBe(false);
+  });
+
+  it("'Sistemas' saiu do menu: a escolha de sistema é pelo Portal", () => {
+    expect(NAV.some((n) => n.to === "/sistemas" || n.label === "Sistemas")).toBe(false);
+    expect(PORTAL_URL).toBe("https://portal-grupotb.vercel.app");
   });
 });

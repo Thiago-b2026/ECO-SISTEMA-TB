@@ -20,7 +20,6 @@ import {
   Gauge,
   MessagesSquare,
   FolderOpen,
-  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 import type { AppRole } from "@/lib/auth";
@@ -41,9 +40,10 @@ export interface NavItem {
   modulo?: Modulo;
   /** Tela no controle de acesso por tela (src/lib/telas.ts). Sem tela = sempre liberada (ex.: Minha conta). */
   tela?: string;
-  /** Item "Sistemas": lista os sistemas do ecossistema em que o usuário tem tela (links para outros sites). */
-  menuSistemas?: true;
 }
+
+/** Portal do Ecossistema TB: é lá que se escolhe o sistema (clicar em "Eco Sistema TB" no menu leva para ele). */
+export const PORTAL_URL = "https://portal-grupotb.vercel.app";
 
 export type GrupoMenu = "dashboard" | "frente" | "produtos" | "financeiro" | "cadastros" | "crm";
 
@@ -68,7 +68,7 @@ const GESTOR: AppRole[] = ["admin", "gerente"];
 export const NAV: NavItem[] = [
   // DASHBOARD
   { to: "/dashboard", label: "Dashboard", icon: Gauge, roles: TODOS, fase: 1, grupo: "dashboard", tela: "pdv.dashboard" },
-  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, grupo: "dashboard", modulo: "relatorios", tela: "pdv.relatorios" },
+  { to: "/relatorios", label: "Relatórios", icon: LayoutDashboard, roles: GESTOR, fase: 1, grupo: "dashboard", modulo: "relatorios", tela: "pdv.relatorios", oculto: true }, // virou aba do Dashboard
 
   // PDV · FRENTE DE LOJA
   { to: "/pdv", label: "PDV", icon: ShoppingCart, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "frente", modulo: "vendas", tela: "pdv.pdv" },
@@ -96,9 +96,6 @@ export const NAV: NavItem[] = [
   // CRM E WHATSAPP
   { to: "/crm", label: "CRM", icon: MessagesSquare, roles: ["admin", "gerente", "vendedor"], fase: 1, grupo: "crm", modulo: "crm", tela: "pdv.crm" },
 
-  // Outros sistemas do Ecossistema TB
-  { to: "/sistemas", label: "Sistemas", icon: LayoutGrid, roles: ["admin"], fase: 1, menuSistemas: true },
-
   // Rotas sem item no menu
   { to: "/mercado-livre", label: "Mercado Livre", icon: Store, roles: ["admin", "gerente", "estoquista"], fase: 1, grupo: "produtos", oculto: true, tela: "pdv.mercado_livre" },
   { to: "/conta", label: "Minha conta", icon: UserCog, roles: TODOS, fase: 0, oculto: true },
@@ -106,13 +103,12 @@ export const NAV: NavItem[] = [
 
 /** Item do menu dono de um caminho (rotas filhas, como /lotes/123, contam). */
 export function itemDaRota(path: string): NavItem | undefined {
-  return NAV.filter((n) => !n.menuSistemas && (path === n.to || path.startsWith(n.to + "/"))).sort((a, b) => b.to.length - a.to.length)[0];
+  return NAV.filter((n) => (path === n.to || path.startsWith(n.to + "/"))).sort((a, b) => b.to.length - a.to.length)[0];
 }
 
-/** O item aparece no menu? Tela liberada + área com "ver"; "Sistemas" só se ele tiver tela em outro sistema além deste. */
-export function itemVisivel(n: NavItem, p: { podeTela: (c: string | undefined) => boolean; pode: (m: Modulo) => boolean; sistemas: { codigo: string }[] }): boolean {
+/** O item aparece no menu? Tela liberada + área com "ver". */
+export function itemVisivel(n: NavItem, p: { podeTela: (c: string | undefined) => boolean; pode: (m: Modulo) => boolean }): boolean {
   if (n.oculto) return false;
-  if (n.menuSistemas) return p.sistemas.length > 1;
   return p.podeTela(n.tela) && (!n.modulo || p.pode(n.modulo));
 }
 
@@ -134,9 +130,9 @@ export type BlocoMenu =
 export function montarMenu(itens: NavItem[]): BlocoMenu[] {
   const blocos: BlocoMenu[] = [];
   for (const g of GRUPOS_MENU) {
-    const doGrupo = itens.filter((i) => i.grupo === g.codigo && !i.menuSistemas);
+    const doGrupo = itens.filter((i) => i.grupo === g.codigo);
     if (doGrupo.length) blocos.push({ tipo: "grupo", codigo: g.codigo, nome: g.nome, icon: g.icon, itens: doGrupo });
   }
-  for (const i of itens) if (!i.grupo || i.menuSistemas) blocos.push({ tipo: "item", item: i });
+  for (const i of itens) if (!i.grupo) blocos.push({ tipo: "item", item: i });
   return blocos;
 }

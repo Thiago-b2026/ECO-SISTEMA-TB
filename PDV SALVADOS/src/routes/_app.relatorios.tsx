@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { BarChart3, Building2, CalendarDays, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -15,7 +15,10 @@ import { AuditoriaRelatorio } from "@/components/auditoria-relatorio";
 import { Barras, Colunas, RelatoriosExtra, Secao } from "@/components/relatorios-extra";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/relatorios")({ component: PaginaRelatorios });
+// Os relatórios agora ficam na aba "Relatórios" do Dashboard. O endereço antigo leva para lá.
+export const Route = createFileRoute("/_app/relatorios")({
+  component: () => <Navigate to="/dashboard" search={{ aba: "relatorios" }} replace />,
+});
 
 interface RelVendas {
   faturamento: number;
@@ -54,7 +57,8 @@ function atalhos(hoje: string) {
   ];
 }
 
-function PaginaRelatorios() {
+/** Conteúdo dos relatórios (usado na aba "Relatórios" do Dashboard). */
+export function PaginaRelatorios() {
   const { filtroLoja: lojaMenu, lojas } = useLoja();
   const { role } = useAuth();
   const admin = role === "admin";
@@ -110,11 +114,10 @@ function PaginaRelatorios() {
   const totLotes = lotes.reduce((s, l) => ({ custo: s.custo + Number(l.custo_total), receita: s.receita + Number(l.receita), lucro: s.lucro + Number(l.lucro) }), { custo: 0, receita: 0, lucro: 0 });
 
   return (
-    <div className="p-4 lg:p-6 space-y-4 max-w-[1400px] mx-auto">
+    <div className="space-y-4">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><BarChart3 className="size-6 text-primary" /> Relatórios</h1>
           <p className="text-sm text-muted-foreground">{aba === "resultados" ? <>{nomeLoja} · {periodo} · pela data da venda</> : "Quem inseriu, alterou ou excluiu dados no sistema"}</p>
         </div>
         {admin && (
