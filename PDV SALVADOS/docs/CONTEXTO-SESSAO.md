@@ -24,7 +24,7 @@
 - **Migration `20261108000022_excluir_produto_usuario.sql`**. Ensaio com rollback: `supabase/scripts/ensaio_0022_excluir.sql`
   (cria produtos de teste dentro da transação e prova: entrada e etiqueta BARRAM, só cadastrado exclui; o erro "ENSAIO 0022" no fim
   é proposital e desfaz tudo). Regras travadas em `src/lib/__tests__/excluir-regras.test.ts`. A 0021 continua parada.
-- Testes: 127; build ok. **Ensaio ainda não rodado.**
+- Testes: 127; build ok. **Ensaios rodados e conferidos (08/11), 0022 APLICADA e função `admin-usuarios` publicada.** Ensaio: entrada, etiqueta e venda BARRAM; só cadastrado exclui; usuários: só VIVIANE (vendedor) sem nenhum movimento; 4 permissões por unidade criadas (1 liberada, ELMORANE gerente). Comandos de banco: `npx supabase db query --remote=blqgmueqsqqpflorusrm --yes -f "<arquivo>"`; função: `npx supabase functions deploy <nome> --remote=blqgmueqsqqpflorusrm --yes --workdir "<pasta do PDV>"`.
 
 ## Sessão 08/11/2026 (noite, 2) — Dashboard com abas RESUMO | RELATÓRIOS
 - A tela **Dashboard** agora tem duas abas: **RESUMO** (vendas de hoje, caixas abertos, estoque, contas, gráficos) e **RELATÓRIOS**
