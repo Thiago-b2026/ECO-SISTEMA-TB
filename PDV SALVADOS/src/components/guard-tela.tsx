@@ -4,7 +4,7 @@ import { Link, Navigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { AlertTriangle, Loader2, ShieldX } from "lucide-react";
 import { useAuth, homeRouteFor } from "@/lib/auth";
-import { NAV, itemDaRota, itemVisivel } from "@/lib/nav";
+import { NAV, itemDaRota, itemVisivel, podeAbrirItem } from "@/lib/nav";
 import { usePermissoes } from "@/lib/permissoes";
 import { Button } from "@/components/ui/button";
 
@@ -52,7 +52,7 @@ export function GuardTela({ children }: { children: ReactNode }) {
     return <div className="grid min-h-[40vh] place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   }
   const item = itemDaRota(pathname);
-  if (!item?.tela || perm.podeTela(item.tela)) return <>{children}</>;
+  if (!item || podeAbrirItem(item, perm)) return <>{children}</>;
 
   const primeira = NAV.find((n) => itemVisivel(n, perm));
   // Caiu na tela inicial do perfil mas ela não está liberada: vai para a primeira tela liberada.

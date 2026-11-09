@@ -1,5 +1,25 @@
 # Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
 
+## Sessão 08/11/2026 (noite, 3) — CADASTROS com abas, Excluir produto e Excluir usuário
+- **Menu final:** DASHBOARD · PDV · FRENTE DE LOJA · CADASTROS (Produtos, Pessoas, Empresas) · FINANCEIRO · CRM E WHATSAPP.
+  O grupo PRODUTOS saiu (virou item de CADASTROS) e "Login de acesso" saiu do menu. A árvore de permissões no banco NÃO mudou.
+- **Produtos** = tela com abas CADASTRO | MERCADOLÓGICO | LOTES | ETIQUETAS | TRANSFERÊNCIAS (`ABAS_PRODUTOS` em `nav.ts`;
+  `/produtos?aba=...`). Cada aba só aparece com a tela liberada; quem só tem uma aba entra direto nela.
+  Endereços antigos (/mercadologico, /lotes, /etiquetas, /transferencias) abrem a aba; `/lotes/123` continua página própria.
+- **Pessoas**: ao abrir, abas DADOS | LOGIN E PERMISSÕES (`src/components/aba-login.tsx`, só admin): CRIAR LOGIN, perfil,
+  senha, desativar, empresas e permissões, Excluir usuário. `/usuarios` → `/pessoas?filtro=usuario`.
+- **Excluir produto** (só admin, aba CADASTRO): só se nunca foi VENDIDO, TRANSFERIDO nem VEIO DE LOTE (entrada/ajuste manual
+  não bloqueia; o histórico de estoque dele sai junto). Etiqueta impressa ficou FORA da regra (decisão do usuário).
+  Filtro Ativos/Inativos/Todos e botão Reativar. Funções `excluir_produto`, `produtos_excluiveis`, `motivos_nao_excluir_produto`.
+- **Excluir usuário** (só admin, função `admin-usuarios` ações `motivos` e `excluir`): bloqueia se tem venda, caixa,
+  sangria/suprimento, lançamento financeiro, transferência, movimento de estoque, lote/triagem, produto cadastrado, CRM,
+  DRE, modelo de etiqueta ou se usa o Gestão RH (o login é o mesmo). Ninguém exclui a si mesmo; admin não é excluído.
+  Apaga o login e as permissões; a pessoa continua (`user_id` nulo, `eh_usuario` falso). Função `motivos_nao_excluir_usuario`.
+- **Migration `20261108000022_excluir_produto_usuario.sql`** (só cria funções). Ensaio com rollback:
+  `supabase/scripts/ensaio_0022_excluir.sql` (o erro "ENSAIO 0022" no fim é proposital e desfaz tudo).
+  A 0021 continua parada (não depende dela).
+- Testes: 97; build ok.
+
 ## Sessão 08/11/2026 (noite, 2) — Dashboard com abas RESUMO | RELATÓRIOS
 - A tela **Dashboard** agora tem duas abas: **RESUMO** (vendas de hoje, caixas abertos, estoque, contas, gráficos) e **RELATÓRIOS**
   (o conteúdo da antiga tela Relatórios, com Resultados/Auditoria). Endereço da aba: `/dashboard?aba=relatorios`.
@@ -9,7 +29,7 @@
 - **"Sistemas" saiu do menu** (lateral, topo/ERP e celular); `menu-sistemas.tsx` apagado. A escolha de sistema agora é pelo **Portal**.
 - Clicar em **"Eco Sistema TB"** no topo do menu (os dois visuais e o cabeçalho do celular) abre o Portal na mesma aba
   (`PORTAL_URL` em `nav.ts` = https://portal-grupotb.vercel.app).
-- Testes: 95; build ok. Commitado na `fase1-lotes-pdv-multiloja`; **falta publicar (push)**.
+- Testes: 95; build ok. Commit `dc6e1bf`, **publicado em 08/11** (push na branch e no `main`).
 
 ## Sessão 08/11/2026 (noite) — Etapa 0 (RH no Git) e Etapa A (menu novo do PDV)
 - **GESTAO-RH entrou no Git** (sem .env/.env.local/.env.db, CSVs, prints, senhas, supabase/.temp). Vercel do gestao-rh precisa de

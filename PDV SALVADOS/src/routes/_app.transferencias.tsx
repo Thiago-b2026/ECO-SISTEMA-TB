@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Loader2, Search, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
-export const Route = createFileRoute("/_app/transferencias")({ component: PaginaTransferencias });
+// Agora é a aba TRANSFERENCIAS da tela Produtos (CADASTROS → Produtos). O endereço antigo leva para lá.
+export const Route = createFileRoute("/_app/transferencias")({
+  component: () => <Navigate to="/produtos" search={{ aba: "transferencias" }} replace />,
+});
 
 interface Transf {
   id: string;
@@ -33,7 +36,7 @@ interface ProdutoMin {
 
 const STATUS = { em_transito: "Em trânsito", recebida: "Recebida", cancelada: "Cancelada" } as const;
 
-function PaginaTransferencias() {
+export function PaginaTransferencias() {
   const { filtroLoja, lojas } = useLoja();
   const nome = (id: string) => lojas.find((l) => l.id === id)?.nome ?? todasLojas.find((l) => l.id === id)?.nome ?? "outra loja";
   const [lista, setLista] = useState<Transf[] | null>(null);

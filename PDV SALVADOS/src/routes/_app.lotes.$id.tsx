@@ -99,7 +99,7 @@ function DetalheLote() {
   }, [itens, busca, fPallet, fStatus]);
 
   if (carregando && !lote) return <div className="p-6"><Loader2 className="animate-spin text-muted-foreground" /></div>;
-  if (!lote) return <div className="p-6">Lote não encontrado. <Link to="/lotes" className="text-primary">Voltar</Link></div>;
+  if (!lote) return <div className="p-6">Lote não encontrado. <Link to="/produtos" search={{ aba: "lotes" }} className="text-primary">Voltar</Link></div>;
 
   const contaNoTotal = (i: Item) => i.ocorrencia == null || i.ocorrencia === "avaria_parcial";
   const totalUn = itens.filter(contaNoTotal).reduce((s, i) => s + i.quantidade, 0);
@@ -175,7 +175,7 @@ function DetalheLote() {
     const { error } = await supabase.from("lotes").delete().eq("id", lote!.id);
     if (error) return toast.error(error.message);
     toast.success("Lote excluído.");
-    navigate({ to: "/lotes" });
+    navigate({ to: "/produtos", search: { aba: "lotes" } });
   }
 
   async function novoPallet() {
@@ -214,7 +214,7 @@ function DetalheLote() {
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-start gap-2">
-          <Link to="/lotes" className="mt-1 rounded-md border p-1.5 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
+          <Link to="/produtos" search={{ aba: "lotes" }} className="mt-1 rounded-md border p-1.5 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
           <div>
             <h1 className="text-2xl font-bold">{lote.nome}</h1>
             <p className="text-sm text-muted-foreground">

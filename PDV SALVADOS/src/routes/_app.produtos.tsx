@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import { History, Loader2, PackagePlus, Printer, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -18,10 +18,60 @@ import { FiscalDialog } from "@/components/fiscal-dialog";
 import { BotaoCamera } from "@/components/leitor-camera";
 import { Exportar } from "@/components/exportar";
 import { usePermissoes } from "@/lib/permissoes";
+import { ABAS_PRODUTOS, abasLiberadas, type AbaProdutos } from "@/lib/nav";
+import { cn } from "@/lib/utils";
+import { PaginaMercadologico } from "@/routes/_app.mercadologico";
+import { PaginaLotes } from "@/routes/_app.lotes.index";
+import { EditorEtiquetas } from "@/routes/_app.etiquetas";
+import { PaginaTransferencias } from "@/routes/_app.transferencias";
 
-import { FileText, EyeOff } from "lucide-react";
+import { FileText, EyeOff, Eye, Trash2 } from "lucide-react";
 
-export const Route = createFileRoute("/_app/produtos")({ component: PaginaProdutos });
+const CODIGOS_ABAS = ABAS_PRODUTOS.map((a) => a.aba) as string[];
+
+export const Route = createFileRoute("/_app/produtos")({
+  validateSearch: (s: Record<string, unknown>): { aba?: AbaProdutos } =>
+    typeof s.aba === "string" && CODIGOS_ABAS.includes(s.aba) && s.aba !== "cadastro" ? { aba: s.aba as AbaProdutos } : {},
+  component: PaginaProdutos,
+});
+
+const CONTEUDO_ABA: Record<AbaProdutos, ComponentType> = {
+  cadastro: CadastroProdutos,
+  mercadologico: PaginaMercadologico,
+  lotes: PaginaLotes,
+  etiquetas: EditorEtiquetas,
+  transferencias: PaginaTransferencias,
+};
+
+/** CADASTROS → PRODUTOS: uma tela com abas. Cada aba só aparece para quem tem aquela tela liberada. */
+function PaginaProdutos() {
+  const { aba } = Route.useSearch();
+  const navigate = useNavigate({ from: "/produtos" });
+  const perm = usePermissoes();
+  const abas = abasLiberadas(ABAS_PRODUTOS, perm);
+  const atual = abas.find((a) => a.aba === (aba ?? "cadastro")) ?? abas[0];
+  if (!atual) return null; // sem nenhuma aba: a trava de tela já mostra "Acesso negado"
+  const Conteudo = CONTEUDO_ABA[atual.aba];
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4 lg:px-6 lg:pt-6">
+        <h1 className="text-2xl font-bold uppercase">Produtos</h1>
+        {abas.length > 1 && (
+          <div className="inline-flex max-w-full flex-wrap rounded-lg border bg-card p-1" role="tablist">
+            {abas.map((a) => (
+              <button key={a.aba} role="tab" aria-selected={atual.aba === a.aba}
+                onClick={() => navigate({ search: a.aba === "cadastro" ? {} : { aba: a.aba }, replace: true })}
+                className={cn("rounded-md px-3 py-1.5 text-xs font-bold sm:text-sm", atual.aba === a.aba ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                {a.nome}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <Conteudo key={atual.aba} />
+    </div>
+  );
+}
 
 export interface Produto {
   id: string;
@@ -57,7 +107,8 @@ const TIPO_MOV: Record<string, string> = {
   cancelamento_venda: "Cancelamento de venda", transferencia_saida: "Transferência (saída)", transferencia_entrada: "Transferência (entrada)",
 };
 
-function PaginaProdutos() {
+/** Aba CADASTRO: lista de produtos, estoque, etiquetas, inativar/reativar e excluir. */
+function CadastroProdutos() {
   const { role } = useAuth();
   const { filtroLoja, lojas } = useLoja();
   const podeEstoque = role === "admin" || role === "gerente" || role === "estoquista";
@@ -74,12 +125,25 @@ function PaginaProdutos() {
   const [novo, setNovo] = useState(false);
   const [fiscal, setFiscal] = useState<Produto | null>(null);
   const gestor = role === "admin" || role === "gerente";
+  const admin = role === "admin";
+  const [situacao, setSituacao] = useState<"ativos" | "inativos" | "todos">("ativos");
+  /** Produtos que nunca tiveram movimento (só o admin vê o botão Excluir neles). */
+  const [excluiveis, setExcluiveis] = useState<Set<string>>(new Set());
+  const [excluindo, setExcluindo] = useState<Produto | null>(null);
 
-  async function desativar(p: Produto) {
-    if (!window.confirm(`Desativar "${p.titulo}"? Ele some das listas e do PDV (o histórico continua).`)) return;
-    const { error } = await supabase.from("produtos").update({ ativo: false }).eq("id", p.id);
+  async function mudarAtivo(p: Produto, ativo: boolean) {
+    if (!ativo && !window.confirm(`Inativar "${p.titulo}"? Ele some da busca do PDV, mas continua nos relatórios e no histórico.`)) return;
+    const { error } = await supabase.from("produtos").update({ ativo }).eq("id", p.id);
     if (error) return toast.error(error.message);
-    toast.success("Produto desativado.");
+    toast.success(ativo ? "Produto reativado." : "Produto inativado.");
+    carregar();
+  }
+
+  async function excluir(p: Produto) {
+    const { error } = await supabase.rpc("excluir_produto", { _id: p.id });
+    if (error) return toast.error(error.message);
+    toast.success("Produto excluído.");
+    setExcluindo(null);
     carregar();
   }
 
@@ -87,11 +151,16 @@ function PaginaProdutos() {
     setProdutos(null);
     try {
       const ps = await fetchAllRows<Produto>(() => {
-        let q = supabase.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false });
+        let q = supabase.from("produtos").select("*").order("created_at", { ascending: false });
         if (filtroLoja) q = q.eq("loja_id", filtroLoja);
         return q;
       });
       setProdutos(ps);
+      if (admin) {
+        // sem a migration 0022 a função não existe: só não mostra o botão Excluir
+        const { data } = await supabase.rpc("produtos_excluiveis", { _loja_id: filtroLoja });
+        setExcluiveis(new Set(((data ?? []) as unknown[]).map((x) => (typeof x === "string" ? x : Object.values(x as object)[0] as string))));
+      }
     } catch (e) {
       toast.error("Não foi possível carregar: " + (e as Error).message);
       setProdutos([]);
@@ -105,9 +174,10 @@ function PaginaProdutos() {
   const visiveis = useMemo(() => {
     const t = busca.trim().toLowerCase();
     return (produtos ?? []).filter(
-      (p) => (!soComEstoque || p.estoque_atual > 0) && (!t || p.titulo.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t) || (p.codigo_barras ?? "").includes(t)),
+      (p) => (situacao === "todos" || p.ativo === (situacao === "ativos")) &&
+        (!soComEstoque || p.estoque_atual > 0) && (!t || p.titulo.toLowerCase().includes(t) || p.sku.toLowerCase().includes(t) || (p.codigo_barras ?? "").includes(t)),
     );
-  }, [produtos, busca, soComEstoque]);
+  }, [produtos, busca, soComEstoque, situacao]);
 
   const totalUn = visiveis.reduce((s, p) => s + Number(p.estoque_atual), 0);
   const totalVenda = visiveis.reduce((s, p) => s + Number(p.estoque_atual) * Number(p.preco_venda), 0);
@@ -138,13 +208,21 @@ function PaginaProdutos() {
           {podeEstoque && <Button onClick={() => setNovo(true)} disabled={!filtroLoja && lojas.length > 1}><PackagePlus /> Produto avulso</Button>}
         </div>
       </div>
-      <p className="text-xs text-muted-foreground">Produtos de lote entram aqui pelo botão "Lançar no estoque" dentro do lote.</p>
+      <p className="text-xs text-muted-foreground">Produtos de lote entram aqui pelo botão "Lançar no estoque" dentro do lote. Produto inativo some da busca do PDV, mas continua nos relatórios.</p>
 
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1 min-w-48">
             <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, SKU ou código de barras…" className="pl-8" />
+          </div>
+          <div className="inline-flex rounded-md border p-0.5">
+            {([["ativos", "Ativos"], ["inativos", "Inativos"], ["todos", "Todos"]] as const).map(([id, nome]) => (
+              <button key={id} onClick={() => { setSituacao(id); if (id !== "ativos") setSoComEstoque(false); }}
+                className={cn("rounded px-2.5 py-1 text-xs font-semibold", situacao === id ? "bg-primary text-primary-foreground" : "hover:bg-muted")}>
+                {nome} ({(produtos ?? []).filter((p) => id === "todos" || p.ativo === (id === "ativos")).length})
+              </button>
+            ))}
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={soComEstoque} onChange={(e) => setSoComEstoque(e.target.checked)} className="size-4 accent-primary" /> Só com estoque
@@ -171,7 +249,7 @@ function PaginaProdutos() {
               </thead>
               <tbody>
                 {visiveis.slice(0, 500).map((p) => (
-                  <tr key={p.id} className="border-b last:border-0">
+                  <tr key={p.id} className={cn("border-b last:border-0", !p.ativo && "opacity-60")}>
                     <td className="py-2 pr-2">
                       <input type="checkbox" className="size-4 accent-primary" checked={selecionados.has(p.id)}
                         onChange={() => setSelecionados((s) => { const n = new Set(s); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; })} />
@@ -180,7 +258,7 @@ function PaginaProdutos() {
                       <div className="flex gap-2">
                         {p.foto_url ? <img src={p.foto_url} alt="" className="size-9 shrink-0 rounded bg-white object-contain" /> : <div className="size-9 shrink-0 rounded bg-muted" />}
                         <div>
-                          <div className="font-medium leading-snug">{p.titulo}</div>
+                          <div className="font-medium leading-snug">{p.titulo}{!p.ativo && <span className="ml-1.5 rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-bold text-destructive">INATIVO</span>}</div>
                           <div className="text-xs text-muted-foreground">{p.sku}{p.codigo_barras ? ` · ${p.codigo_barras}` : ""} · grade {p.grade}</div>
                         </div>
                       </div>
@@ -193,7 +271,12 @@ function PaginaProdutos() {
                       <Button size="icon" variant="ghost" title="Histórico" onClick={() => verHistorico(p)}><History /></Button>
                       {ajustar && <Button size="icon" variant="ghost" title="Movimentar estoque" onClick={() => setMov(p)}><SlidersHorizontal /></Button>}
                       {podeEstoque && <Button size="icon" variant="ghost" title={p.ncm ? `NCM ${p.ncm}` : "Dados fiscais (sem NCM)"} onClick={() => setFiscal(p)}><FileText className={p.ncm ? "" : "text-warning"} /></Button>}
-                      {gestor && <Button size="icon" variant="ghost" title="Desativar produto" onClick={() => desativar(p)}><EyeOff /></Button>}
+                      {gestor && (p.ativo
+                        ? <Button size="icon" variant="ghost" title="Inativar produto" onClick={() => mudarAtivo(p, false)}><EyeOff /></Button>
+                        : <Button size="icon" variant="ghost" title="Reativar produto" onClick={() => mudarAtivo(p, true)}><Eye /></Button>)}
+                      {admin && (excluiveis.has(p.id)
+                        ? <Button size="icon" variant="ghost" title="Excluir produto (nunca teve movimento)" onClick={() => setExcluindo(p)}><Trash2 className="text-destructive" /></Button>
+                        : <Button size="icon" variant="ghost" title="Não pode excluir, já tem histórico. Use Inativar." disabled><Trash2 /></Button>)}
                     </td>
                   </tr>
                 ))}
@@ -205,6 +288,20 @@ function PaginaProdutos() {
         )}
       </Card>
 
+      <Dialog open={!!excluindo} onOpenChange={(v) => !v && setExcluindo(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir produto</DialogTitle>
+            <DialogDescription>{excluindo?.titulo} · {excluindo?.sku}</DialogDescription>
+          </DialogHeader>
+          <p className="text-sm font-semibold text-destructive">Tem certeza? Não dá para desfazer.</p>
+          <p className="text-xs text-muted-foreground">Este produto nunca foi vendido, transferido nem veio de lote. Entradas e ajustes de estoque dele saem junto.</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setExcluindo(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => excluindo && excluir(excluindo)}><Trash2 /> Excluir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <EtiquetasDialog open={etiquetas} onOpenChange={setEtiquetas} itens={paraEtiqueta} loja={filtroLoja ? nomeLoja(filtroLoja) : undefined} />
       {fiscal && <FiscalDialog produto={fiscal} podeEmMassa={gestor} onClose={() => setFiscal(null)} onFeito={carregar} />}
       {mov && <MovimentarDialog produto={mov} onClose={() => setMov(null)} onFeito={carregar} />}

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export const Route = createFileRoute("/_app/etiquetas")({ component: EditorEtiquetas });
+// Agora é a aba ETIQUETAS da tela Produtos (CADASTROS → Produtos). O endereço antigo leva para lá.
+export const Route = createFileRoute("/_app/etiquetas")({
+  component: () => <Navigate to="/produtos" search={{ aba: "etiquetas" }} replace />,
+});
 
 const EXEMPLO = [{ titulo: "Liquidificador Philco 1500W 3,1L 12 Velocidades PLQ15A", sku: "P1234", preco: 179.99, precoDe: 199, grade: "A", copias: 1 }];
 const NOMES_CAMPOS: Record<keyof CamposEtiqueta, string> = {
@@ -17,7 +20,7 @@ const NOMES_CAMPOS: Record<keyof CamposEtiqueta, string> = {
 };
 
 /** Editor de modelos de etiqueta: tamanho, campos visíveis e fontes, com prévia ao vivo. */
-function EditorEtiquetas() {
+export function EditorEtiquetas() {
   const [modelos, setModelos] = useState<ModeloEtiqueta[]>([]);
   const [m, setM] = useState<ModeloEtiqueta>({ ...MODELOS_ETIQUETA[0], id: "", nome: "Meu modelo", campos: { ...CAMPOS_PADRAO } });
   const [salvando, setSalvando] = useState(false);

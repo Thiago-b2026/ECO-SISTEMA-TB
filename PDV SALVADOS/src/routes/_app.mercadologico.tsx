@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Loader2, Plus, Wand2 } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/mercadologico")({ component: PaginaMercadologico });
+// Agora é a aba MERCADOLOGICO da tela Produtos (CADASTROS → Produtos). O endereço antigo leva para lá.
+export const Route = createFileRoute("/_app/mercadologico")({
+  component: () => <Navigate to="/produtos" search={{ aba: "mercadologico" }} replace />,
+});
 
 interface No { id: string; nome: string; nivel: 1 | 2 | 3; pai_id: string | null; ml_category_id: string | null; ativo: boolean }
 interface Pendente { categoria: string; subcategoria: string | null; itens: number }
@@ -24,7 +27,7 @@ async function caminhoML(id: string): Promise<{ id: string; nome: string }[]> {
   return (data?.caminho ?? []) as { id: string; nome: string }[];
 }
 
-function PaginaMercadologico() {
+export function PaginaMercadologico() {
   const { role } = useAuth();
   const podeEditar = role === "admin" || role === "gerente" || role === "estoquista";
   const [nos, setNos] = useState<No[] | null>(null);

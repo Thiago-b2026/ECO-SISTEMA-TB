@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Boxes, Clock, FileSpreadsheet, Loader2, Plus, RefreshCw, ScanBarcode, Settings2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
@@ -16,11 +16,14 @@ import { MercadoLivreConfig } from "@/components/mercado-livre-config";
 import { Exportar } from "@/components/exportar";
 
 
-export const Route = createFileRoute("/_app/lotes/")({ component: PaginaLotes });
+// Agora é a aba LOTES da tela Produtos (CADASTROS → Produtos). O endereço antigo leva para lá.
+export const Route = createFileRoute("/_app/lotes/")({
+  component: () => <Navigate to="/produtos" search={{ aba: "lotes" }} replace />,
+});
 
 type Filtro = "todos" | "manual" | "planilha";
 
-function PaginaLotes() {
+export function PaginaLotes() {
   const { role } = useAuth();
   const gestor = role === "admin" || role === "gerente";
   const { filtroLoja, lojas } = useLoja();

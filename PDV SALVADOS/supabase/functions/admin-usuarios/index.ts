@@ -4,6 +4,8 @@
 //  { acao: "papel", user_id, papel }
 //  { acao: "ativo", user_id, ativo: boolean }
 //  { acao: "senha", user_id, senha }
+//  { acao: "motivos", user_id }  → { motivos: string[] } (por que não pode excluir; vazio = pode)
+//  { acao: "excluir", user_id }  → apaga o LOGIN (e permissões); o cadastro da pessoa continua
 import { adminClient, cors, exigirPapel, json } from "../_shared/ml.ts";
 
 const PAPEIS = ["admin", "gerente", "vendedor", "estoquista"];
@@ -51,6 +53,26 @@ Deno.serve(async (req) => {
     if (!alvo) return json({ erro: "Usuário não informado." }, 400);
     if (alvo === user!.id && (body.acao === "ativo" || body.acao === "papel")) {
       return json({ erro: "Você não pode alterar o próprio perfil ou se desativar." }, 400);
+    }
+
+    if (body.acao === "motivos" || body.acao === "excluir") {
+      const motivos: string[] = [];
+      if (alvo === user!.id) motivos.push("você não pode excluir a si mesmo");
+      const { data: papel } = await db.from("user_roles").select("role").eq("user_id", alvo).maybeSingle();
+      if (papel?.role === "admin") motivos.push("o admin não pode ser excluído");
+      const { data: hist, error: eHist } = await db.rpc("motivos_nao_excluir_usuario", { _uid: alvo });
+      if (eHist) throw eHist;
+      const historico = (hist ?? []) as string[];
+      if (body.acao === "motivos") return json({ motivos: [...motivos, ...historico], historico: historico.length > 0 });
+      if (motivos.length) return json({ erro: `Não pode excluir: ${motivos.join(", ")}.` }, 400);
+      if (historico.length) return json({ erro: `Não pode excluir, já tem histórico (${historico.join(", ")}). Use Desativar.` }, 400);
+
+      const { data: pessoa } = await db.from("pessoas").select("id").eq("user_id", alvo).maybeSingle();
+      // apaga o login: perfil, papel, empresas e permissões saem junto (on delete cascade)
+      const { error } = await db.auth.admin.deleteUser(alvo);
+      if (error) return json({ erro: "O banco não deixou excluir: " + error.message + ". Use Desativar." }, 400);
+      if (pessoa?.id) await db.from("pessoas").update({ user_id: null, eh_usuario: false }).eq("id", pessoa.id);
+      return json({ ok: true });
     }
 
     if (body.acao === "papel") {

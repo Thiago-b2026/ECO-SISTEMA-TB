@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -12,24 +12,48 @@ import { Badge } from "@/components/ui/badge";
 import { PessoaForm, type Pessoa } from "@/components/pessoa-form";
 import { Exportar } from "@/components/exportar";
 import { SISTEMAS } from "@/lib/telas";
+import { useAuth, type AppRole } from "@/lib/auth";
+import { VendedorasLegado } from "@/components/vendedoras-legado";
 
 const PORTAL = SISTEMAS.find((x) => x.codigo === "portal");
 
 
-export const Route = createFileRoute("/_app/pessoas")({ component: PaginaPessoas });
-
 type Filtro = "todos" | "cliente" | "fornecedor" | "funcionario" | "usuario";
+const FILTROS: Filtro[] = ["todos", "cliente", "fornecedor", "funcionario", "usuario"];
 
+export const Route = createFileRoute("/_app/pessoas")({
+  validateSearch: (s: Record<string, unknown>): { filtro?: Filtro } =>
+    typeof s.filtro === "string" && FILTROS.includes(s.filtro as Filtro) && s.filtro !== "todos" ? { filtro: s.filtro as Filtro } : {},
+  component: PaginaPessoas,
+});
+
+const PAPEL: Record<AppRole, string> = { admin: "Admin", gerente: "Gerente", vendedor: "Vendedor", estoquista: "Estoquista" };
+
+/** CADASTROS → PESSOAS. Ao abrir uma pessoa: abas DADOS | LOGIN E PERMISSÕES (esta só para o admin). */
 function PaginaPessoas() {
+  const { role } = useAuth();
+  const admin = role === "admin";
+  const busca0 = Route.useSearch();
+  const navigate = useNavigate({ from: "/pessoas" });
+  const filtro: Filtro = busca0.filtro ?? "todos";
+  const setFiltro = (f: Filtro) => navigate({ search: f === "todos" ? {} : { filtro: f }, replace: true });
   const [pessoas, setPessoas] = useState<Pessoa[] | null>(null);
-  const [filtro, setFiltro] = useState<Filtro>("todos");
+  /** situação do login de cada usuário (perfil e ativo) */
+  const [acesso, setAcesso] = useState<Map<string, { papel: AppRole | null; ativo: boolean }>>(new Map());
   const [busca, setBusca] = useState("");
   const [inativos, setInativos] = useState(false);
   const [editando, setEditando] = useState<Pessoa | null | "novo">(null);
 
   async function carregar() {
     try {
-      setPessoas(await fetchAllRows<Pessoa>(() => supabase.from("pessoas").select("*").order("nome")));
+      const [ps, roles, profs] = await Promise.all([
+        fetchAllRows<Pessoa>(() => supabase.from("pessoas").select("*").order("nome")),
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("profiles").select("id, ativo"),
+      ]);
+      const papel = new Map((roles.data ?? []).map((x) => [x.user_id as string, x.role as AppRole]));
+      setAcesso(new Map((profs.data ?? []).map((x) => [x.id as string, { papel: papel.get(x.id as string) ?? null, ativo: x.ativo !== false }])));
+      setPessoas(ps);
     } catch (e) {
       toast.error((e as Error).message);
       setPessoas([]);
@@ -56,8 +80,8 @@ function PaginaPessoas() {
     <div className="p-4 lg:p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Cadastros</h1>
-          <p className="text-sm text-muted-foreground">Clientes, fornecedores e usuários num só lugar</p>
+          <h1 className="text-2xl font-bold uppercase">Pessoas</h1>
+          <p className="text-sm text-muted-foreground">Clientes, fornecedores, funcionários e usuários num só lugar. Abra a pessoa para ver os dados{admin ? " e o login e as permissões" : ""}.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Exportar titulo="Cadastros" subtitulo={filtro === "todos" ? "todos" : filtro}
@@ -107,7 +131,12 @@ function PaginaPessoas() {
                         {p.eh_usuario && <Badge>{p.user_id ? "Login de acesso" : "Login (não criado)"}</Badge>}
                       </div>
                     </td>
-                    <td className="py-2 pr-2">{p.user_id ? <span className="font-medium text-success">Sim</span> : <span className="text-muted-foreground">Não</span>}</td>
+                    <td className="py-2 pr-2 whitespace-nowrap">
+                      {!p.user_id ? <span className="text-muted-foreground">Não</span>
+                        : acesso.get(p.user_id)?.ativo === false ? <span className="font-medium text-destructive">Desativado</span>
+                        : <span className="font-medium text-success">Sim</span>}
+                      {p.user_id && acesso.get(p.user_id)?.papel && <span className="ml-1 text-xs text-muted-foreground">· {PAPEL[acesso.get(p.user_id)!.papel!]}</span>}
+                    </td>
                     <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
                       <Button
                         size="sm"
@@ -128,7 +157,17 @@ function PaginaPessoas() {
         )}
       </Card>
 
-      {editando && <PessoaForm pessoa={editando === "novo" ? null : editando} onClose={() => setEditando(null)} onSalvo={carregar} />}
+      {admin && filtro === "usuario" && <VendedorasLegado usuarios={(pessoas ?? []).filter((p) => p.user_id).map((p) => ({ id: p.user_id!, nome: p.nome }))} />}
+
+      {editando && (
+        <PessoaForm
+          pessoa={editando === "novo" ? null : editando}
+          abaInicial={filtro === "usuario" ? "login" : "dados"}
+          inicial={filtro === "usuario" ? { eh_funcionario: true, eh_cliente: false } : undefined}
+          onClose={() => setEditando(null)}
+          onSalvo={carregar}
+        />
+      )}
     </div>
   );
 }
