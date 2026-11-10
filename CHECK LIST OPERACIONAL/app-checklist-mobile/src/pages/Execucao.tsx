@@ -47,6 +47,18 @@ export default function Execucao() {
     return { e, v, m, t, rs, fotos };
   }, [id]);
 
+  // execução de outra pessoa (ex.: o líder conferindo) ou só no servidor: traz respostas e fotos
+  const [buscou, setBuscou] = useState(false);
+  const [erroBusca, setErroBusca] = useState<string | null>(null);
+  useEffect(() => {
+    if (!d?.e || buscou) return;
+    const deOutro = d.e.usuario_id !== sessao!.usuario_id;
+    const semRespostas = d.rs !== undefined && d.rs.length === 0 && d.e.status !== "em_andamento";
+    if (!deOutro && !semRespostas) return;
+    setBuscou(true);
+    repo.trazerDoServidor(d.e.id).catch((x: Error) => setErroBusca(x.message));
+  }, [d?.e, d?.rs, buscou, repo, sessao]);
+
   // rola até o item pedido (link das pendências: #item-<id>)
   useEffect(() => {
     if (!hash || !d?.e) return;
@@ -99,6 +111,7 @@ export default function Execucao() {
       {e.status === "devolvida" && <Aviso tom="alerta" titulo="Devolvida pelo líder">{e.motivo_devolucao}</Aviso>}
       {!editavel && e.status !== "devolvida" && <Aviso tom="info">Somente leitura: esta execução já foi concluída ou é de outra pessoa.</Aviso>}
       {erro && <Aviso tom="erro">{erro}</Aviso>}
+      {erroBusca && <Aviso tom="alerta">Não foi possível buscar as respostas no servidor ({erroBusca}). Mostrando o que está no aparelho.</Aviso>}
 
       {v.conteudo.secoes.map((s) => {
         const visiveis = s.itens.filter((i) => itemVisivel(porId.get(i.id)!, porId, mapa, dow));

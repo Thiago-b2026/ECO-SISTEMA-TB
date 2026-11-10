@@ -4,7 +4,9 @@ import { DadosProvider } from "./app/dados";
 import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
+import Agendamentos from "./pages/Agendamentos";
 import Login from "./pages/Login";
+import TarefasLoja from "./pages/TarefasLoja";
 import PlanoDetalhe from "./pages/PlanoDetalhe";
 import Planos from "./pages/Planos";
 import { BarraSync } from "./ui/BarraSync";
@@ -33,10 +35,10 @@ function Rotas() {
         <Route path="execucao/:id/concluir" element={<Concluir />} />
         <Route path="planos" element={<Planos />} />
         <Route path="planos/:id" element={<PlanoDetalhe />} />
-        <Route path="loja" element={<EmConstrucao nome="Tarefas da loja" />} />
+        <Route path="loja" element={<TarefasLoja />} />
         <Route path="dashboard" element={<EmConstrucao nome="Dashboard" />} />
         <Route path="relatorios" element={<EmConstrucao nome="Relatórios" />} />
-        <Route path="agendamentos" element={<EmConstrucao nome="Agendamentos" />} />
+        <Route path="agendamentos" element={<Agendamentos />} />
         <Route path="modelos/*" element={<EmConstrucao nome="Modelos de checklist" />} />
         <Route path="equipe" element={<EmConstrucao nome="Equipe e perfis" />} />
         <Route path="*" element={<Vazio>Página não encontrada.</Vazio>} />
