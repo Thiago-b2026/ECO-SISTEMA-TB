@@ -58,3 +58,34 @@ describe("app (modo demonstração)", () => {
     expect(within(menu).queryByText("Equipe e perfis")).toBeNull();
   }, 30000);
 });
+
+describe("todas as telas abrem sem erro", () => {
+  it("supervisor e gestor percorrem as telas", async () => {
+    // recharts precisa de ResizeObserver (o jsdom não tem)
+    (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} };
+    const erros: unknown[] = [];
+    const orig = console.error;
+    console.error = (...a: unknown[]) => { erros.push(a); orig(...a); };
+    try {
+      for (const [quem, telas] of [
+        ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendamentos", "Relatórios", "Dashboard"]],
+        ["Carla (Gestora)", ["Modelos de checklist", "Equipe e perfis"]],
+      ] as const) {
+        localStorage.clear();
+        render(<App />);
+        fireEvent.click(await screen.findByText(quem));
+        const menu = await screen.findByRole("navigation", { name: "Menu" }, { timeout: 8000 });
+        for (const t of telas) {
+          await act(async () => { fireEvent.click(within(menu).getByText(t)); });
+          await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(new RegExp(t.split(" ")[0])), { timeout: 8000 });
+          expect(screen.queryByText("Acesso negado")).toBeNull();
+        }
+        cleanup();
+        await servidor.sair();
+      }
+      expect(erros.filter((e) => !String(e).includes("act("))).toEqual([]);
+    } finally {
+      console.error = orig;
+    }
+  }, 60000);
+});

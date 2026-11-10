@@ -1,10 +1,16 @@
 # Histórico – Check List Operacional (código `checklist`, schema `checklist`)
 
 ## 📍 ONDE PARAMOS
-- **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 10 concluída** (relatórios PDF e Excel). Banco testado só em PGlite; **nada aplicado em produção**.
-- Faltam: 11 (testes de aceite e roteiro).
-- Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
+- **Fase 5 concluída (etapas 0 a 11)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 55 testes do app e 127 do PDV passam; build ok.
+- **Nada foi aplicado no banco de produção, nenhum schema foi exposto e nada foi publicado na Vercel.**
+- **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`:
+  1. aplicar `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql`, depois `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`, depois `app-checklist-mobile/supabase/seed/checklist_seed.sql`;
+  2. incluir `checklist` em Supabase → Integrations → Data API → Exposed schemas;
+  3. no Portal, marcar o sistema checklist nas unidades e liberar as telas;
+  4. criar o projeto na Vercel (time grupotb, Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`, variáveis VITE_SUPABASE_*);
+  5. cadastrar a url em `public.sistemas` (prevista `https://checklist-grupotb.vercel.app`) e confirmar no Portal e no `sistemas.json`;
+  6. testar no celular pelo link HTTPS (roteiro manual no README).
+- Pendências de produto: editor completo de modelos (I2), notificações (I5), integrações CISS/IA/QR (D1–D3), Método Polar × meta do RH (D4), envio em segundo plano no iPhone (D5).
 
 ---
 
@@ -30,3 +36,4 @@
 - **Etapa 8:** tela Agendamentos (checklist, responsável ou "qualquer pessoa do perfil", diária, semanal por dias, mensal por dia fixo ou N dias antes do fim do mês, início e horário-limite, ativar/desativar; "Aplicar a agenda sugerida" da planilha). Gera as tarefas do dia ao salvar. Tela Tarefas da loja: dia a dia (últimos 7 dias), situação, quem fez, tempo e nota; o líder **valida ou devolve** (com motivo) a execução do fiscal e cancela tarefa (com motivo). Execução de outra pessoa é buscada no servidor.
 - **Etapa 9:** Dashboard por período e unidade (só onde a pessoa é supervisor ou gestor): tarefas concluídas (e no prazo), atrasadas, tempo médio, conformidade, planos abertos e atrasados, taxa de conclusão; barras de conformidade por setor, por pessoa (com nº de execuções, tempo médio e concluídas com atraso) e por unidade, sempre com tabela junto.
 - **Etapa 10:** tela Relatórios (período e unidade): Excel `.xlsx` real com abas Resumo, Execuções (data/hora de SP, duração, situação, conformidade ou "Sem pontuação aplicável", não conformes, planos) e Planos de ação; PDF de cada execução (cabeçalho, nota, tabela por seção com não conformes marcados "(NC)", planos, fotos com data/hora, assinatura, rodapé com página). Botão "Baixar PDF" também na execução concluída. Dashboard e Relatórios carregam sob demanda, e o service worker guarda os pedaços. 51 testes passam.
+- **Etapa 11:** telas Modelos (versões imutáveis, rascunho, ajustar itens, duplicar item, publicar) e Equipe e perfis (incluir por e-mail quem já tem login, mudar perfil, inativar; `checklist.alterar_membro`). Teste do app montado em jsdom (login, menu por perfil, execução, conclusão bloqueada, todas as telas sem erro). O teste achou e corrigiu: assinatura sem canvas e menu vazio logo após o login. README com como rodar, testar no celular, publicar, tabela critério → teste, roteiro manual e pendências. **55 testes passam.**
