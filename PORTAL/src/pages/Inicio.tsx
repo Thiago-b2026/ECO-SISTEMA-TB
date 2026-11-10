@@ -17,6 +17,13 @@ const IconePessoas = () => (
   </svg>
 );
 
+const IconePrancheta = () => (
+  <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <rect x="5" y="4" width="14" height="18" rx="2" /><rect x="9" y="2" width="6" height="4" rx="1" />
+    <path d="m9 12 2 2 4-4" /><path d="M9 18h6" />
+  </svg>
+);
+
 interface Quadro {
   codigo: string; // mesmo código de public.sistemas / sistemas.json
   titulo: string;
@@ -29,6 +36,8 @@ interface Quadro {
 export const SISTEMAS: Quadro[] = [
   { codigo: "pdv", titulo: "Gestão Salvados", descricao: "PDV, estoque, caixa e financeiro", url: "https://eco-sistema-tb.vercel.app", icone: <IconeCarrinho /> },
   { codigo: "rh", titulo: "Gestão RH", descricao: "Custos de pessoal por loja", url: "https://gestao-rh-tau.vercel.app", icone: <IconePessoas /> },
+  // url PREVISTA (projeto "checklist-grupotb" no time grupotb): confirmar na publicação
+  { codigo: "checklist", titulo: "Check List Operacional", descricao: "Rotinas, fotos e planos de ação por loja", url: "https://checklist-grupotb.vercel.app", icone: <IconePrancheta /> },
 ];
 
 export default function Inicio() {

@@ -10,7 +10,9 @@ import {
 
 const SQL17 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000017_permissao_por_tela.sql"), "utf8");
 const SQL18 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000018_portal_redes_unidades.sql"), "utf8");
-const SQL = `${SQL17}\n${SQL18}`;
+// migrations posteriores que incluem sistemas/telas novos (ex.: Check List, 0023)
+const SQL23 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261110000023_checklist_telas.sql"), "utf8");
+const SQL = `${SQL17}\n${SQL18}\n${SQL23}`;
 const CONF18 = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_portal_antes.sql"), "utf8");
 const CONFERIR = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_telas_antes.sql"), "utf8");
 const CATALOGO = JSON.parse(readFileSync(resolve(process.cwd(), "../MEU SUPERVISOR/sistemas.json"), "utf8")) as { sistemas: { codigo?: string; nome: string }[] };
@@ -87,15 +89,16 @@ describe("3 níveis: sistema → grupo → tela", () => {
     }
   });
 
-  it("editor mostra só sistemas ativos com tela (PDV e RH; o Portal fica de fora até a fase 2)", () => {
-    expect(SISTEMAS_EDITAVEIS.map((s) => s.codigo)).toEqual(["pdv", "rh"]);
+  it("editor mostra só sistemas ativos com tela (PDV, RH e Check List; o Portal fica de fora até a fase 2)", () => {
+    expect(SISTEMAS_EDITAVEIS.map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist"]);
   });
 
   it("menu Sistemas: só os sistemas em que ele tem pelo menos uma tela", () => {
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["pdv.pdv"]) }).map((s) => s.codigo)).toEqual(["pdv"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["rh.global"]) }).map((s) => s.codigo)).toEqual(["rh"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: nada })).toEqual([]);
-    expect(sistemasDoUsuario({ admin: true, liberadas: nada }).map((s) => s.codigo)).toEqual(["pdv", "rh"]);
+    expect(sistemasDoUsuario({ admin: true, liberadas: nada }).map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist"]);
+    expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["checklist.hoje"]) }).map((s) => s.codigo)).toEqual(["checklist"]);
   });
 });
 
@@ -166,7 +169,9 @@ describe("catálogo", () => {
   });
 
   it("toda tela/ação usada na conversão existe no catálogo de ações da tela (tela_acoes)", () => {
-    const ta = SQL18.slice(SQL18.indexOf("insert into public.tela_acoes"), SQL18.indexOf(") as x(t, a);"));
+    const bloco = (sql: string) => sql.slice(sql.indexOf("insert into public.tela_acoes"), sql.indexOf(") as x(t, a)"));
+    const ta = `${bloco(SQL18)}
+${bloco(SQL23)}`;
     const mapa = new Map([...ta.matchAll(/\('([a-z_]+\.[a-z_]+)',\s+array\[([^\]]+)\]\)/g)].map((m) => [m[1], m[2].replace(/'/g, "").split(",")]));
     expect([...mapa.keys()].sort()).toEqual(TELAS.map((t) => t.codigo).sort());
     for (const m of SQL18.matchAll(/\('((?:pdv|rh)\.[a-z_]+)',\s+'([a-z_]+)',\s+(?:array|true|false)/g)) {

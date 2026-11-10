@@ -47,7 +47,7 @@ export const SISTEMAS: Sistema[] = [
   { codigo: "pdv", nome: "PDV Salvados", url: "https://eco-sistema-tb.vercel.app", ordem: 10, ativo: true },
   { codigo: "rh", nome: "Gestão RH", url: "https://gestao-rh-tau.vercel.app", ordem: 20, ativo: true },
   { codigo: "crm", nome: "CRM Super Mix Braz", url: null, ordem: 30, ativo: false },
-  { codigo: "checklist", nome: "Check List Operacional", url: null, ordem: 40, ativo: false },
+  { codigo: "checklist", nome: "Check List Operacional", url: null, ordem: 40, ativo: true },
   { codigo: "pop", nome: "Treinamentos com POP", url: null, ordem: 50, ativo: false },
   { codigo: "supervisor", nome: "Meu Supervisor", url: null, ordem: 90, ativo: false },
 ];
@@ -66,6 +66,10 @@ export const GRUPOS: Grupo[] = [
   { sistema: "portal", codigo: "acessos", nome: "Acessos", ordem: 10 },
   { sistema: "rh", codigo: "lancamentos", nome: "Lançamentos", ordem: 10 },
   { sistema: "rh", codigo: "consolidado", nome: "Consolidado", ordem: 20 },
+  // Check List Operacional (outro site, mesmo login) – migration 20261110000023_checklist_telas.sql
+  { sistema: "checklist", codigo: "operacao", nome: "Operação", ordem: 10 },
+  { sistema: "checklist", codigo: "supervisao", nome: "Supervisão", ordem: 20 },
+  { sistema: "checklist", codigo: "cadastros", nome: "Cadastros", ordem: 30 },
 ];
 
 const TODOS: AppRole[] = ["admin", "gerente", "vendedor", "estoquista"];
@@ -100,6 +104,15 @@ export const TELAS: Tela[] = [
   { codigo: "rh.global", nome: "Visão Global", sistema: "rh", grupo: "consolidado", rota: "/global", perfis: [] },
   { codigo: "rh.empresas", nome: "Empresas", sistema: "rh", grupo: "consolidado", rota: "/empresas", perfis: [] },
   { codigo: "rh.usuarios", nome: "Usuários do Gestão RH", sistema: "rh", grupo: "consolidado", rota: "/usuarios", somenteAdmin: true, perfis: [] },
+  // Check List Operacional (outro site, mesmo login). Sistema novo: ninguém tinha acesso antes (perfis vazios).
+  { codigo: "checklist.hoje", nome: "Minhas tarefas", sistema: "checklist", grupo: "operacao", rota: "/", perfis: [] },
+  { codigo: "checklist.planos", nome: "Planos de ação", sistema: "checklist", grupo: "operacao", rota: "/planos", perfis: [] },
+  { codigo: "checklist.loja", nome: "Tarefas da loja", sistema: "checklist", grupo: "supervisao", rota: "/loja", perfis: [] },
+  { codigo: "checklist.dashboard", nome: "Dashboard", sistema: "checklist", grupo: "supervisao", rota: "/dashboard", perfis: [] },
+  { codigo: "checklist.relatorios", nome: "Relatórios", sistema: "checklist", grupo: "supervisao", rota: "/relatorios", perfis: [] },
+  { codigo: "checklist.agendamentos", nome: "Agendamentos", sistema: "checklist", grupo: "cadastros", rota: "/agendamentos", perfis: [] },
+  { codigo: "checklist.modelos", nome: "Modelos de checklist", sistema: "checklist", grupo: "cadastros", rota: "/modelos", perfis: [] },
+  { codigo: "checklist.equipe", nome: "Equipe e perfis", sistema: "checklist", grupo: "cadastros", rota: "/equipe", perfis: [] },
   // Portal (fase 2): exclusivas do Admin
   { codigo: "portal.usuarios", nome: "Usuários", sistema: "portal", grupo: "acessos", rota: "/usuarios", somenteAdmin: true, perfis: [] },
   { codigo: "portal.redes", nome: "Redes e unidades", sistema: "portal", grupo: "acessos", rota: "/redes", somenteAdmin: true, perfis: [] },

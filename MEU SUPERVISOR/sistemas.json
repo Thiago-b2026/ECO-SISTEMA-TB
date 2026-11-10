@@ -47,10 +47,10 @@
       "nome": "Check List Operacional",
       "pasta": "CHECK LIST OPERACIONAL",
       "empresa": "",
-      "descricao": "Check list gerencial",
-      "status": "planejado",
+      "descricao": "Rotinas, fotos e planos de ação por loja (PWA offline-first: Vite + React + Supabase schema checklist; pasta app-checklist-mobile). URL prevista, confirmar na publicação.",
+      "status": "em-construcao",
       "schema": "checklist",
-      "url": null
+      "url": "https://checklist-grupotb.vercel.app"
     },
     {
       "codigo": "pop",

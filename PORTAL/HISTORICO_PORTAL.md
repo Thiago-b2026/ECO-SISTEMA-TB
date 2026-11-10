@@ -178,3 +178,9 @@ Regras:
 
 ---
 <!-- NOVAS SESSÕES ENTRAM ABAIXO, NO MESMO FORMATO -->
+
+## Sessão – 10/11/2026 (Check List Operacional entra no Portal)
+- Quadro **Check List Operacional** ("Rotinas, fotos e planos de ação por loja", ícone de prancheta) incluído em `src/pages/Inicio.tsx`.
+- A url é **prevista** (`https://checklist-grupotb.vercel.app`) e precisa ser confirmada quando o projeto for criado na Vercel (time grupotb, Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`).
+- Sistema, grupos e telas: migration `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`, espelhada em `GESTAO SALVADOS/src/lib/telas.ts`. **Ainda não aplicada** (depende do OK do usuário).
+- Portal **não publicado** nesta sessão.

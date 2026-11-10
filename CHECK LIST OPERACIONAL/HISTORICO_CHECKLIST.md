@@ -2,8 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 0 concluída** (projeto Vite + PWA em `app-checklist-mobile`, regras de pontuação, condicionais e pendências com testes).
-- Faltam: 1 (migrations do schema `checklist` + telas no Portal/PDV), 2 (seed), 3 (login e permissões do Ecossistema), 4 (Hoje e Execução), 5 (foto, GPS e assinatura), 6 (offline e sincronização), 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
+- **Etapa atual: 1 concluída** (schema `checklist` + telas no Ecossistema). Banco testado só em PGlite; **nada aplicado em produção**.
+- Faltam: 2 (seed), 3 (login e permissões do Ecossistema), 4 (Hoje e Execução), 5 (foto, GPS e assinatura), 6 (offline e sincronização), 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
 - Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
 
 ---
@@ -19,3 +19,5 @@
 - Plano aprovado com os ajustes A–J e os critérios de aceite. O documento do plano foi atualizado (seção 7).
 - Ajuste do usuário: o Check List entra no Portal Grupo TB, como o PDV e o RH (login único, `minhas_telas('checklist')`, migration de telas no PDV, quadro no Portal, botão "Eco Sistema TB").
 - **Etapa 0:** projeto criado (Vite 8 + React 19 + TS + Tailwind 4, Dexie, jsPDF, SheetJS, Recharts, PGlite para testar o banco sem produção). `src/domain/regras.ts` com pontuação (teste dos 35%), condicionais, pendências e itens que geram plano. 7 testes passam e o build passa.
+- **Etapa 1:** migration `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql`, com membros/perfis, versões imutáveis, pontuação e pendências em SQL, `sync_execucao` idempotente, `concluir_execucao`, planos só por funções (fluxo D), histórico, views com "atrasada" calculada, `gerar_tarefas`, dashboard, relatório, RLS e bucket privado. 17 testes de banco em PGlite (RLS entre lojas, 35%, versões, idempotência, plano).
+- Ecossistema: `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql` (ativa `checklist`, 3 grupos, 8 telas, ações), espelhada em `GESTAO SALVADOS/src/lib/telas.ts`. O teste do PDV passa a ler a 0023 (127 testes ok). Quadro no Portal (`PORTAL/src/pages/Inicio.tsx`); `sistemas.json` em-construcao com url prevista `https://checklist-grupotb.vercel.app`.
