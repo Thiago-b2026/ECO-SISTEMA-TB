@@ -5,6 +5,7 @@ import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
 import Agendamentos from "./pages/Agendamentos";
+import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import TarefasLoja from "./pages/TarefasLoja";
 import PlanoDetalhe from "./pages/PlanoDetalhe";
@@ -36,7 +37,7 @@ function Rotas() {
         <Route path="planos" element={<Planos />} />
         <Route path="planos/:id" element={<PlanoDetalhe />} />
         <Route path="loja" element={<TarefasLoja />} />
-        <Route path="dashboard" element={<EmConstrucao nome="Dashboard" />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="relatorios" element={<EmConstrucao nome="Relatórios" />} />
         <Route path="agendamentos" element={<Agendamentos />} />
         <Route path="modelos/*" element={<EmConstrucao nome="Modelos de checklist" />} />
