@@ -1,9 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import App from "./App";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <main className="p-6">Check List Operacional – em construção</main>
+    <App />
   </StrictMode>,
 );
