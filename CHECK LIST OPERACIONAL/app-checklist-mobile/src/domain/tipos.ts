@@ -109,7 +109,8 @@ export interface Resposta {
 
 export interface Foto {
   id: string;
-  execucao_id: string;
+  /** null = foto da solução de um plano de ação */
+  execucao_id: string | null;
   item_id: string | null;
   plano_id?: string | null;
   storage_path: string;
