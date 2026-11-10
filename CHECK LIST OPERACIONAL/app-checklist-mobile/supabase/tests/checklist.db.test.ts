@@ -329,3 +329,24 @@ describe("carga dos modelos reais", () => {
     expect(await sql(U.op, `select codigo from checklist.modelos where codigo = 'fiscal_manha'`)).toHaveLength(1);
   });
 });
+
+describe("id do plano igual no celular e no banco", () => {
+  it("checklist.id_plano = idPlano() do app", async () => {
+    const { idPlano } = await import("../../src/domain/ids");
+    const [{ id }] = await sql(null, `select checklist.id_plano('30000000-0000-4000-8000-000000000001', 'c')::text id`);
+    expect(id).toBe(idPlano("30000000-0000-4000-8000-000000000001", "c"));
+  });
+});
+
+describe("equipe (definir_membro)", () => {
+  it("só o gestor define; e-mail sem login dá erro claro; não cria conta", async () => {
+    await db.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-000000000009', 'novo@braz.com')`);
+    await deve(U.sup, `select checklist.definir_membro('novo@braz.com', $1, 'operador', 'Novo')`, [LOJA_A], "Só o gestor");
+    await deve(U.gestor, `select checklist.definir_membro('ninguem@braz.com', $1, 'operador', 'X')`, [LOJA_A], "Peça ao admin");
+    await sql(U.gestor, `select checklist.definir_membro('NOVO@braz.com', $1, 'operador', 'Novo Fiscal')`, [LOJA_A]);
+    await sql(U.gestor, `select checklist.definir_membro('novo@braz.com', $1, 'supervisor', 'Novo Líder')`, [LOJA_A]);
+    const m = await sql(U.sup, `select perfil, nome from checklist.membros where usuario_id = '00000000-0000-4000-8000-000000000009'`);
+    expect(m).toEqual([{ perfil: "supervisor", nome: "Novo Líder" }]);
+    expect((await sql(null, `select count(*)::int n from auth.users`))[0].n).toBe(6);
+  });
+});

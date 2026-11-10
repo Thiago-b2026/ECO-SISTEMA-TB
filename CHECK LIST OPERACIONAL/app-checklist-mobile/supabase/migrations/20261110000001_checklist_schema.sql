@@ -67,6 +67,25 @@ returns table (loja_id uuid, nome text, perfil text) language sql stable securit
   order by l.nome;
 $$;
 
+-- coloca alguém (que JÁ tem login no Ecossistema) na equipe de uma unidade. Só o gestor.
+-- Não cria conta: quem cria usuário é o admin, no Portal.
+create or replace function checklist.definir_membro(_email text, _loja uuid, _perfil text, _nome text, _ativo boolean default true)
+returns uuid language plpgsql security definer set search_path = checklist, public, auth as $$
+declare v_user uuid;
+begin
+  if not checklist.pode(_loja, 'gestor') then raise exception 'Só o gestor define a equipe.' using errcode = '42501'; end if;
+  if _perfil not in ('operador', 'supervisor', 'gestor') then raise exception 'Perfil inválido.' using errcode = 'P0001'; end if;
+  select u.id into v_user from auth.users u where lower(u.email) = lower(trim(_email));
+  if v_user is null then
+    raise exception 'Não existe login com o e-mail %. Peça ao admin para criar o usuário no Portal.', _email using errcode = 'P0002';
+  end if;
+  insert into checklist.membros (usuario_id, loja_id, perfil, nome, ativo)
+  values (v_user, _loja, _perfil, coalesce(nullif(trim(_nome), ''), _email), coalesce(_ativo, true))
+  on conflict (usuario_id, loja_id) do update set perfil = excluded.perfil, nome = excluded.nome, ativo = excluded.ativo;
+  return v_user;
+end;
+$$;
+
 -- ---------------------------------------------------------------------
 -- 2. HISTÓRICO (regra E) – só se insere por funções/gatilhos
 -- ---------------------------------------------------------------------
