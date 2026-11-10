@@ -2,8 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 9 concluída** (dashboard). Banco testado só em PGlite; **nada aplicado em produção**.
-- Faltam: 10 (PDF e Excel), 11 (testes de aceite e roteiro).
+- **Etapa atual: 10 concluída** (relatórios PDF e Excel). Banco testado só em PGlite; **nada aplicado em produção**.
+- Faltam: 11 (testes de aceite e roteiro).
 - Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
 
 ---
@@ -29,3 +29,4 @@
 - **Etapa 7:** telas de planos de ação. Lista com filtros (meus, abertos, atrasados calculados, aguardando validação, encerrados) e criação manual pelo supervisor. Detalhe só com as ações permitidas para a pessoa (iniciar, enviar solução, validar, rejeitar com justificativa, trocar prazo/responsável com justificativa, cancelar com motivo); quem executou não valida; foto da solução carimbada; link para o item de origem; histórico do servidor. Tudo funciona offline (fila).
 - **Etapa 8:** tela Agendamentos (checklist, responsável ou "qualquer pessoa do perfil", diária, semanal por dias, mensal por dia fixo ou N dias antes do fim do mês, início e horário-limite, ativar/desativar; "Aplicar a agenda sugerida" da planilha). Gera as tarefas do dia ao salvar. Tela Tarefas da loja: dia a dia (últimos 7 dias), situação, quem fez, tempo e nota; o líder **valida ou devolve** (com motivo) a execução do fiscal e cancela tarefa (com motivo). Execução de outra pessoa é buscada no servidor.
 - **Etapa 9:** Dashboard por período e unidade (só onde a pessoa é supervisor ou gestor): tarefas concluídas (e no prazo), atrasadas, tempo médio, conformidade, planos abertos e atrasados, taxa de conclusão; barras de conformidade por setor, por pessoa (com nº de execuções, tempo médio e concluídas com atraso) e por unidade, sempre com tabela junto.
+- **Etapa 10:** tela Relatórios (período e unidade): Excel `.xlsx` real com abas Resumo, Execuções (data/hora de SP, duração, situação, conformidade ou "Sem pontuação aplicável", não conformes, planos) e Planos de ação; PDF de cada execução (cabeçalho, nota, tabela por seção com não conformes marcados "(NC)", planos, fotos com data/hora, assinatura, rodapé com página). Botão "Baixar PDF" também na execução concluída. Dashboard e Relatórios carregam sob demanda, e o service worker guarda os pedaços. 51 testes passam.

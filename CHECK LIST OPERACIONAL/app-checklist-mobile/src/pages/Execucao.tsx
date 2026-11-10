@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { AlarmClock, ArrowRight, Camera, ChevronDown, FileText, Info, MessageSquare, Timer } from "lucide-react";
+import { AlarmClock, ArrowRight, Camera, ChevronDown, FileDown, FileText, Info, MessageSquare, Timer } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
 import { instanteDoDia } from "../domain/agenda";
@@ -15,6 +15,8 @@ import { Aviso, Botao, Cartao, Carregando, Selo, classeEntrada, cx } from "../ui
 import { CampoResposta } from "../ui/CampoResposta";
 import { SeloExecucao } from "../ui/estados";
 import { FotosItem } from "../ui/FotosItem";
+import { servidor } from "../data/conexao";
+import { baixarPdfExecucao } from "../lib/pdf-execucao";
 import { ItemAssinatura } from "../ui/ItemAssinatura";
 
 function Cronometro({ inicio, fim }: { inicio: string; fim?: string | null }) {
@@ -29,7 +31,7 @@ function Cronometro({ inicio, fim }: { inicio: string; fim?: string | null }) {
 
 export default function Execucao() {
   const { id } = useParams();
-  const { sessao } = useApp();
+  const { sessao, lojaAtual } = useApp();
   const { db, repo } = useDados();
   const navigate = useNavigate();
   const { hash } = useLocation();
@@ -178,7 +180,16 @@ export default function Execucao() {
           </div>
         </div>
       )}
-      {!editavel && <Link to="/" className="inline-flex min-h-12 items-center font-semibold text-marca underline">Voltar para Minhas tarefas</Link>}
+      {!editavel && (
+        <div className="flex flex-wrap items-center gap-3">
+          {(e.status === "concluida" || e.status === "validada") && (
+            <Botao variante="secundario" onClick={() => baixarPdfExecucao(e.id, db, servidor, lojaAtual?.nome ?? "").catch((x: Error) => setErro(`PDF não gerado: ${x.message}`))}>
+              <FileDown className="size-5" aria-hidden /> Baixar PDF
+            </Botao>
+          )}
+          <Link to="/" className="inline-flex min-h-12 items-center font-semibold text-marca underline">Voltar para Minhas tarefas</Link>
+        </div>
+      )}
     </div>
   );
 }
