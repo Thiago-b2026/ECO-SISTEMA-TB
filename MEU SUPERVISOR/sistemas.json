@@ -35,7 +35,7 @@
     {
       "codigo": "pdv",
       "nome": "PDV Salvados",
-      "pasta": "PDV SALVADOS",
+      "pasta": "GESTAO SALVADOS",
       "empresa": "",
       "descricao": "PDV de salvados com lotes e multiloja (Vite + React, deploy na Vercel)",
       "status": "em-construcao",

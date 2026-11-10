@@ -4,9 +4,22 @@
 import { cors, exigirPapel, json, mlGet, SITE, tokenValido } from "../_shared/ml.ts";
 import { candidatoDeItem, candidatoDeProduto, ehCodigoDeBarras, extrairIdDoLink, nomeDoLink, precoDosAnuncios, type Candidato } from "../_shared/ml-parse.ts";
 
-async function detalharProdutos(ids: string[], token: string, termo?: string): Promise<Candidato[]> {
+/**
+ * Abre cada produto do catálogo. Se o ML negar o detalhe, usa o resumo que já
+ * veio na busca (nome, fotos, atributos). Se nada der certo, repassa o erro do
+ * ML, para a tela não dizer "nada encontrado" quando na verdade houve bloqueio.
+ */
+async function detalharProdutos(ids: string[], token: string, termo?: string, resumos: any[] = []): Promise<Candidato[]> {
   const res = await Promise.allSettled(ids.map((id) => mlGet(`/products/${id}`, token)));
-  const candidatos = res.flatMap((r) => (r.status === "fulfilled" ? [candidatoDeProduto(r.value, termo)] : []));
+  const candidatos = res.flatMap((r, i) => {
+    if (r.status === "fulfilled") return [candidatoDeProduto(r.value, termo)];
+    const resumo = resumos.find((p) => p?.id === ids[i]);
+    return resumo?.name ? [candidatoDeProduto(resumo, termo)] : [];
+  });
+  if (candidatos.length === 0) {
+    const falha = res.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+    if (falha) throw falha.reason;
+  }
   // Sem anúncio vencedor: busca os anúncios do produto e usa o menor preço
   await Promise.allSettled(
     candidatos
@@ -25,7 +38,8 @@ async function detalharProdutos(ids: string[], token: string, termo?: string): P
 
 async function buscarPorNome(texto: string, max: number, token: string): Promise<Candidato[]> {
   const r = await mlGet(`/products/search?status=active&site_id=${SITE}&q=${encodeURIComponent(texto)}&limit=${max}`, token);
-  const candidatos = await detalharProdutos((r.results ?? []).slice(0, max).map((p: any) => p.id), token, texto);
+  const lista = (r.results ?? []).slice(0, max);
+  const candidatos = await detalharProdutos(lista.map((p: any) => p.id), token, texto, lista);
   return candidatos.sort((a, b) => (b.similaridade ?? 0) - (a.similaridade ?? 0));
 }
 
@@ -56,14 +70,19 @@ Deno.serve(async (req) => {
     if (tipo === "ean") {
       if (!ehCodigoDeBarras(texto)) return json({ erro: "O código de barras deve ter só números (8 a 14 dígitos)." }, 400);
       const r = await mlGet(`/products/search?status=active&site_id=${SITE}&product_identifier=${texto}`, token);
-      candidatos = await detalharProdutos((r.results ?? []).slice(0, max).map((p: any) => p.id), token);
+      const lista = (r.results ?? []).slice(0, max);
+      candidatos = await detalharProdutos(lista.map((p: any) => p.id), token, undefined, lista);
     } else if (tipo === "nome") {
       candidatos = await buscarPorNome(texto, max, token);
     } else if (tipo === "link") {
       const alvo = extrairIdDoLink(texto);
       if (!alvo) return json({ erro: "Não reconheci esse link do Mercado Livre." }, 400);
       if (alvo.tipo === "produto") {
-        candidatos = await detalharProdutos([alvo.id], token);
+        try {
+          candidatos = await detalharProdutos([alvo.id], token);
+        } catch (e) {
+          if ((e as { status?: number }).status !== 403) throw e;
+        }
       } else {
         try {
           const item = await mlGet(`/items/${alvo.id}`, token);

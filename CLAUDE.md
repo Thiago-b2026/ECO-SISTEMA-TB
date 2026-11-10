@@ -27,7 +27,7 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
 - **Banco único:** projeto Supabase **ECO-SISTEMA-TB** (ref `blqgmueqsqqpflorusrm`, São Paulo).
   Não criar outro projeto Supabase (o plano grátis só permite 2).
 - **Cada sistema = uma pasta + um schema próprio + um projeto na Vercel (time `grupotb`).**
-  Exemplos: PDV Salvados → pasta `PDV SALVADOS`, schema `public`; Gestão RH → pasta `GESTAO-RH`, schema `rh`.
+  Exemplos: PDV Salvados → pasta `GESTAO SALVADOS`, schema `public`; Gestão RH → pasta `GESTAO-RH`, schema `rh`.
 - Lista oficial dos sistemas: `MEU SUPERVISOR/sistemas.json` (sempre atualizar ao criar um sistema).
 
 ### Permissões: SISTEMA → GRUPO → TELA
@@ -45,7 +45,7 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
   `checklist`, `pop`, `supervisor`). Código da tela: `<sistema>.<tela>` (ex.: `pdv.etiquetas`, `rh.global`).
 - **Só o admin dá acessos.** A tela de permissões é única: hoje fica no PDV Salvados
   (Cadastros → Login de acesso → Permissões). No futuro ela vai para um Portal central.
-- As migrations dessas tabelas centrais ficam em `PDV SALVADOS/supabase/migrations/`, até existir o Portal.
+- As migrations dessas tabelas centrais ficam em `GESTAO SALVADOS/supabase/migrations/`, até existir o Portal.
 
 ### Checklist ao criar um sistema novo (obrigatório)
 1. Criar a pasta do sistema e o `HISTORICO_<NOME>.md`; incluir em `MEU SUPERVISOR/sistemas.json`.
@@ -54,7 +54,7 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
 3. **Login:** usar o mesmo Supabase Auth. Sem tela de "Criar conta": quem cria usuário é só o admin.
    Gatilhos em `auth.users` devem ter nome com prefixo do sistema (ex.: `crm_on_auth_user_created`),
    para não apagar o gatilho de outro sistema.
-4. **Permissões:** migration nova em `PDV SALVADOS/supabase/migrations/` ativando/inserindo o sistema em
+4. **Permissões:** migration nova em `GESTAO SALVADOS/supabase/migrations/` ativando/inserindo o sistema em
    `public.sistemas` (com a `url`), os grupos em `public.grupos` e todas as telas em `public.telas`
    (código `<sistema>.<tela>`, grupo, rota, ordem, `somente_admin`). Espelhar no front do PDV
    (`src/lib/telas.ts`: SISTEMAS, GRUPOS, TELAS) para o editor de permissões mostrar as telas; o teste
