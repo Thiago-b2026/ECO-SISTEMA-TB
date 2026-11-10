@@ -32,9 +32,9 @@
 | Hortifruti | Qualidade (frutas, legumes, verduras e ovos um a um); limpeza de bancas e chão; precificação e placas | **Sim** |
 | Açougue | Balcão, qualidade e ruptura no mix de bandejas; carne de sol no balcão/expositor; limpeza (balcão, piso, porta, parede, equipamentos, balança); precificação e placas | **Sim** |
 
-### 3.2 Diário – Líder – Análise do dia anterior (aba "2 ROTINA DA MANHÃ – líder") – 17 itens
+### 3.2 Diário – Líder – Análise do dia anterior (aba "2 ROTINA DA MANHÃ – líder") – 16 itens
 - **Relatórios do CISS** (6): venda, ticket médio e cupons (160356); curva ABC (100047); promoções (160661); venda por seção/grupo/subgrupo (65); análise de produto/comparativo (338); dias sem venda (160705). Hoje a resposta é feito/não feito. Faria sentido anotar o **número** (venda, ticket).
-- **Ofertas do dia seguinte** (11): as ofertas foram bem-sucedidas? **Se sim**, manter; **se não**, investigar a causa (**pergunta condicional**). Houve antecipação? Houve divulgação na rádio e na lista? Houve ruptura e a placa estava no local? Criar ações corretivas; confirmar a oferta com estoque de todas as lojas **até 14:00**; confirmar com marketing e Rádio TB.
+- **Ofertas do dia seguinte** (10): as ofertas foram bem-sucedidas? **Se sim**, manter; **se não**, investigar a causa (**pergunta condicional**). Houve antecipação? Houve divulgação na rádio e na lista? Houve ruptura e a placa estava no local? Criar ações corretivas; confirmar a oferta com estoque de todas as lojas **até 14:00**; confirmar com marketing e Rádio TB.
 
 ### 3.3 Diário – Líder – Tarde (aba "3 ROTINA DA TARDE – líder") – 14 itens
 - Rotina da tarde (9): oferta confirmada (**prazo 14:00**); limpeza de cada setor; ronda de layout, reposição e rupturas; auxiliar seções críticas que não bateram meta; alterações de preço do CPD e troca de etiquetas (rel. 75); varredura do fiscal na padaria; estoque de açougue, hortifruti e frios para o pedido (**fecha às 15:00**); placas do dia seguinte; repositores guardando os sacos para reaproveitar.
@@ -73,14 +73,16 @@ Cartão impresso, repetido duas vezes para recorte. Não é um checklist, é **m
 | Checklist | Frequência | Responsável | Itens |
 |---|---|---|---|
 | Líder – Manhã (abertura) | Diária | Líder | 20 |
-| Líder – Análise e ofertas | Diária | Líder | 17 |
+| Líder – Análise e ofertas | Diária | Líder | 16 |
 | Líder – Tarde e fechamento | Diária | Líder | 14 |
 | Fiscal – Manhã | Diária | Fiscal | 16 |
 | Fiscal – Tarde | Diária | Fiscal | 11 |
 | Líder – Semanal | Semanal (itens por dia) | Líder | 18 |
 | Líder – Mensal | Mensal | Líder | 7 |
-| Método Polar | Avaliação (sugestão: semanal) | Líder/Gestor | 9 (+ seções vazias) |
-| **Total** | | | **112 itens** |
+| Método Polar | Avaliação (sugestão: semanal) | Líder/Gestor | 7 (Atendimento e Rupturas sem itens) |
+| **Total** | | | **109 itens** |
+
+> *Correção de 10/11/2026 (etapa 2):* a primeira contagem dizia 112 (17 na análise e 9 no Método Polar). Na recontagem linha a linha são 16 e 7, total **109**. No sistema entram ainda **2 itens sugeridos** (Atendimento e Rupturas do Método Polar), marcados como "SUGERIDO".
 
 ## 5. Dados coletados hoje × o que faltaria coletar
 | Hoje | Falta (para o sistema) |

@@ -92,7 +92,7 @@ planos_acao    (id uuid, execucao_id, resposta_id, item_id, loja_id, setor_id, t
 - RLS em todas as tabelas: operador vê o que é dele; supervisor vê a loja; gestor vê tudo.
 
 ## 5. Carga inicial (dados reais)
-Script que converte a planilha `CHECK LIST DO LIDER DE LOJA DO BRAZ.xlsx` nos **8 modelos com 112 itens** (Fase 2), com tipo, foto obrigatória e prazos sugeridos:
+Script que converte a planilha `CHECK LIST DO LIDER DE LOJA DO BRAZ.xlsx` nos **8 modelos com 109 itens da planilha + 2 sugeridos** (Fase 2, contagem corrigida), com tipo, foto obrigatória e prazos sugeridos:
 - Itens visuais (placas, balcões, limpeza, qualidade, validade) → `conformidade` + **foto obrigatória** + gera plano.
 - Itens "conferir relatório X" → `sim_nao`, com `ref_ciss` = nº do relatório.
 - "Oferta bem-sucedida?" → `sim_nao`, mais o texto da causa se for "não".

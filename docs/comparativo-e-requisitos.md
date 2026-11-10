@@ -45,7 +45,7 @@
 | # | Requisito |
 |---|---|
 | E1 | Login pelo Supabase Auth do Ecossistema; perfis **operador, supervisor e gestor**; acesso por unidade |
-| E2 | Modelos de checklist com seções e itens, já carregados com os **8 checklists reais** (112 itens) |
+| E2 | Modelos de checklist com seções e itens, já carregados com os **8 checklists reais** (109 itens da planilha + 2 sugeridos) |
 | E3 | Tipos de resposta: sim/não, conforme/não conforme (+N/A), número, texto, múltipla escolha, assinatura, foto |
 | E4 | Foto **obrigatória** por item, só pela câmera, com data, hora e GPS |
 | E5 | Início e fim registrados automaticamente; tempo de execução por checklist e por item |

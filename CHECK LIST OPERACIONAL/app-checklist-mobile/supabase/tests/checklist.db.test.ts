@@ -312,3 +312,20 @@ describe("sincronização idempotente (critério 4)", () => {
     expect(await sql(U.op, `select * from checklist.fotos where execucao_id = $1`, [exec])).toHaveLength(0);
   });
 });
+
+describe("carga dos modelos reais", () => {
+  it("o seed carrega, é idempotente e as versões saem publicadas", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const seed = readFileSync(resolve(import.meta.dirname, "../seed/checklist_seed.sql"), "utf8");
+    await db.exec(seed);
+    await db.exec(seed);
+    const [r] = await sql(null, `select count(*)::int m, (select count(*)::int from checklist.modelo_versoes v join checklist.modelos m on m.id = v.modelo_id
+      where m.codigo is not null and m.codigo <> 'teste' and v.status = 'publicada') v from checklist.modelos where codigo <> 'teste'`);
+    expect(r).toEqual({ m: 8, v: 8 });
+    const [{ n }] = await sql(null, `select count(*)::int n from checklist.modelo_versoes v, checklist._itens(v.conteudo) i
+      join checklist.modelos m on true where m.id = v.modelo_id and m.codigo <> 'teste'`);
+    expect(n).toBe(111);
+    expect(await sql(U.op, `select codigo from checklist.modelos where codigo = 'fiscal_manha'`)).toHaveLength(1);
+  });
+});
