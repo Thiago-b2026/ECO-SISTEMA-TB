@@ -20,7 +20,8 @@ export const Assinatura = forwardRef<AssinaturaRef, { rotulo?: string }>(functio
       const r = c.getBoundingClientRect();
       c.width = Math.round(r.width * devicePixelRatio);
       c.height = Math.round(r.height * devicePixelRatio);
-      const ctx = c.getContext("2d")!;
+      const ctx = c.getContext("2d");
+      if (!ctx) return; // navegador sem canvas
       ctx.scale(devicePixelRatio, devicePixelRatio);
       ctx.lineWidth = 2.5;
       ctx.lineCap = "round";
@@ -39,7 +40,7 @@ export const Assinatura = forwardRef<AssinaturaRef, { rotulo?: string }>(functio
     vazia: () => vazia,
     limpar: () => {
       const c = canvas.current!;
-      c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
+      c.getContext("2d")?.clearRect(0, 0, c.width, c.height);
       setVazia(true);
     },
     png: () => new Promise((res) => (vazia ? res(null) : canvas.current!.toBlob((b) => res(b), "image/png"))),
@@ -49,7 +50,7 @@ export const Assinatura = forwardRef<AssinaturaRef, { rotulo?: string }>(functio
     <div>
       <div className="mb-1 flex items-center justify-between text-sm font-semibold">
         <span>{rotulo}</span>
-        <Botao type="button" variante="fantasma" onClick={() => { const c = canvas.current!; c.getContext("2d")!.clearRect(0, 0, c.width, c.height); setVazia(true); }}>
+        <Botao type="button" variante="fantasma" onClick={() => { const c = canvas.current!; c.getContext("2d")?.clearRect(0, 0, c.width, c.height); setVazia(true); }}>
           <Eraser className="size-5" aria-hidden /> Limpar
         </Botao>
       </div>
@@ -61,14 +62,16 @@ export const Assinatura = forwardRef<AssinaturaRef, { rotulo?: string }>(functio
         onPointerDown={(e) => {
           desenhando.current = true;
           (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
-          const ctx = canvas.current!.getContext("2d")!;
+          const ctx = canvas.current!.getContext("2d");
+          if (!ctx) return;
           const p = ponto(e);
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
         }}
         onPointerMove={(e) => {
           if (!desenhando.current) return;
-          const ctx = canvas.current!.getContext("2d")!;
+          const ctx = canvas.current!.getContext("2d");
+          if (!ctx) return;
           const p = ponto(e);
           ctx.lineTo(p.x, p.y);
           ctx.stroke();

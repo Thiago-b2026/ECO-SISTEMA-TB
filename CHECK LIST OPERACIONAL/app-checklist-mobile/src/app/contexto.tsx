@@ -73,8 +73,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const entrar = useCallback(async (email: string, senha: string) => {
     const s = await servidor.entrar(email, senha);
-    setSessao(s);
+    // carrega unidades e telas ANTES de abrir o app (o menu não aparece vazio)
     await carregarAcesso();
+    setSessao(s);
   }, [carregarAcesso]);
 
   const sair = useCallback(async () => {

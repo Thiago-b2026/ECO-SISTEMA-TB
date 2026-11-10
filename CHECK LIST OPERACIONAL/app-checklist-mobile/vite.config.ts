@@ -34,7 +34,7 @@ export default defineConfig({
   test: {
     environment: "node",
     env: { TZ: "UTC" },
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts", "supabase/tests/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts", "tests/**/*.test.tsx", "supabase/tests/**/*.test.ts"],
     testTimeout: 60000,
     hookTimeout: 120000,
   },
