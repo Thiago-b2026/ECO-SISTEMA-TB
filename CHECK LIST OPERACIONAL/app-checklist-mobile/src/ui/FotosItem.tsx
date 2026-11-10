@@ -6,6 +6,8 @@ import { useDados } from "../app/dados";
 import { dataHoraSP } from "../domain/tempo";
 import type { FotoLocal } from "../data/local";
 import { servidor } from "../data/conexao";
+import { obterPosicao, textoPosicao } from "../lib/gps";
+import { legendaFoto, processarFoto, validarArquivo } from "../lib/foto";
 import { Aviso, Botao, Selo } from "./base";
 
 export function Miniatura({ f, onRemover }: { f: FotoLocal; onRemover?: () => void }) {
@@ -26,6 +28,7 @@ export function Miniatura({ f, onRemover }: { f: FotoLocal; onRemover?: () => vo
         : <div className="grid h-28 w-28 place-items-center rounded-lg border bg-gray-100 text-xs text-gray-600">sem prévia</div>}
       <figcaption className="mt-1 space-y-0.5 text-[11px] leading-tight text-gray-700">
         <div>{dataHoraSP(f.tirada_em)}</div>
+        <div className="truncate" title={textoPosicao(f.lat, f.lng)}>{textoPosicao(f.lat, f.lng)}</div>
         {f.enviada ? <Selo tom="ok" icone={CloudUpload}>Enviada</Selo> : <Selo tom="alerta" icone={CloudOff}>No aparelho</Selo>}
       </figcaption>
       {onRemover && !f.enviada && (
@@ -42,14 +45,23 @@ export function FotosItem({ execId, itemId, editavel, obrigatoria }: { execId: s
   const entrada = useRef<HTMLInputElement>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const fotos = useLiveQuery(() => db.fotos.where("[execucao_id+item_id]").equals([execId, itemId]).toArray(), [execId, itemId]) ?? [];
+  const [semGps, setSemGps] = useState(false);
+  const fotos = (useLiveQuery(() => db.fotos.where("[execucao_id+item_id]").equals([execId, itemId]).toArray(), [execId, itemId]) ?? [])
+    .filter((f) => f.tipo !== "assinatura");
 
   async function escolheu(arquivo: File | undefined) {
     if (!arquivo) return;
     setErro(null);
     setOcupado(true);
     try {
-      await repo.adicionarFoto(execId, itemId, arquivo, new Date().toISOString(), null);
+      const msg = validarArquivo({ type: arquivo.type || "image/jpeg", size: arquivo.size });
+      if (msg) throw new Error(msg);
+      // data/hora do momento da foto + localização (sem travar se não houver GPS)
+      const tiradaEm = new Date().toISOString();
+      const pos = await obterPosicao();
+      setSemGps(!pos);
+      const blob = await processarFoto(arquivo, legendaFoto(tiradaEm, pos));
+      await repo.adicionarFoto(execId, itemId, blob, tiradaEm, pos);
     } catch (e) {
       setErro((e as Error).message);
     } finally {
@@ -73,6 +85,7 @@ export function FotosItem({ execId, itemId, editavel, obrigatoria }: { execId: s
           </Botao>
         </>
       )}
+      {semGps && <Aviso tom="alerta">Foto salva sem localização (GPS desligado ou sem permissão).</Aviso>}
       {erro && <Aviso tom="erro">{erro}</Aviso>}
     </div>
   );

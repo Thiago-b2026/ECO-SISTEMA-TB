@@ -15,6 +15,7 @@ import { Aviso, Botao, Cartao, Carregando, Selo, classeEntrada, cx } from "../ui
 import { CampoResposta } from "../ui/CampoResposta";
 import { SeloExecucao } from "../ui/estados";
 import { FotosItem } from "../ui/FotosItem";
+import { ItemAssinatura } from "../ui/ItemAssinatura";
 
 function Cronometro({ inicio, fim }: { inicio: string; fim?: string | null }) {
   const [agora, setAgora] = useState(() => new Date().toISOString());
@@ -133,7 +134,9 @@ export default function Execucao() {
                       <p className="mt-1">{i.ajuda}</p>
                     </details>
                   )}
-                  <CampoResposta item={i} valor={r?.valor} somenteLeitura={!editavel} onChange={(x) => salvar(i, x)} />
+                  {i.tipo === "assinatura"
+                    ? <ItemAssinatura execId={e.id} itemId={i.id} valor={r?.valor} editavel={editavel} />
+                    : <CampoResposta item={i} valor={r?.valor} somenteLeitura={!editavel} onChange={(x) => salvar(i, x)} />}
                   {(i.tipo === "foto" || i.foto !== "nunca" || (fotos.get(i.id) ?? 0) > 0) && (
                     <div className="mt-3"><FotosItem execId={e.id} itemId={i.id} editavel={editavel} obrigatoria={exigeFoto} /></div>
                   )}

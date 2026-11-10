@@ -2,8 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 4 concluída** (Minhas tarefas, execução e conclusão com pendências). Banco testado só em PGlite; **nada aplicado em produção**.
-- Faltam: 5 (foto, GPS e assinatura), 6 (offline e sincronização), 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
+- **Etapa atual: 5 concluída** (foto carimbada, GPS e assinatura). Banco testado só em PGlite; **nada aplicado em produção**.
+- Faltam: 6 (offline e sincronização), 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
 - Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
 
 ---
@@ -24,3 +24,4 @@
 - **Etapa 2:** `src/data/seed-modelos.ts` com os 8 modelos reais (109 itens da planilha + 2 sugeridos no Método Polar), tipos, fotos obrigatórias, prazos (14:00/15:00), condicional da oferta, itens por dia da semana e agenda sugerida. `npm run seed:gerar` gera `supabase/seed/checklist_seed.sql` (idempotente); um teste garante que o SQL está em dia. Correção: a Fase 2 tinha contado 112 itens; o certo é 109. 29 testes passam.
 - **Etapa 3:** login "Eco Sistema TB" sem "Criar conta"; menu e rotas por `public.minhas_telas('checklist')` (com `.schema("public")`) e perfil mínimo; "Acesso negado"; se a consulta falhar, aviso e não bloqueia. Unidades por `minhas_unidades('checklist')` + perfil de `checklist.membros`; topo com o botão "Eco Sistema TB" para o Portal. Servidor Supabase e **modo demonstração** (sem `.env`), com as mesmas regras, usuários de exemplo e teste do fluxo completo. Banco: `checklist.definir_membro`. 42 testes passam.
 - **Etapa 4:** banco local por usuário (IndexedDB) + fila de sincronização em ordem e idempotente (sem internet não é erro; erro do servidor é erro, com "Tentar de novo"). Telas: Minhas tarefas (situação calculada, iniciar/continuar, devolvidas, checklist avulso), Execução (seções, condicionais, prazo por item, foto, observação, cronômetro, progresso, nota) e Concluir (pendências com link para cada item; conclusão bloqueada; assinatura). Plano automático criado no aparelho com o mesmo id do servidor. Teste offline: sair e voltar, reenvio sem duplicar. 44 testes passam.
+- **Etapa 5:** foto pela câmera (`capture="environment"`), validada por tipo e tamanho, reduzida a 1600 px, JPEG ≤ 5 MB, com **carimbo de data/hora (SP) e GPS** na própria imagem e nos dados; aviso quando não há localização; foto não enviada pode ser apagada, enviada não. Assinatura com o dedo no fim da execução e como tipo de resposta. 47 testes passam.
