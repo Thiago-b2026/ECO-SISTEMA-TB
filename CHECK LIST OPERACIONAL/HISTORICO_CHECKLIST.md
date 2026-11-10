@@ -2,8 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 5 concluída** (foto carimbada, GPS e assinatura). Banco testado só em PGlite; **nada aplicado em produção**.
-- Faltam: 6 (offline e sincronização), 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
+- **Etapa atual: 6 concluída** (offline completo: app guardado no aparelho e status de envio sempre visível). Banco testado só em PGlite; **nada aplicado em produção**.
+- Faltam: 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
 - Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
 
 ---
@@ -25,3 +25,4 @@
 - **Etapa 3:** login "Eco Sistema TB" sem "Criar conta"; menu e rotas por `public.minhas_telas('checklist')` (com `.schema("public")`) e perfil mínimo; "Acesso negado"; se a consulta falhar, aviso e não bloqueia. Unidades por `minhas_unidades('checklist')` + perfil de `checklist.membros`; topo com o botão "Eco Sistema TB" para o Portal. Servidor Supabase e **modo demonstração** (sem `.env`), com as mesmas regras, usuários de exemplo e teste do fluxo completo. Banco: `checklist.definir_membro`. 42 testes passam.
 - **Etapa 4:** banco local por usuário (IndexedDB) + fila de sincronização em ordem e idempotente (sem internet não é erro; erro do servidor é erro, com "Tentar de novo"). Telas: Minhas tarefas (situação calculada, iniciar/continuar, devolvidas, checklist avulso), Execução (seções, condicionais, prazo por item, foto, observação, cronômetro, progresso, nota) e Concluir (pendências com link para cada item; conclusão bloqueada; assinatura). Plano automático criado no aparelho com o mesmo id do servidor. Teste offline: sair e voltar, reenvio sem duplicar. 44 testes passam.
 - **Etapa 5:** foto pela câmera (`capture="environment"`), validada por tipo e tamanho, reduzida a 1600 px, JPEG ≤ 5 MB, com **carimbo de data/hora (SP) e GPS** na própria imagem e nos dados; aviso quando não há localização; foto não enviada pode ser apagada, enviada não. Assinatura com o dedo no fim da execução e como tipo de resposta. 47 testes passam.
+- **Etapa 6:** barra de status sempre visível ("Salvo no aparelho às HH:MM", "Enviado ao servidor às HH:MM", pendências, sem internet; erro em vermelho com "Tentar de novo" e detalhes; descartar só para operações que não são checklist). Service worker gerado no build (`sw-modelo.js` + plugin no `vite.config.ts`) guarda o app inteiro, e o app abre sem internet. O Supabase não passa pelo cache. `navigator.storage.persist()`. Envio automático quando a internet volta, ao reabrir o app e a cada 2 min. 49 testes passam.

@@ -116,3 +116,31 @@ describe("offline-first", () => {
     expect((await srv.detalheExecucao(execId)).execucao.id).toBe(execId);
   });
 });
+
+describe("download não pisa no que está na fila", () => {
+  it("execução e plano alterados no aparelho continuam como estão até serem enviados", async () => {
+    const srv = new DemoServidor(`srv-${novoId()}`, null);
+    await srv.entrar(ana.email, "demo");
+    await srv.gerarTarefas(hoje);
+    const a = await aparelho(srv, `local-${novoId()}`, true);
+    await a.s.baixar();
+    const tarefa = (await a.db.tarefas.toArray())[0];
+    a.s.setOnline(false);
+    const execId = await a.repo.iniciar({ tarefa, modeloId: tarefa.modelo_id, lojaId: MATRIZ });
+    // o servidor ainda não conhece a execução; um download não pode apagá-la nem mudar a tarefa
+    await a.s.baixar();
+    expect(await a.db.execucoes.get(execId)).toBeTruthy();
+    expect((await a.db.fila.toArray()).map((o) => o.chave)).toContain(execId);
+  });
+});
+
+describe("service worker", () => {
+  it("o modelo tem os marcadores que o build substitui", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const sw = readFileSync(resolve(import.meta.dirname, "../sw-modelo.js"), "utf8");
+    expect(sw).toContain('"__VERSAO__"');
+    expect(sw).toContain("__ARQUIVOS__");
+    expect(sw).toMatch(/url\.origin !== self\.location\.origin\) return/); // Supabase não passa pelo cache
+  });
+});
