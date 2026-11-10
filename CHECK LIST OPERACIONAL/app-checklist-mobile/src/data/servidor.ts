@@ -139,6 +139,7 @@ export interface Servidor {
   publicarVersao(id: string): Promise<void>;
   equipe(loja: string): Promise<Membro[]>;
   definirMembro(email: string, loja: string, perfil: Perfil, nome: string, ativo: boolean): Promise<void>;
+  alterarMembro(usuario: string, loja: string, perfil: Perfil, ativo: boolean): Promise<void>;
 }
 
 export const PERFIS: Record<Perfil, string> = { operador: "Operador", supervisor: "Supervisor", gestor: "Gestor" };

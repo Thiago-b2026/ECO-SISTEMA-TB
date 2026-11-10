@@ -350,3 +350,16 @@ describe("equipe (definir_membro)", () => {
     expect((await sql(null, `select count(*)::int n from auth.users`))[0].n).toBe(6);
   });
 });
+
+describe("equipe (alterar_membro)", () => {
+  it("gestor muda perfil e inativa; não tira o próprio perfil; supervisor não altera", async () => {
+    await deve(U.sup, `select checklist.alterar_membro($1, $2, 'supervisor', true)`, [U.op, LOJA_A], "Só o gestor");
+    await deve(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', true)`, [U.gestor, LOJA_A], "próprio perfil");
+    await sql(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', false)`, [U.op, LOJA_A]);
+    expect((await sql(null, `select ativo from checklist.membros where usuario_id = $1 and loja_id = $2`, [U.op, LOJA_A]))[0].ativo).toBe(false);
+    // inativo não vê mais nada da loja
+    expect(await sql(U.op, `select * from checklist.tarefas`)).toHaveLength(0);
+    await sql(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', true)`, [U.op, LOJA_A]);
+    expect((await sql(U.op, `select * from checklist.tarefas`)).length).toBeGreaterThan(0);
+  });
+});

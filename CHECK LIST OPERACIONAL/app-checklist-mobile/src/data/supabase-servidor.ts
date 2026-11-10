@@ -220,6 +220,10 @@ export class SupabaseServidor implements Servidor {
     return ok(await this.sb.from("membros").select("*").eq("loja_id", loja).order("nome")) as Membro[];
   }
 
+  async alterarMembro(usuario: string, loja: string, perfil: Perfil, ativo: boolean) {
+    await this.rpc("alterar_membro", { _usuario: usuario, _loja: loja, _perfil: perfil, _ativo: ativo });
+  }
+
   async definirMembro(email: string, loja: string, perfil: Perfil, nome: string, ativo: boolean) {
     await this.rpc("definir_membro", { _email: email, _loja: loja, _perfil: perfil, _nome: nome, _ativo: ativo });
   }

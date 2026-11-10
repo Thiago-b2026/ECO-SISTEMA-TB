@@ -6,26 +6,19 @@ import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
 import Agendamentos from "./pages/Agendamentos";
+import Equipe from "./pages/Equipe";
 import Login from "./pages/Login";
+import Modelos from "./pages/Modelos";
 import TarefasLoja from "./pages/TarefasLoja";
 import PlanoDetalhe from "./pages/PlanoDetalhe";
 import Planos from "./pages/Planos";
 import { BarraSync } from "./ui/BarraSync";
 import { Layout } from "./ui/Layout";
-import { Carregando, Titulo, Vazio } from "./ui/base";
+import { Carregando, Vazio } from "./ui/base";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const tardio = (el: React.ReactNode) => <Suspense fallback={<Carregando />}>{el}</Suspense>;
-
-function EmConstrucao({ nome }: { nome: string }) {
-  return (
-    <>
-      <Titulo>{nome}</Titulo>
-      <Vazio>Em construção.</Vazio>
-    </>
-  );
-}
 
 function Rotas() {
   const { carregando, sessao } = useApp();
@@ -44,8 +37,8 @@ function Rotas() {
         <Route path="dashboard" element={tardio(<Dashboard />)} />
         <Route path="relatorios" element={tardio(<Relatorios />)} />
         <Route path="agendamentos" element={<Agendamentos />} />
-        <Route path="modelos/*" element={<EmConstrucao nome="Modelos de checklist" />} />
-        <Route path="equipe" element={<EmConstrucao nome="Equipe e perfis" />} />
+        <Route path="modelos" element={<Modelos />} />
+        <Route path="equipe" element={<Equipe />} />
         <Route path="*" element={<Vazio>Página não encontrada.</Vazio>} />
       </Route>
     </Routes>

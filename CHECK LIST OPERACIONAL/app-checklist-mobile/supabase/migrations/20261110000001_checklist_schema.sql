@@ -86,6 +86,20 @@ begin
 end;
 $$;
 
+-- muda perfil / ativa / inativa quem JÁ está na equipe (nunca apaga). Só o gestor.
+create or replace function checklist.alterar_membro(_usuario uuid, _loja uuid, _perfil text, _ativo boolean)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if not checklist.pode(_loja, 'gestor') then raise exception 'Só o gestor define a equipe.' using errcode = '42501'; end if;
+  if _perfil not in ('operador', 'supervisor', 'gestor') then raise exception 'Perfil inválido.' using errcode = 'P0001'; end if;
+  if _usuario = auth.uid() and (not _ativo or _perfil <> 'gestor') and not public.is_admin() then
+    raise exception 'Você não pode tirar o seu próprio perfil de gestor.' using errcode = 'P0001';
+  end if;
+  update checklist.membros set perfil = _perfil, ativo = coalesce(_ativo, true) where usuario_id = _usuario and loja_id = _loja;
+  if not found then raise exception 'Pessoa não está na equipe desta unidade.' using errcode = 'P0002'; end if;
+end;
+$$;
+
 -- ---------------------------------------------------------------------
 -- 2. HISTÓRICO (regra E) – só se insere por funções/gatilhos
 -- ---------------------------------------------------------------------

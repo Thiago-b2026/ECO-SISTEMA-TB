@@ -544,6 +544,14 @@ export class DemoServidor implements Servidor {
     return (await this.db.membros.where("loja_id").equals(loja).toArray()).filter((m) => sup || m.usuario_id === u).sort((a, b) => a.nome.localeCompare(b.nome));
   }
 
+  async alterarMembro(usuario: string, loja: string, perfil: Perfil, ativo: boolean) {
+    if (!(await this.pode(loja, "gestor"))) falha("Só o gestor define a equipe.");
+    if (usuario === this.usuario && (!ativo || perfil !== "gestor")) falha("Você não pode tirar o seu próprio perfil de gestor.");
+    const m = await this.db.membros.get([usuario, loja]);
+    if (!m) falha("Pessoa não está na equipe desta unidade.");
+    await this.db.membros.put({ ...m!, perfil, ativo });
+  }
+
   async definirMembro(email: string, loja: string, perfil: Perfil, nome: string, ativo: boolean) {
     if (!(await this.pode(loja, "gestor"))) falha("Só o gestor define a equipe.");
     const u = await this.db.usuarios.where("email").equals(email.trim().toLowerCase()).first();
