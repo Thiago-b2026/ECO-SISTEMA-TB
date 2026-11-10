@@ -2,8 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **Fase 5 em andamento** na branch `feat/checklist-mobile` (sem push). Plano aprovado com os ajustes A–J (`docs/plano-app-checklist-mobile.md`, seção 7).
-- **Etapa atual: 6 concluída** (offline completo: app guardado no aparelho e status de envio sempre visível). Banco testado só em PGlite; **nada aplicado em produção**.
-- Faltam: 7 (planos de ação), 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
+- **Etapa atual: 7 concluída** (planos de ação). Banco testado só em PGlite; **nada aplicado em produção**.
+- Faltam: 8 (agendamentos), 9 (dashboard), 10 (PDF e Excel), 11 (testes de aceite e roteiro).
 - Regra: nada no banco de produção, em *Exposed schemas* ou na Vercel sem OK do usuário.
 
 ---
@@ -26,3 +26,4 @@
 - **Etapa 4:** banco local por usuário (IndexedDB) + fila de sincronização em ordem e idempotente (sem internet não é erro; erro do servidor é erro, com "Tentar de novo"). Telas: Minhas tarefas (situação calculada, iniciar/continuar, devolvidas, checklist avulso), Execução (seções, condicionais, prazo por item, foto, observação, cronômetro, progresso, nota) e Concluir (pendências com link para cada item; conclusão bloqueada; assinatura). Plano automático criado no aparelho com o mesmo id do servidor. Teste offline: sair e voltar, reenvio sem duplicar. 44 testes passam.
 - **Etapa 5:** foto pela câmera (`capture="environment"`), validada por tipo e tamanho, reduzida a 1600 px, JPEG ≤ 5 MB, com **carimbo de data/hora (SP) e GPS** na própria imagem e nos dados; aviso quando não há localização; foto não enviada pode ser apagada, enviada não. Assinatura com o dedo no fim da execução e como tipo de resposta. 47 testes passam.
 - **Etapa 6:** barra de status sempre visível ("Salvo no aparelho às HH:MM", "Enviado ao servidor às HH:MM", pendências, sem internet; erro em vermelho com "Tentar de novo" e detalhes; descartar só para operações que não são checklist). Service worker gerado no build (`sw-modelo.js` + plugin no `vite.config.ts`) guarda o app inteiro, e o app abre sem internet. O Supabase não passa pelo cache. `navigator.storage.persist()`. Envio automático quando a internet volta, ao reabrir o app e a cada 2 min. 49 testes passam.
+- **Etapa 7:** telas de planos de ação. Lista com filtros (meus, abertos, atrasados calculados, aguardando validação, encerrados) e criação manual pelo supervisor. Detalhe só com as ações permitidas para a pessoa (iniciar, enviar solução, validar, rejeitar com justificativa, trocar prazo/responsável com justificativa, cancelar com motivo); quem executou não valida; foto da solução carimbada; link para o item de origem; histórico do servidor. Tudo funciona offline (fila).

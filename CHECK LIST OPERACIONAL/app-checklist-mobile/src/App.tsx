@@ -5,6 +5,8 @@ import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
 import Login from "./pages/Login";
+import PlanoDetalhe from "./pages/PlanoDetalhe";
+import Planos from "./pages/Planos";
 import { BarraSync } from "./ui/BarraSync";
 import { Layout } from "./ui/Layout";
 import { Carregando, Titulo, Vazio } from "./ui/base";
@@ -29,7 +31,8 @@ function Rotas() {
         <Route index element={<Hoje />} />
         <Route path="execucao/:id" element={<Execucao />} />
         <Route path="execucao/:id/concluir" element={<Concluir />} />
-        <Route path="planos/*" element={<EmConstrucao nome="Planos de ação" />} />
+        <Route path="planos" element={<Planos />} />
+        <Route path="planos/:id" element={<PlanoDetalhe />} />
         <Route path="loja" element={<EmConstrucao nome="Tarefas da loja" />} />
         <Route path="dashboard" element={<EmConstrucao nome="Dashboard" />} />
         <Route path="relatorios" element={<EmConstrucao nome="Relatórios" />} />
