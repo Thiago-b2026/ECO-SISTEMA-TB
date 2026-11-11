@@ -50,6 +50,8 @@ export interface Item {
   /** 0=domingo..6=sábado – item só aparece nesses dias */
   dias_semana?: number[];
   condicao?: Condicao;
+  /** tempo padrão do item, em minutos (opcional) */
+  tempo_padrao_min?: number;
   /** nº do relatório do CISS que o item manda conferir */
   ref_ciss?: string;
   setor?: string;
@@ -63,6 +65,8 @@ export interface Secao {
 }
 
 export interface ConteudoModelo {
+  /** tempo padrão do checklist inteiro, em minutos (opcional; entra na versão) */
+  tempo_padrao_min?: number;
   secoes: Secao[];
 }
 
@@ -109,6 +113,10 @@ export interface Resposta {
   respondido_em: string; // ISO UTC
   lat?: number | null;
   lng?: number | null;
+  /** 1º toque/abertura do item (nunca é apagado nem empurrado para frente) */
+  iniciado_em?: string | null;
+  /** quando o item ficou completo (resposta + foto + observação exigidas) */
+  concluido_em?: string | null;
 }
 
 export interface Foto {
@@ -144,6 +152,9 @@ export interface Execucao {
   assinatura_path?: string | null;
   validado_por?: string | null;
   motivo_devolucao?: string | null;
+  /** tempo parado (app em 2º plano / saiu e voltou), em segundos */
+  tempo_pausado_seg?: number;
+  pausas?: { inicio: string; fim: string }[];
 }
 
 export type Frequencia = "diaria" | "semanal" | "mensal";

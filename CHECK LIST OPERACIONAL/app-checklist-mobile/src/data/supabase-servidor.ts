@@ -2,9 +2,10 @@
 // login, telas, empresas (public.redes) e unidades (public.lojas) no schema "public" (iguais ao PDV e ao RH).
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { AcaoPlano, ArgsAcaoPlano } from "../domain/situacao";
+import type { ConfigTempos } from "../domain/tempos";
 import type { Agendamento, Execucao, Foto, Modelo, ModeloVersao, Perfil, PlanoAcao, Resposta, Tarefa } from "../domain/tipos";
 import {
-  ErroServidor, type Dashboard, type Empresa, type EmpresaCompleta, type Historico, type LinhaRelatorio, type LojaAcesso,
+  ErroServidor, type Dashboard, type DadosTempos, type Empresa, type EmpresaCompleta, type Historico, type LinhaRelatorio, type LojaAcesso,
   type Membro, type NovoColaborador, type NovoPlano, type Pacote, type PacoteExecucao, type Servidor, type Sessao, type Setor, type Unidade,
 } from "./servidor";
 
@@ -142,7 +143,10 @@ export class SupabaseServidor implements Servidor {
   async syncExecucao(e: Execucao, respostas: Resposta[], fotos: Foto[]) {
     return this.rpc<{ status: string }>("sync_execucao", {
       _e: e,
-      _respostas: respostas.map((r) => ({ id: r.id, item_id: r.item_id, valor: r.valor, observacao: r.observacao ?? null, respondido_em: r.respondido_em, lat: r.lat ?? null, lng: r.lng ?? null })),
+      _respostas: respostas.map((r) => ({
+        id: r.id, item_id: r.item_id, valor: r.valor, observacao: r.observacao ?? null, respondido_em: r.respondido_em, lat: r.lat ?? null, lng: r.lng ?? null,
+        iniciado_em: r.iniciado_em ?? null, concluido_em: r.concluido_em ?? null,
+      })),
       _fotos: fotos.map((f) => ({ id: f.id, item_id: f.item_id, storage_path: f.storage_path, mime: f.mime, bytes: f.bytes, tirada_em: f.tirada_em, lat: f.lat ?? null, lng: f.lng ?? null, precisao_m: f.precisao_m ?? null })),
     });
   }
@@ -207,6 +211,20 @@ export class SupabaseServidor implements Servidor {
 
   async salvarAgendamento(a: Agendamento) {
     ok(await this.sb.from("agendamentos").upsert(a));
+  }
+
+  async dadosTempos(de: string, ate: string, rede: string | null, loja: string | null) {
+    const d = await this.rpc<DadosTempos>("dados_tempos", { _de: de, _ate: ate, _rede: rede, _loja: loja });
+    const n = (x: unknown) => (x == null ? null : Number(x));
+    return {
+      config: d.config ?? [],
+      execucoes: (d.execucoes ?? []).map((e) => ({ ...e, total_seg: Number(e.total_seg), pausado_seg: Number(e.pausado_seg ?? 0), ativo_seg: n(e.ativo_seg), padrao_seg: n(e.padrao_seg) })),
+      itens: (d.itens ?? []).map((i) => ({ ...i, duracao_seg: n(i.duracao_seg), padrao_seg: n(i.padrao_seg) })),
+    };
+  }
+
+  async salvarConfigTempos(rede: string, cfg: ConfigTempos) {
+    ok(await this.sb.from("config_tempos").upsert({ rede_id: rede, ...cfg, atualizado_em: new Date().toISOString() }));
   }
 
   // ------------------------------------------------------------------ checklists (editor)

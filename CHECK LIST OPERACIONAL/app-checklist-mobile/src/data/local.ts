@@ -10,6 +10,8 @@ export interface ExecucaoLocal extends Execucao {
   conclusao_pendente?: boolean;
   /** assinatura final (id da foto com a imagem) */
   assinatura_foto_id?: string | null;
+  /** pausa em andamento (app em 2º plano / saiu da tela) – só no aparelho */
+  pausa_desde?: string | null;
 }
 
 /** Foto no aparelho: guarda o arquivo até ser enviado. */

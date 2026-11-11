@@ -2,6 +2,7 @@
 //  - SupabaseServidor (produção: banco ECO-SISTEMA-TB, schema checklist)
 //  - DemoServidor (modo demonstração: tudo no navegador, mesmas regras)
 import type { AcaoPlano, ArgsAcaoPlano } from "../domain/situacao";
+import type { ConfigTempos, ExecTempo, ItemTempo } from "../domain/tempos";
 import type {
   Agendamento, Execucao, Foto, Modelo, ModeloVersao, Perfil, PlanoAcao, Resposta, Tarefa,
 } from "../domain/tipos";
@@ -67,6 +68,13 @@ export interface EmpresaCompleta {
   nome: string;
   ativo: boolean;
   unidades: Unidade[];
+}
+
+/** Tempos brutos do período (checklist.dados_tempos); situações e comparativos saem de src/domain/tempos.ts */
+export interface DadosTempos {
+  config: (ConfigTempos & { rede_id: string })[];
+  execucoes: ExecTempo[];
+  itens: ItemTempo[];
 }
 
 export interface NovoColaborador {
@@ -188,6 +196,10 @@ export interface Servidor {
   relatorio(de: string, ate: string, loja: string | null, rede: string | null): Promise<LinhaRelatorio[]>;
 
   salvarAgendamento(a: Agendamento): Promise<void>;
+
+  // tempos de execução
+  dadosTempos(de: string, ate: string, rede: string | null, loja: string | null): Promise<DadosTempos>;
+  salvarConfigTempos(rede: string, cfg: ConfigTempos): Promise<void>;
   // checklists (editor) – sempre rascunho → publicar
   modelosDaEmpresa(rede: string): Promise<Modelo[]>;
   versoesDoModelo(modeloId: string): Promise<ModeloVersao[]>;

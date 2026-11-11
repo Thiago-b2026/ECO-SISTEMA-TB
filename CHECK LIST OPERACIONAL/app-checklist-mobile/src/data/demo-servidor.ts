@@ -7,13 +7,14 @@ import { agendaVale } from "../domain/agenda";
 import { idPlano, md5Uuid, novoId } from "../domain/ids";
 import { fator, itemVisivel, itensParaPlano, mapaRespostas, naoConforme, pendencias, pontuacaoExecucao, todosItens } from "../domain/regras";
 import { aplicarAcaoPlano, type AcaoPlano, type ArgsAcaoPlano } from "../domain/situacao";
-import { dataSP, diaSemana, instanteSP } from "../domain/tempo";
+import { dataSP, diaSemana, instanteSP, somarDias } from "../domain/tempo";
 import type { Agendamento, Execucao, Foto, Modelo, ModeloVersao, Perfil, PlanoAcao, Resposta, Tarefa } from "../domain/tipos";
 import { TELAS_APP, telasDoPerfil } from "../lib/telas";
+import { CONFIG_PADRAO, type ConfigTempos, type ExecTempo, type ItemTempo } from "../domain/tempos";
 import { calcularDashboard, type RespostaCalculada } from "./dashboard-calc";
 import { MODELOS_SEED, SETORES } from "./seed-modelos";
 import {
-  ErroServidor, nivel, type Empresa, type EmpresaCompleta, type Historico, type LinhaRelatorio, type LojaAcesso, type Membro,
+  ErroServidor, nivel, type DadosTempos, type Empresa, type EmpresaCompleta, type Historico, type LinhaRelatorio, type LojaAcesso, type Membro,
   type NovoColaborador, type NovoPlano, type Pacote, type PacoteExecucao, type Servidor, type Sessao, type Setor, type Unidade,
 } from "./servidor";
 
@@ -41,6 +42,7 @@ class BancoDemo extends Dexie {
   planos!: Table<PlanoServ, string>;
   historico!: Table<Historico & { loja_id: string | null; rede_id: string | null }, number>;
   arquivos!: Table<Arquivo, string>;
+  configTempos!: Table<ConfigTempos & { rede_id: string }, string>;
 
   constructor(nome: string) {
     super(nome);
@@ -60,6 +62,7 @@ class BancoDemo extends Dexie {
       planos: "id, loja_id, execucao_id",
       historico: "++id, registro_id",
       arquivos: "path",
+      configTempos: "rede_id",
     });
   }
 }
@@ -108,7 +111,8 @@ export class DemoServidor implements Servidor {
   /** relógio (os testes usam um relógio fixo) */
   agora: () => Date = () => new Date();
 
-  constructor(nomeBanco = "checklist-demo-servidor-v2", usuarioInicial?: string | null) {
+  // v3 = etapa 13 (tempos de execução + histórico de exemplo)
+  constructor(nomeBanco = "checklist-demo-servidor-v3", usuarioInicial?: string | null) {
     this.db = new BancoDemo(nomeBanco);
     this.usuario = usuarioInicial === undefined ? lerSessao() : usuarioInicial;
     this.pronto = this.semear();
@@ -134,7 +138,11 @@ export class DemoServidor implements Servidor {
         const id = md5Uuid(`checklist-modelo:${s.codigo}`);
         const vid = md5Uuid(`checklist-versao:${s.codigo}:1`);
         await this.db.modelos.add({ id, rede_id: SUPERMIX, codigo: s.codigo, nome: s.nome, descricao: s.descricao, categoria: s.categoria, perfil_executor: s.perfil_executor, ativo: true });
-        await this.db.versoes.add({ id: vid, modelo_id: id, numero: 1, status: "publicada", conteudo: s.conteudo, publicada_em: new Date().toISOString() });
+        // demonstração: a rotina da tarde tem tempo padrão (15 min; validade da padaria 3 min) para o comparativo
+        const conteudo = s.codigo === "fiscal_tarde"
+          ? { ...s.conteudo, tempo_padrao_min: 15, secoes: s.conteudo.secoes.map((sec) => ({ ...sec, itens: sec.itens.map((i) => (i.id === "ft_validade_padaria" ? { ...i, tempo_padrao_min: 3 } : i)) })) }
+          : s.conteudo;
+        await this.db.versoes.add({ id: vid, modelo_id: id, numero: 1, status: "publicada", conteudo, publicada_em: new Date().toISOString() });
         const lojas = ["fiscal_manha", "fiscal_tarde", "lider_manha"].includes(s.codigo) ? [MATRIZ, FILIAL] : [MATRIZ];
         for (const loja of lojas) {
           await this.db.agendamentos.add({
@@ -145,7 +153,56 @@ export class DemoServidor implements Servidor {
           });
         }
       }
+      await this.gerarHistorico(); // depois dos modelos e versões
     });
+  }
+
+  /**
+   * Histórico de exemplo com tempos variados (para ver o comparativo):
+   *  - rotina da TARDE (padrão 15 min): Ana na Matriz e Diego na Filial, 12 dias; um "rápido demais" (3 min) e um "muito acima" (26 min)
+   *  - rotina da MANHÃ (sem padrão): 6 execuções da Ana → aparece a sugestão "usar a média como padrão"
+   */
+  private async gerarHistorico() {
+    // datas no fuso de São Paulo (perto da meia-noite, a data em UTC já é o dia seguinte)
+    const hoje = dataSP();
+    const dia = (n: number, hora: number) => instanteSP(somarDias(hoje, -n), `${String(hora).padStart(2, "0")}:00`);
+    const criar = async (codigo: string, usuario: string, loja: string, n: number, hora: number, minutos: number, pausaMin: number) => {
+      const modeloId = md5Uuid(`checklist-modelo:${codigo}`);
+      const versaoId = md5Uuid(`checklist-versao:${codigo}:1`);
+      const v = (await this.db.versoes.get(versaoId))!;
+      const itens = todosItens(v.conteudo);
+      const id = md5Uuid(`demo-hist:${codigo}:${usuario}:${n}`);
+      const inicio = dia(n, hora);
+      const totalSeg = (minutos + pausaMin) * 60;
+      const fim = new Date(new Date(inicio).getTime() + totalSeg * 1000).toISOString();
+      // distribui o tempo ativo pelos itens (a validade da padaria pesa mais)
+      const pesos = itens.map((i) => (i.id === "ft_validade_padaria" ? 4 : 1));
+      const soma = pesos.reduce((a, b) => a + b, 0);
+      let t = new Date(inicio).getTime();
+      for (const [k, i] of itens.entries()) {
+        const seg = Math.max(5, Math.round((minutos * 60 * pesos[k]) / soma));
+        const ini = new Date(t).toISOString();
+        t += seg * 1000;
+        if (k === Math.floor(itens.length / 2)) t += pausaMin * 60 * 1000; // a pausa cai no meio
+        const valor = i.tipo === "conformidade" ? { tipo: "conformidade" as const, v: "conforme" as const } : i.tipo === "texto" ? { tipo: "texto" as const, v: "ok" } : { tipo: "sim_nao" as const, v: true };
+        await this.db.respostas.add({
+          id: md5Uuid(`${id}:${i.id}`), execucao_id: id, item_id: i.id, valor, observacao: null, respondido_em: new Date(t).toISOString(),
+          iniciado_em: ini, concluido_em: new Date(t).toISOString(), visivel: true, fator: i.pontua ? 1 : null, peso: i.peso, setor: i.setor ?? null, nao_conforme: false,
+        });
+      }
+      await this.db.execucoes.add({
+        id, tarefa_id: null, modelo_id: modeloId, versao_id: versaoId, loja_id: loja, usuario_id: usuario, inicio_em: inicio, fim_em: fim,
+        status: "validada", pontuacao: 100, tempo_pausado_seg: pausaMin * 60,
+        pausas: pausaMin ? [{ inicio: dia(n, hora), fim: new Date(new Date(dia(n, hora)).getTime() + pausaMin * 60000).toISOString() }] : [],
+      });
+    };
+    const tardeAna = [14, 16, 13, 26, 15, 12, 17, 14, 15, 16, 13, 15];
+    const tardeDiego = [17, 18, 3, 16, 19, 17, 18, 16, 20, 17, 18, 16];
+    for (let n = 1; n <= 12; n++) {
+      await criar("fiscal_tarde", ANA, MATRIZ, n, 14, tardeAna[n - 1], n % 4 === 0 ? 4 : 0);
+      await criar("fiscal_tarde", DIEGO, FILIAL, n, 15, tardeDiego[n - 1], n % 5 === 0 ? 6 : 0);
+    }
+    for (const [n, m] of [[1, 9], [2, 11], [3, 10], [4, 12], [5, 9], [6, 10]]) await criar("fiscal_manha", ANA, MATRIZ, n, 7, m, 0);
   }
 
   private async setoresPadrao(rede: string) {
@@ -365,10 +422,18 @@ export class DemoServidor implements Servidor {
       falha("Esta execução é de outra pessoa.");
     }
     if (ex!.status === "em_andamento" || ex!.status === "devolvida") {
+      if ((e.tempo_pausado_seg ?? 0) > (ex!.tempo_pausado_seg ?? 0)) {
+        await this.db.execucoes.update(e.id, { tempo_pausado_seg: e.tempo_pausado_seg, pausas: e.pausas ?? [] });
+      }
+      const menor = (a?: string | null, b?: string | null) => (a && b ? (a < b ? a : b) : a ?? b ?? null);
       for (const r of respostas) {
         const atual = await this.db.respostas.where("[execucao_id+item_id]").equals([e.id, r.item_id]).first();
-        if (atual && atual.respondido_em > r.respondido_em) continue;
-        await this.db.respostas.put({ ...r, id: atual?.id ?? r.id, execucao_id: e.id });
+        const inicio = menor(atual?.iniciado_em, r.iniciado_em);
+        if (atual && atual.respondido_em > r.respondido_em) {
+          if (inicio !== (atual.iniciado_em ?? null)) await this.db.respostas.update(atual.id, { iniciado_em: inicio });
+          continue;
+        }
+        await this.db.respostas.put({ ...r, id: atual?.id ?? r.id, execucao_id: e.id, iniciado_em: inicio });
       }
       for (const f of fotos) {
         const [loja, exec] = f.storage_path.split("/");
@@ -588,6 +653,51 @@ export class DemoServidor implements Servidor {
     if (a.frequencia === "mensal" && a.dia_mes == null && a.dias_antes_fim_mes == null) falha("Escolha o dia do mês.");
     if (a.hora_limite <= a.hora_inicio) falha("O horário-limite precisa ser depois do início.");
     await this.db.agendamentos.put(a);
+  }
+
+  // ------------------------------------------------------------------ tempos de execução
+  async dadosTempos(de: string, ate: string, rede: string | null, loja: string | null): Promise<DadosTempos> {
+    const lojas = await this.lojasSupervisor(loja, rede);
+    const porLoja = new Map(lojas.map((l) => [l.id, l]));
+    const lojasCompletas = new Map((await this.db.lojas.toArray()).map((l) => [l.id, l]));
+    const execs = (await this.db.execucoes.toArray()).filter((e) => porLoja.has(e.loja_id) && (e.status === "concluida" || e.status === "validada") && e.fim_em
+      && dataSP(e.inicio_em) >= de && dataSP(e.inicio_em) <= ate).sort((a, b) => a.inicio_em.localeCompare(b.inicio_em));
+    const membros = await this.db.membros.toArray();
+    const execucoes: ExecTempo[] = [];
+    const itens: ItemTempo[] = [];
+    for (const e of execs) {
+      const v = (await this.db.versoes.get(e.versao_id))!;
+      const m = await this.db.modelos.get(e.modelo_id);
+      const redeLoja = lojasCompletas.get(e.loja_id)?.rede_id ?? null;
+      const total = Math.max(0, Math.round((new Date(e.fim_em!).getTime() - new Date(e.inicio_em).getTime()) / 1000));
+      const pausado = e.tempo_pausado_seg ?? 0;
+      execucoes.push({
+        execucao_id: e.id, modelo_id: e.modelo_id, modelo: m?.nome ?? "?", versao_id: e.versao_id, loja_id: e.loja_id, loja: porLoja.get(e.loja_id)!.nome,
+        rede_id: redeLoja, usuario_id: e.usuario_id, pessoa: membros.find((x) => x.usuario_id === e.usuario_id && x.rede_id === redeLoja)?.nome ?? "Usuário",
+        inicio_em: e.inicio_em, fim_em: e.fim_em!, total_seg: total, pausado_seg: pausado, ativo_seg: Math.max(0, total - pausado),
+        padrao_seg: typeof v.conteudo.tempo_padrao_min === "number" ? Math.round(v.conteudo.tempo_padrao_min * 60) : null, status: e.status,
+      });
+      const rs = await this.db.respostas.where("execucao_id").equals(e.id).toArray();
+      v.conteudo.secoes.forEach((s, si) => s.itens.forEach((i, ii) => {
+        const r = rs.find((x) => x.item_id === i.id);
+        if (!r?.iniciado_em) return;
+        itens.push({
+          execucao_id: e.id, item_id: i.id, texto: i.texto, secao_id: s.id, ordem: (si + 1) * 1000 + ii + 1, iniciado_em: r.iniciado_em, concluido_em: r.concluido_em ?? null,
+          duracao_seg: r.concluido_em ? Math.max(0, Math.round((new Date(r.concluido_em).getTime() - new Date(r.iniciado_em).getTime()) / 1000)) : null,
+          padrao_seg: typeof i.tempo_padrao_min === "number" ? Math.round(i.tempo_padrao_min * 60) : null,
+        });
+      }));
+    }
+    const redes = new Set(lojas.map((l) => lojasCompletas.get(l.id)?.rede_id).filter(Boolean) as string[]);
+    return { config: (await this.db.configTempos.toArray()).filter((c) => redes.has(c.rede_id)), execucoes, itens };
+  }
+
+  async salvarConfigTempos(rede: string, cfg: ConfigTempos) {
+    if (!(await this.eGestor(rede))) falha("Só o gestor da empresa muda os limites.");
+    const ok = (x: number, a: number, b: number) => Number.isInteger(x) && x >= a && x <= b;
+    if (!ok(cfg.acima_pct, 1, 500) || !ok(cfg.muito_acima_pct, 1, 1000) || !ok(cfg.rapido_pct, 1, 99)) falha("Limites fora da faixa.");
+    if (cfg.muito_acima_pct <= cfg.acima_pct) falha("“Muito acima” precisa ser maior que “acima”.");
+    await this.db.configTempos.put({ ...CONFIG_PADRAO, ...cfg, rede_id: rede });
   }
 
   // ------------------------------------------------------------------ checklists (editor)

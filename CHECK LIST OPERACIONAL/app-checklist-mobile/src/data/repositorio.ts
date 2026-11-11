@@ -1,6 +1,6 @@
 // Ações feitas no aparelho. Tudo grava primeiro no banco local e entra na fila (offline-first).
 import { idPlano, novoId } from "../domain/ids";
-import { itensParaPlano, mapaRespostas, pendencias, pontuacaoExecucao, type Pendencia } from "../domain/regras";
+import { itemCompleto, itensParaPlano, mapaRespostas, pendencias, pontuacaoExecucao, todosItens, type Pendencia } from "../domain/regras";
 import { aplicarAcaoPlano, type AcaoPlano, type ArgsAcaoPlano } from "../domain/situacao";
 import { dataSP, diaSemana } from "../domain/tempo";
 import type { ModeloVersao, PlanoAcao, Resposta, Tarefa, ValorResposta } from "../domain/tipos";
@@ -63,14 +63,69 @@ export class Repositorio {
   async responder(execId: string, itemId: string, valor: ValorResposta | null, observacao?: string | null) {
     await this.editavel(execId);
     const atual = await this.db.respostas.where("[execucao_id+item_id]").equals([execId, itemId]).first();
+    const agora = new Date().toISOString();
     const r: Resposta = {
       id: atual?.id ?? novoId(), execucao_id: execId, item_id: itemId,
       valor: valor === undefined ? atual?.valor ?? null : valor,
       observacao: observacao === undefined ? atual?.observacao ?? null : observacao,
-      respondido_em: new Date().toISOString(), lat: atual?.lat ?? null, lng: atual?.lng ?? null,
+      respondido_em: agora, lat: atual?.lat ?? null, lng: atual?.lng ?? null,
+      iniciado_em: atual?.iniciado_em ?? agora, concluido_em: atual?.concluido_em ?? null,
     };
     await this.db.respostas.put(r);
+    await this.atualizarFimDoItem(execId, itemId);
     await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
+  }
+
+  /** 1º toque/abertura do item: grava o INÍCIO (uma vez só; nunca é sobrescrito). */
+  async iniciarItem(execId: string, itemId: string) {
+    const e = await this.db.execucoes.get(execId);
+    if (!e || e.usuario_id !== this.usuario || (e.status !== "em_andamento" && e.status !== "devolvida")) return;
+    const atual = await this.db.respostas.where("[execucao_id+item_id]").equals([execId, itemId]).first();
+    if (atual?.iniciado_em) return;
+    const agora = new Date().toISOString();
+    if (atual) await this.db.respostas.update(atual.id, { iniciado_em: agora });
+    else await this.db.respostas.put({ id: novoId(), execucao_id: execId, item_id: itemId, valor: null, observacao: null, respondido_em: agora, iniciado_em: agora, concluido_em: null });
+    await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
+  }
+
+  /** Marca o FIM do item quando ele fica completo (resposta + foto + observação exigidas); limpa se deixar de estar. */
+  private async atualizarFimDoItem(execId: string, itemId: string) {
+    const e = await this.db.execucoes.get(execId);
+    const v = e ? await this.db.versoes.get(e.versao_id) : undefined;
+    const item = v ? todosItens(v.conteudo).find((i) => i.id === itemId) : undefined;
+    if (!item) return;
+    const r = await this.db.respostas.where("[execucao_id+item_id]").equals([execId, itemId]).first();
+    const nFotos = (await this.fotosPorItem(execId)).get(itemId) ?? 0;
+    const completo = itemCompleto(item, r, nFotos);
+    const agora = new Date().toISOString();
+    if (!r) {
+      if (completo) await this.db.respostas.put({ id: novoId(), execucao_id: execId, item_id: itemId, valor: null, observacao: null, respondido_em: agora, iniciado_em: agora, concluido_em: agora });
+      return;
+    }
+    if (completo && !r.concluido_em) await this.db.respostas.update(r.id, { concluido_em: agora, iniciado_em: r.iniciado_em ?? agora, respondido_em: agora });
+    else if (completo && r.concluido_em) { /* já completo: o fim continua o da 1ª vez que completou */ }
+    else if (!completo && r.concluido_em) await this.db.respostas.update(r.id, { concluido_em: null, respondido_em: agora });
+  }
+
+  /** Pausa: app foi para 2º plano ou a pessoa saiu da tela (o tempo parado fica fora do tempo ativo). */
+  async pausar(execId: string) {
+    const e = await this.db.execucoes.get(execId);
+    if (!e || e.usuario_id !== this.usuario || (e.status !== "em_andamento" && e.status !== "devolvida") || e.pausa_desde) return;
+    await this.db.execucoes.update(execId, { pausa_desde: new Date().toISOString() });
+  }
+
+  /** Volta da pausa: soma o tempo parado e registra a pausa. */
+  async retomar(execId: string) {
+    const e = await this.db.execucoes.get(execId);
+    if (!e?.pausa_desde) return;
+    const fim = new Date().toISOString();
+    const seg = Math.max(0, Math.round((new Date(fim).getTime() - new Date(e.pausa_desde).getTime()) / 1000));
+    await this.db.execucoes.update(execId, {
+      pausa_desde: null,
+      tempo_pausado_seg: (e.tempo_pausado_seg ?? 0) + seg,
+      pausas: [...(e.pausas ?? []), { inicio: e.pausa_desde, fim }],
+    });
+    if (seg > 0) await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
   }
 
   async observar(execId: string, itemId: string, texto: string) {
@@ -89,6 +144,10 @@ export class Repositorio {
       blob, enviada: false, tipo,
     };
     await this.db.fotos.add(f);
+    if (itemId && tipo === "foto") {
+      await this.iniciarItem(execId, itemId);
+      await this.atualizarFimDoItem(execId, itemId);
+    }
     await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
     return f;
   }
@@ -99,6 +158,7 @@ export class Repositorio {
     if (!f) return;
     if (f.enviada) throw new Error("Esta foto já foi enviada e não pode ser apagada.");
     await this.db.fotos.delete(fotoId);
+    if (f.execucao_id && f.item_id) await this.atualizarFimDoItem(f.execucao_id, f.item_id);
     await this.s.marcarSalvo();
   }
 
@@ -124,6 +184,7 @@ export class Repositorio {
    * cria os planos automáticos (mesmo id do servidor) e põe na fila.
    */
   async concluir(execId: string, assinatura: Blob | null): Promise<{ pontuacao: number | null; planos: number }> {
+    await this.retomar(execId); // fecha uma pausa aberta antes de registrar o fim
     const e = await this.editavel(execId);
     const pend = await this.pendencias(execId);
     if (pend.length) throw new Error(`Ainda há ${pend.length} pendência(s) obrigatória(s).`);

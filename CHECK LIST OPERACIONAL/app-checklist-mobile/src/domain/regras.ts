@@ -161,6 +161,18 @@ export function pendencias(c: ConteudoModelo, respostas: Resposta[], fotosPorIte
   return out;
 }
 
+/** O item está COMPLETO? (resposta + foto + observação exigidas) – marca o fim do tempo do item. */
+export function itemCompleto(item: Item, r: Pick<Resposta, "valor" | "observacao"> | undefined, nFotos: number): boolean {
+  const v = r?.valor;
+  const nc = naoConforme(item, v);
+  const exigeObs = item.observacao === "sempre" || (item.observacao === "se_nao_conforme" && nc);
+  if (exigeObs && !(r?.observacao ?? "").trim()) return false;
+  if (item.tipo === "foto") return nFotos > 0;
+  if (semResposta(v)) return false;
+  const exigeFoto = item.foto === "sempre" || (item.foto === "se_nao_conforme" && nc);
+  return !(exigeFoto && nFotos === 0);
+}
+
 /** Itens que devem gerar plano de ação (visíveis, gera_plano e não conformes). */
 export function itensParaPlano(c: ConteudoModelo, respostas: Resposta[], diaSemana: number): Item[] {
   const itens = todosItens(c);

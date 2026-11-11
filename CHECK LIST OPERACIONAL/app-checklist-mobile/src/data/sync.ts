@@ -22,7 +22,7 @@ export interface EstadoSync {
 }
 
 const semMarcas = (e: Execucao & Record<string, unknown>): Execucao => {
-  const { conclusao_pendente: _c, assinatura_foto_id: _a, ...resto } = e;
+  const { conclusao_pendente: _c, assinatura_foto_id: _a, pausa_desde: _p, ...resto } = e;
   return resto as Execucao;
 };
 const semArquivo = (f: FotoLocal): Foto => {
