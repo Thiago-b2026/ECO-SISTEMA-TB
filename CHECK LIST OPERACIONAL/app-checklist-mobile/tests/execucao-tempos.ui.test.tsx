@@ -99,4 +99,41 @@ describe("execução: tempos pela tela", () => {
     expect(rasc.conteudo.tempo_padrao_min).toBe(10);
     expect(rasc.conteudo.secoes[0].itens[0].tempo_padrao_min).toBe(1.5);
   }, 120000);
+
+  it("tela Tempos de execução (gestora, 2 lojas): blocos, filtro por situação, linha do tempo, comparativos, evolução e ranking", async () => {
+    localStorage.clear();
+    render(<App />);
+    fireEvent.click(await screen.findByText("Carla (Gestora)", {}, T));
+    const menu = await screen.findByRole("navigation", { name: "Menu" }, T);
+    await act(async () => { fireEvent.click(within(menu).getByText("Tempos de execução")); });
+    await screen.findByRole("heading", { level: 1, name: "Tempos de execução" }, T);
+    const tabela = await screen.findByRole("table", { name: "Execuções" }, T);
+    const linhas = () => within(tabela).getAllByRole("row").length - 1;
+    const total = linhas();
+    expect(total).toBeGreaterThan(5);
+    expect(within(tabela).getAllByText("Rápido demais").length).toBeGreaterThan(0);
+    expect(within(tabela).getAllByText("Muito acima").length).toBeGreaterThan(0);
+    // filtro: só "rápido demais"
+    await act(async () => { fireEvent.change(screen.getByLabelText("Situação"), { target: { value: "rapido_demais" } }); });
+    await waitFor(() => expect(linhas()).toBeLessThan(total));
+    expect(within(tabela).queryAllByText("No tempo")).toEqual([]);
+    // linha do tempo da 1ª execução listada
+    await act(async () => { fireEvent.click(within(tabela).getAllByRole("button")[0]); });
+    const linha = await screen.findByRole("heading", { name: /Linha do tempo/ }, T);
+    expect(linha.closest("div.rounded-xl")!.querySelectorAll("li").length).toBeGreaterThan(0);
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Fechar linha do tempo" })); });
+    expect(screen.queryByRole("heading", { name: /Linha do tempo/ })).toBeNull();
+    // comparativos, evolução e ranking
+    await act(async () => { fireEvent.change(screen.getByLabelText("Situação"), { target: { value: "" } }); });
+    expect(within(screen.getByRole("table", { name: "A mesma tarefa entre pessoas" })).getAllByRole("row").length).toBe(3); // Ana e Diego
+    expect(within(screen.getByRole("table", { name: "A mesma tarefa entre lojas" })).getAllByRole("row").length).toBe(3); // Matriz e Filial
+    expect(screen.getByRole("table", { name: "Evolução por dia" })).toBeTruthy();
+    expect(within(screen.getByRole("table", { name: "Itens que mais demoram" })).getAllByRole("row").length).toBeGreaterThan(1);
+    // limites da empresa (só o gestor): muda e a tela recalcula
+    fireEvent.click(screen.getByText(/Limites desta empresa/));
+    fireEvent.change(screen.getByLabelText("Rápido demais: menos de (%)"), { target: { value: "10" } });
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Salvar limites/ })); });
+    await screen.findByText("Limites salvos.", {}, T);
+    await waitFor(() => expect(screen.getByText(/Rápido demais: menos de 10%/)).toBeTruthy(), T);
+  }, 120000);
 });

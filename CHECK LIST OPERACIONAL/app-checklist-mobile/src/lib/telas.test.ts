@@ -4,13 +4,14 @@ import { describe, expect, it } from "vitest";
 import { TELAS_APP, podeVerTela, telaDaRota } from "./telas";
 
 const MIG = resolve(import.meta.dirname, "../../../../GESTAO SALVADOS/supabase/migrations");
-const SQL = ["20261110000023_checklist_telas.sql", "20261110000024_checklist_empresas.sql"].map((f) => readFileSync(resolve(MIG, f), "utf8")).join("\n");
+const SQL = ["20261110000023_checklist_telas.sql", "20261110000024_checklist_empresas.sql", "20261111000025_checklist_tempos_tela.sql"].map((f) => readFileSync(resolve(MIG, f), "utf8")).join("\n");
 
 describe("telas do Check List no Ecossistema", () => {
   it("mesmos códigos, rotas e grupos da migration do PDV", () => {
     const doSql = [...SQL.matchAll(/\('(checklist\.[a-z_]+)',\s+'([^']+)',\s+'checklist',\s+'([a-z]+)',\s+'([^']+)',\s+\d+,\s+(true|false)\)/g)]
       .map((m) => ({ codigo: m[1], nome: m[2], grupo: m[3], rota: m[4], somenteAdmin: m[5] === "true" }));
-    expect(doSql).toEqual(TELAS_APP.map(({ codigo, nome, grupo, rota, somenteAdmin }) => ({ codigo, nome, grupo, rota, somenteAdmin: !!somenteAdmin })));
+    const porCodigo = <T extends { codigo: string }>(xs: T[]) => [...xs].sort((a, b) => a.codigo.localeCompare(b.codigo));
+    expect(porCodigo(doSql)).toEqual(porCodigo(TELAS_APP.map(({ codigo, nome, grupo, rota, somenteAdmin }) => ({ codigo, nome, grupo, rota, somenteAdmin: !!somenteAdmin }))));
   });
 
   it("Empresas e lojas é só do admin", () => {

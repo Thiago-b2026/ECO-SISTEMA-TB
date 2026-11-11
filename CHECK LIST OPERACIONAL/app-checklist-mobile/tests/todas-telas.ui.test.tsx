@@ -79,6 +79,7 @@ const ROTAS: { rota: string; nome: string; carregou: RegExp }[] = [
   { rota: "/loja", nome: "Tarefas da loja", carregou: /^Tarefas da loja ·/ },
   { rota: "/dashboard", nome: "Dashboard", carregou: /^Dashboard/ },
   { rota: "/relatorios", nome: "Relatórios", carregou: /^Relatórios/ },
+  { rota: "/tempos", nome: "Tempos de execução", carregou: /^Tempos de execução/ },
   { rota: "/agendamentos", nome: "Agendar tarefas", carregou: /^Agendamentos ·|^Agendar/ },
   { rota: "/modelos", nome: "Cadastrar tarefas e checklists", carregou: /^Modelos de checklist ·|^Cadastrar/ },
   { rota: "/equipe", nome: "Colaboradores", carregou: /^Colaboradores ·/ },
@@ -86,7 +87,7 @@ const ROTAS: { rota: string; nome: string; carregou: RegExp }[] = [
 ];
 const TODAS = ROTAS.map((r) => r.rota);
 const OPERADOR = ["/", "/planos"];
-const SUPERVISOR = [...OPERADOR, "/loja", "/dashboard", "/relatorios", "/agendamentos"];
+const SUPERVISOR = [...OPERADOR, "/loja", "/dashboard", "/relatorios", "/tempos", "/agendamentos"];
 const GESTOR = [...SUPERVISOR, "/modelos", "/equipe"];
 
 // veMatriz: enxerga a execução e o plano da Matriz (quem é da Filial ou de outra empresa recebe "não encontrada")

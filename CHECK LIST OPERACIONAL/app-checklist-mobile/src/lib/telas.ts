@@ -1,5 +1,5 @@
 // Telas do Check List no Ecossistema TB. Mesmos códigos de
-// GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql (um teste confere).
+// GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql, 0024 e 0025 (um teste confere).
 // Quem LIBERA a tela é o admin (public.minhas_telas('checklist')); o perfil do Check List
 // (checklist.membros) define o que a pessoa faz dentro dela.
 import type { Perfil } from "../domain/tipos";
@@ -24,6 +24,7 @@ export const TELAS_APP: TelaApp[] = [
   { codigo: "checklist.loja", nome: "Tarefas da loja", rota: "/loja", grupo: "supervisao", perfilMinimo: "supervisor" },
   { codigo: "checklist.dashboard", nome: "Dashboard", rota: "/dashboard", grupo: "supervisao", perfilMinimo: "supervisor" },
   { codigo: "checklist.relatorios", nome: "Relatórios", rota: "/relatorios", grupo: "supervisao", perfilMinimo: "supervisor" },
+  { codigo: "checklist.tempos", nome: "Tempos de execução", rota: "/tempos", grupo: "supervisao", perfilMinimo: "supervisor" },
   { codigo: "checklist.agendamentos", nome: "Agendar tarefas", rota: "/agendamentos", grupo: "cadastros", perfilMinimo: "supervisor" },
   { codigo: "checklist.modelos", nome: "Cadastrar tarefas e checklists", rota: "/modelos", grupo: "cadastros", perfilMinimo: "gestor" },
   { codigo: "checklist.equipe", nome: "Colaboradores", rota: "/equipe", grupo: "cadastros", perfilMinimo: "gestor" },

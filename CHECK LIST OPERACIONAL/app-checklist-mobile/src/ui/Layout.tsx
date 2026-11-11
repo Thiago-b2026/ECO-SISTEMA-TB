@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import {
-  BarChart3, Briefcase, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Network, Settings, Store, Users, Wrench, X,
+  BarChart3, Briefcase, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Network, Settings, Store, Timer, Users, Wrench, X,
 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { MODO_DEMO } from "../data/conexao";
@@ -14,7 +14,7 @@ import { Aviso, cx } from "./base";
 const ICONES: Record<string, typeof Store> = {
   "checklist.hoje": ClipboardCheck, "checklist.planos": Wrench, "checklist.loja": LayoutList, "checklist.dashboard": BarChart3,
   "checklist.relatorios": FileSpreadsheet, "checklist.agendamentos": CalendarClock, "checklist.modelos": ClipboardList, "checklist.equipe": Users,
-  "checklist.empresas": Network,
+  "checklist.empresas": Network, "checklist.tempos": Timer,
 };
 
 export function AcessoNegado() {

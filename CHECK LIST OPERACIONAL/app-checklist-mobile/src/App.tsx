@@ -16,6 +16,7 @@ import { Carregando, Vazio } from "./ui/base";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
+const Tempos = lazy(() => import("./pages/Tempos"));
 // telas de configuração: só carregam quando abertas (o service worker guarda os pedaços para o uso offline)
 const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const Empresas = lazy(() => import("./pages/Empresas"));
@@ -39,6 +40,7 @@ function Rotas() {
         <Route path="loja" element={<TarefasLoja />} />
         <Route path="dashboard" element={tardio(<Dashboard />)} />
         <Route path="relatorios" element={tardio(<Relatorios />)} />
+        <Route path="tempos" element={tardio(<Tempos />)} />
         <Route path="agendamentos" element={tardio(<Agendamentos />)} />
         <Route path="modelos" element={tardio(<Modelos />)} />
         <Route path="equipe" element={tardio(<Equipe />)} />

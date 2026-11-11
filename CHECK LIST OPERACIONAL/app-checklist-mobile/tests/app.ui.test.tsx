@@ -72,7 +72,7 @@ describe("todas as telas abrem sem erro", () => {
     console.error = (...a: unknown[]) => { erros.push(a); orig(...a); };
     try {
       for (const [quem, telas] of [
-        ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendar tarefas", "Relatórios", "Dashboard"]],
+        ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendar tarefas", "Relatórios", "Tempos de execução", "Dashboard"]],
         ["Carla (Gestora)", ["Cadastrar tarefas e checklists", "Colaboradores"]],
         ["Admin (Ecossistema TB)", ["Empresas e lojas", "Cadastrar tarefas e checklists", "Colaboradores"]],
       ] as const) {

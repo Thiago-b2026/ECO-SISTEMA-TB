@@ -115,6 +115,8 @@ export const TELAS: Tela[] = [
   { codigo: "checklist.equipe", nome: "Colaboradores", sistema: "checklist", grupo: "cadastros", rota: "/equipe", perfis: [] },
   // migration 20261110000024_checklist_empresas.sql (multiempresa)
   { codigo: "checklist.empresas", nome: "Empresas e lojas", sistema: "checklist", grupo: "cadastros", rota: "/empresas", somenteAdmin: true, perfis: [] },
+  // migration 20261111000025_checklist_tempos_tela.sql (tempo de execução)
+  { codigo: "checklist.tempos", nome: "Tempos de execução", sistema: "checklist", grupo: "supervisao", rota: "/tempos", perfis: [] },
   // Portal (fase 2): exclusivas do Admin
   { codigo: "portal.usuarios", nome: "Usuários", sistema: "portal", grupo: "acessos", rota: "/usuarios", somenteAdmin: true, perfis: [] },
   { codigo: "portal.redes", nome: "Redes e unidades", sistema: "portal", grupo: "acessos", rota: "/redes", somenteAdmin: true, perfis: [] },
