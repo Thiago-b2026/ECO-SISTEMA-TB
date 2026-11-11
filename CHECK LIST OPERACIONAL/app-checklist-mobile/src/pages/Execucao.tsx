@@ -126,7 +126,7 @@ export default function Execucao() {
         if (!visiveis.length) return null;
         return (
           <section key={s.id} aria-labelledby={`sec-${s.id}`} className="space-y-3">
-            <h2 id={`sec-${s.id}`} className="sticky top-[64px] z-10 -mx-3 bg-[#f4f6f5]/95 px-3 py-2 text-base font-bold text-marca">
+            <h2 id={`sec-${s.id}`} className="sticky top-[var(--altura-topo,64px)] z-10 -mx-3 bg-[#f4f6f5]/95 px-3 py-2 text-base font-bold text-marca">
               {s.titulo} <span className="text-sm font-normal text-gray-600">· {nomeSetor(s.setor)}</span>
             </h2>
             {visiveis.map((i0) => {

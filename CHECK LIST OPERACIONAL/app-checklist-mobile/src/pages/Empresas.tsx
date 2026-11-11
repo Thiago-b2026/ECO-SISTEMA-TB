@@ -75,7 +75,7 @@ export default function Empresas() {
                         return (
                           <li key={u.id} className={cx("flex flex-wrap items-center gap-2 py-2", u.tipo !== "matriz" && "pl-4 sm:pl-8")}>
                             <Store className="size-4 text-gray-500" aria-hidden />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-[14rem] flex-1">
                               <div className="font-semibold">{u.nome}</div>
                               <div className="text-xs text-gray-600">{u.tipo === "matriz" ? "Matriz" : u.tipo === "filial" ? "Filial" : "Sem CNPJ"}{u.cnpj ? ` · ${formatarCnpj(u.cnpj)}` : ""}{u.sistemas.filter((s) => s !== "checklist").length ? ` · também em: ${u.sistemas.filter((s) => s !== "checklist").join(", ")}` : ""}</div>
                             </div>
