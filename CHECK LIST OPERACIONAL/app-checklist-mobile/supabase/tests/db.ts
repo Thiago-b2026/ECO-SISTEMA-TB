@@ -6,11 +6,16 @@ import { resolve } from "node:path";
 const raiz = resolve(import.meta.dirname, "..");
 export const MIGRATIONS = readdirSync(resolve(raiz, "migrations")).filter((f) => f.endsWith(".sql")).sort();
 
+// migrations do PDV (catálogo de telas do Check List) – na mesma ordem da publicação: depois do schema checklist
+const PDV = resolve(raiz, "../../../GESTAO SALVADOS/supabase/migrations");
+export const MIGRATIONS_PDV = readdirSync(PDV).filter((f) => /checklist/.test(f) && f.endsWith(".sql")).sort();
+
 export async function novoBanco(extra: string[] = []) {
   const db = new PGlite();
   await db.exec(readFileSync(resolve(import.meta.dirname, "stub_ecossistema.sql"), "utf8"));
-  for (const f of [...MIGRATIONS, ...extra]) {
-    const sql = readFileSync(resolve(raiz, "migrations", f), "utf8");
+  const arquivos = [...MIGRATIONS.map((f) => resolve(raiz, "migrations", f)), ...MIGRATIONS_PDV.map((f) => resolve(PDV, f)), ...extra];
+  for (const f of arquivos) {
+    const sql = readFileSync(f, "utf8");
     try {
       await db.exec(sql);
     } catch (e) {

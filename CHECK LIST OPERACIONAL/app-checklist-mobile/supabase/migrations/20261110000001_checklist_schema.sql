@@ -1,8 +1,10 @@
 -- =====================================================================
 -- CHECK LIST OPERACIONAL – schema "checklist" (Ecossistema TB)
 -- Banco: Supabase ECO-SISTEMA-TB. NÃO APLICAR sem OK do usuário.
--- Depende do que já existe no banco: auth.users, auth.uid(), public.lojas, public.is_admin(),
--- storage.buckets / storage.objects. As telas e o sistema ficam na migration do PDV
+-- Depende do que já existe no banco: auth.users, auth.uid(), public.redes, public.lojas (rede_id, tipo,
+-- sistemas), public.is_admin(), public.telas / tela_acoes / usuario_telas / usuario_permissoes, storage.
+-- MULTIEMPRESA: empresa = public.redes. Modelos, setores e equipe são POR EMPRESA (rede_id); a unidade de
+-- agendamentos, tarefas, execuções e planos precisa ser da mesma empresa do modelo (gatilhos). As telas e o sistema ficam na migration do PDV
 -- (GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql).
 --
 -- Regras (docs/plano-app-checklist-mobile.md, seção 7):
@@ -18,30 +20,57 @@
 create schema if not exists checklist;
 
 -- ---------------------------------------------------------------------
--- 1. PERFIS (membros por unidade)
+-- 1. EQUIPE E PERFIS – MULTIEMPRESA
+--    Empresa = public.redes · unidade = public.lojas (matriz/filiais; lojas.sistemas contém 'checklist').
+--    GESTOR vale para a EMPRESA inteira (loja_id nulo). SUPERVISOR e OPERADOR valem para UMA unidade.
+--    O admin do Ecossistema é gestor em todas as empresas.
 -- ---------------------------------------------------------------------
 create table checklist.membros (
+  id         uuid primary key default gen_random_uuid(),
   usuario_id uuid not null references auth.users(id),
-  loja_id    uuid not null references public.lojas(id),
+  rede_id    uuid not null references public.redes(id),
+  loja_id    uuid references public.lojas(id),
   perfil     text not null check (perfil in ('operador', 'supervisor', 'gestor')),
   nome       text not null,
   ativo      boolean not null default true,
   criado_em  timestamptz not null default now(),
-  primary key (usuario_id, loja_id)
+  check ((perfil = 'gestor') = (loja_id is null))
 );
+create unique index membros_unico on checklist.membros (usuario_id, rede_id, coalesce(loja_id, '00000000-0000-0000-0000-000000000000'::uuid));
 create index membros_loja_idx on checklist.membros (loja_id);
+create index membros_rede_idx on checklist.membros (rede_id);
 
 create or replace function checklist.nivel(_perfil text)
 returns int language sql immutable as $$
   select case _perfil when 'operador' then 1 when 'supervisor' then 2 when 'gestor' then 3 else 0 end;
 $$;
 
--- perfil do usuário logado na unidade (admin do Ecossistema = gestor em todas)
+create or replace function checklist.rede_da_loja(_loja uuid)
+returns uuid language sql stable security definer set search_path = checklist, public as $$
+  select l.rede_id from public.lojas l where l.id = _loja;
+$$;
+
+-- a unidade do membro precisa ser da empresa do membro
+create or replace function checklist._membro_valida()
+returns trigger language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if new.loja_id is not null and checklist.rede_da_loja(new.loja_id) is distinct from new.rede_id then
+    raise exception 'A unidade não é desta empresa.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_membro_valida before insert or update on checklist.membros
+  for each row execute function checklist._membro_valida();
+
+-- perfil do usuário logado na unidade: admin = gestor; gestor da empresa da unidade = gestor; senão o da unidade
 create or replace function checklist.meu_perfil(_loja uuid)
 returns text language sql stable security definer set search_path = checklist, public as $$
   select case
-    when auth.uid() is null then null
+    when auth.uid() is null or _loja is null then null
     when public.is_admin() then 'gestor'
+    when exists (select 1 from checklist.membros m where m.usuario_id = auth.uid() and m.ativo and m.perfil = 'gestor'
+                   and m.rede_id = checklist.rede_da_loja(_loja)) then 'gestor'
     else (select m.perfil from checklist.membros m where m.usuario_id = auth.uid() and m.loja_id = _loja and m.ativo)
   end;
 $$;
@@ -51,52 +80,80 @@ returns boolean language sql stable security definer set search_path = checklist
   select coalesce(checklist.nivel(checklist.meu_perfil(_loja)) >= checklist.nivel(_minimo), false);
 $$;
 
--- gestor em alguma unidade (ou admin): administra os modelos
-create or replace function checklist.e_gestor()
+-- gestor DA EMPRESA (ou admin): administra modelos, setores e equipe dela
+create or replace function checklist.e_gestor(_rede uuid)
 returns boolean language sql stable security definer set search_path = checklist, public as $$
-  select auth.uid() is not null and (public.is_admin() or exists (
-    select 1 from checklist.membros m where m.usuario_id = auth.uid() and m.perfil = 'gestor' and m.ativo));
+  select auth.uid() is not null and _rede is not null and (public.is_admin() or exists (
+    select 1 from checklist.membros m where m.usuario_id = auth.uid() and m.rede_id = _rede and m.perfil = 'gestor' and m.ativo));
 $$;
 
--- unidades do usuário logado no Check List, com o perfil
+-- faz parte da empresa (qualquer perfil, ou admin)
+create or replace function checklist.na_rede(_rede uuid)
+returns boolean language sql stable security definer set search_path = checklist, public as $$
+  select auth.uid() is not null and _rede is not null and (public.is_admin() or exists (
+    select 1 from checklist.membros m where m.usuario_id = auth.uid() and m.rede_id = _rede and m.ativo));
+$$;
+
+-- empresas do usuário (admin: todas as ativas), com o maior perfil nela
+create or replace function checklist.minhas_redes()
+returns table (rede_id uuid, nome text, perfil text) language sql stable security definer set search_path = checklist, public as $$
+  select r.id, r.nome,
+         case when public.is_admin() then 'gestor' else (
+           select m.perfil from checklist.membros m where m.usuario_id = auth.uid() and m.rede_id = r.id and m.ativo
+           order by checklist.nivel(m.perfil) desc limit 1) end
+  from public.redes r
+  where r.ativo and auth.uid() is not null and checklist.na_rede(r.id)
+  order by r.ordem, r.nome;
+$$;
+
+-- unidades do usuário no Check List (marcadas com 'checklist'), com o perfil e a empresa
 create or replace function checklist.minhas_lojas()
-returns table (loja_id uuid, nome text, perfil text) language sql stable security definer set search_path = checklist, public as $$
-  select l.id, l.nome, checklist.meu_perfil(l.id)
+returns table (loja_id uuid, nome text, perfil text, rede_id uuid, rede_nome text, tipo text, cnpj text)
+language sql stable security definer set search_path = checklist, public as $$
+  select l.id, l.nome, checklist.meu_perfil(l.id), l.rede_id, r.nome, l.tipo, l.cnpj
   from public.lojas l
-  where l.ativo and checklist.meu_perfil(l.id) is not null
-  order by l.nome;
+  left join public.redes r on r.id = l.rede_id
+  where l.ativo and 'checklist' = any (l.sistemas) and checklist.meu_perfil(l.id) is not null
+  order by r.nome, l.tipo nulls last, l.nome;
 $$;
 
--- coloca alguém (que JÁ tem login no Ecossistema) na equipe de uma unidade. Só o gestor.
--- Não cria conta: quem cria usuário é o admin, no Portal.
-create or replace function checklist.definir_membro(_email text, _loja uuid, _perfil text, _nome text, _ativo boolean default true)
+-- coloca alguém (que JÁ tem login no Ecossistema) na equipe. Gestor da empresa ou admin.
+-- Gestor: unidade vazia (vale para a empresa toda). Não cria conta: o login é do admin.
+create or replace function checklist.definir_membro(_email text, _rede uuid, _loja uuid, _perfil text, _nome text, _ativo boolean default true)
 returns uuid language plpgsql security definer set search_path = checklist, public, auth as $$
-declare v_user uuid;
+declare v_user uuid; v_id uuid; v_loja uuid := case when _perfil = 'gestor' then null else _loja end;
 begin
-  if not checklist.pode(_loja, 'gestor') then raise exception 'Só o gestor define a equipe.' using errcode = '42501'; end if;
+  if not checklist.e_gestor(_rede) then raise exception 'Só o gestor da empresa define a equipe.' using errcode = '42501'; end if;
   if _perfil not in ('operador', 'supervisor', 'gestor') then raise exception 'Perfil inválido.' using errcode = 'P0001'; end if;
+  if _perfil <> 'gestor' and v_loja is null then raise exception 'Escolha a unidade.' using errcode = 'P0001'; end if;
   select u.id into v_user from auth.users u where lower(u.email) = lower(trim(_email));
   if v_user is null then
-    raise exception 'Não existe login com o e-mail %. Peça ao admin para criar o usuário no Portal.', _email using errcode = 'P0002';
+    raise exception 'Não existe login com o e-mail %. Peça ao admin para criar o colaborador.', _email using errcode = 'P0002';
   end if;
-  insert into checklist.membros (usuario_id, loja_id, perfil, nome, ativo)
-  values (v_user, _loja, _perfil, coalesce(nullif(trim(_nome), ''), _email), coalesce(_ativo, true))
-  on conflict (usuario_id, loja_id) do update set perfil = excluded.perfil, nome = excluded.nome, ativo = excluded.ativo;
-  return v_user;
+  insert into checklist.membros (usuario_id, rede_id, loja_id, perfil, nome, ativo)
+  values (v_user, _rede, v_loja, _perfil, coalesce(nullif(trim(_nome), ''), _email), coalesce(_ativo, true))
+  on conflict (usuario_id, rede_id, coalesce(loja_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  do update set perfil = excluded.perfil, nome = excluded.nome, ativo = excluded.ativo
+  returning id into v_id;
+  return v_id;
 end;
 $$;
 
--- muda perfil / ativa / inativa quem JÁ está na equipe (nunca apaga). Só o gestor.
-create or replace function checklist.alterar_membro(_usuario uuid, _loja uuid, _perfil text, _ativo boolean)
+-- muda perfil / unidade / ativa / inativa quem JÁ está na equipe (nunca apaga). Gestor da empresa ou admin.
+create or replace function checklist.alterar_membro(_id uuid, _perfil text, _ativo boolean, _loja uuid default null)
 returns void language plpgsql security definer set search_path = checklist, public as $$
+declare m checklist.membros; v_loja uuid;
 begin
-  if not checklist.pode(_loja, 'gestor') then raise exception 'Só o gestor define a equipe.' using errcode = '42501'; end if;
+  select * into m from checklist.membros where id = _id for update;
+  if m.id is null then raise exception 'Pessoa não está na equipe.' using errcode = 'P0002'; end if;
+  if not checklist.e_gestor(m.rede_id) then raise exception 'Só o gestor da empresa define a equipe.' using errcode = '42501'; end if;
   if _perfil not in ('operador', 'supervisor', 'gestor') then raise exception 'Perfil inválido.' using errcode = 'P0001'; end if;
-  if _usuario = auth.uid() and (not _ativo or _perfil <> 'gestor') and not public.is_admin() then
+  if m.usuario_id = auth.uid() and m.perfil = 'gestor' and (not coalesce(_ativo, true) or _perfil <> 'gestor') and not public.is_admin() then
     raise exception 'Você não pode tirar o seu próprio perfil de gestor.' using errcode = 'P0001';
   end if;
-  update checklist.membros set perfil = _perfil, ativo = coalesce(_ativo, true) where usuario_id = _usuario and loja_id = _loja;
-  if not found then raise exception 'Pessoa não está na equipe desta unidade.' using errcode = 'P0002'; end if;
+  v_loja := case when _perfil = 'gestor' then null else coalesce(_loja, m.loja_id) end;
+  if _perfil <> 'gestor' and v_loja is null then raise exception 'Escolha a unidade.' using errcode = 'P0001'; end if;
+  update checklist.membros set perfil = _perfil, ativo = coalesce(_ativo, true), loja_id = v_loja where id = _id;
 end;
 $$;
 
@@ -108,6 +165,7 @@ create table checklist.historico (
   tabela        text not null,
   registro_id   uuid not null,
   loja_id       uuid,
+  rede_id       uuid,
   acao          text not null,
   autor         uuid default auth.uid(),
   data          timestamptz not null default now(),
@@ -117,10 +175,12 @@ create table checklist.historico (
 );
 create index historico_registro_idx on checklist.historico (registro_id);
 
-create or replace function checklist._hist(_tabela text, _id uuid, _loja uuid, _acao text, _antes jsonb, _depois jsonb, _just text default null)
+create or replace function checklist._hist(_tabela text, _id uuid, _loja uuid, _acao text, _antes jsonb, _depois jsonb,
+                                          _just text default null, _rede uuid default null)
 returns void language sql security definer set search_path = checklist, public as $$
-  insert into checklist.historico (tabela, registro_id, loja_id, acao, autor, antes, depois, justificativa)
-  values (_tabela, _id, _loja, _acao, auth.uid(), _antes, _depois, nullif(trim(coalesce(_just, '')), ''));
+  insert into checklist.historico (tabela, registro_id, loja_id, rede_id, acao, autor, antes, depois, justificativa)
+  values (_tabela, _id, _loja, coalesce(_rede, checklist.rede_da_loja(_loja)), _acao, auth.uid(), _antes, _depois,
+          nullif(trim(coalesce(_just, '')), ''));
 $$;
 
 -- nada com histórico é apagado / histórico não muda
@@ -146,7 +206,8 @@ create trigger trg_membros_sem_delete before delete on checklist.membros
 -- ---------------------------------------------------------------------
 create table checklist.modelos (
   id              uuid primary key default gen_random_uuid(),
-  codigo          text unique,
+  rede_id         uuid not null references public.redes(id),
+  codigo          text,
   nome            text not null,
   descricao       text,
   categoria       text not null default 'rotina',
@@ -157,6 +218,25 @@ create table checklist.modelos (
 );
 create trigger trg_modelos_sem_delete before delete on checklist.modelos
   for each row execute function checklist._bloqueia_delete();
+-- código único POR EMPRESA (cada empresa tem os seus checklists)
+create unique index modelos_codigo_por_rede on checklist.modelos (rede_id, codigo) where codigo is not null;
+create index modelos_rede_idx on checklist.modelos (rede_id);
+
+create or replace function checklist.rede_do_modelo(_modelo uuid)
+returns uuid language sql stable security definer set search_path = checklist, public as $$
+  select m.rede_id from checklist.modelos m where m.id = _modelo;
+$$;
+
+-- o modelo não muda de empresa
+create or replace function checklist._modelo_protege()
+returns trigger language plpgsql as $$
+begin
+  if new.rede_id <> old.rede_id then raise exception 'O checklist não muda de empresa.' using errcode = 'P0001'; end if;
+  return new;
+end;
+$$;
+create trigger trg_modelo_protege before update on checklist.modelos
+  for each row execute function checklist._modelo_protege();
 
 create table checklist.modelo_versoes (
   id            uuid primary key default gen_random_uuid(),
@@ -202,7 +282,7 @@ create or replace function checklist.criar_rascunho(_modelo uuid)
 returns uuid language plpgsql security definer set search_path = checklist, public as $$
 declare v_id uuid; v_ult record;
 begin
-  if not checklist.e_gestor() then raise exception 'Só o gestor edita modelos.' using errcode = '42501'; end if;
+  if not checklist.e_gestor(checklist.rede_do_modelo(_modelo)) then raise exception 'Só o gestor da empresa edita checklists.' using errcode = '42501'; end if;
   select id into v_id from checklist.modelo_versoes where modelo_id = _modelo and status = 'rascunho';
   if v_id is not null then return v_id; end if;
   select * into v_ult from checklist.modelo_versoes where modelo_id = _modelo order by numero desc limit 1;
@@ -217,9 +297,9 @@ create or replace function checklist.publicar_versao(_versao uuid)
 returns void language plpgsql security definer set search_path = checklist, public as $$
 declare v record; v_ant record;
 begin
-  if not checklist.e_gestor() then raise exception 'Só o gestor publica modelos.' using errcode = '42501'; end if;
   select * into v from checklist.modelo_versoes where id = _versao for update;
   if v is null then raise exception 'Versão não encontrada.'; end if;
+  if not checklist.e_gestor(checklist.rede_do_modelo(v.modelo_id)) then raise exception 'Só o gestor da empresa publica checklists.' using errcode = '42501'; end if;
   if v.status = 'publicada' then return; end if; -- idempotente
   if v.status <> 'rascunho' then raise exception 'Só um rascunho pode ser publicado.' using errcode = 'P0001'; end if;
   if not exists (select 1 from jsonb_array_elements(v.conteudo -> 'secoes') s, jsonb_array_elements(s -> 'itens') i) then
@@ -232,7 +312,7 @@ begin
   update checklist.modelo_versoes set status = 'publicada', publicada_em = now(), publicada_por = auth.uid() where id = _versao;
   perform checklist._hist('modelo_versoes', _versao, null, 'publicada',
     case when v_ant is null then null else jsonb_build_object('versao_anterior', v_ant.numero) end,
-    jsonb_build_object('modelo_id', v.modelo_id, 'numero', v.numero));
+    jsonb_build_object('modelo_id', v.modelo_id, 'numero', v.numero), null, checklist.rede_do_modelo(v.modelo_id));
 end;
 $$;
 
@@ -346,10 +426,24 @@ $$;
 -- 5. SETORES, AGENDAMENTOS, TAREFAS
 -- ---------------------------------------------------------------------
 create table checklist.setores (
-  codigo text primary key,
-  nome   text not null,
-  ativo  boolean not null default true
+  rede_id uuid not null references public.redes(id),
+  codigo  text not null check (codigo ~ '^[a-z][a-z0-9_]*$'),
+  nome    text not null,
+  ativo   boolean not null default true,
+  primary key (rede_id, codigo)
 );
+
+-- setores padrão de uma empresa (idempotente)
+create or replace function checklist._setores_padrao(_rede uuid)
+returns void language sql security definer set search_path = checklist, public as $$
+  insert into checklist.setores (rede_id, codigo, nome)
+  select _rede, x.c, x.n from (values
+    ('frente_caixa', 'Frente de caixa'), ('ofertas', 'Ofertas e marketing'), ('padaria', 'Padaria'),
+    ('hortifruti', 'Hortifrúti'), ('acougue', 'Açougue'), ('laticinios', 'Laticínios'), ('frios', 'Frios'),
+    ('bebidas', 'Bebidas'), ('loja', 'Loja (geral)'), ('gestao', 'Gestão e resultados'), ('administrativo', 'Administrativo')
+  ) as x(c, n)
+  on conflict do nothing;
+$$;
 
 create table checklist.agendamentos (
   id                 uuid primary key default gen_random_uuid(),
@@ -395,6 +489,21 @@ create table checklist.tarefas (
 create index tarefas_loja_data_idx on checklist.tarefas (loja_id, data_ref);
 create trigger trg_tarefas_sem_delete before delete on checklist.tarefas
   for each row execute function checklist._bloqueia_delete();
+
+-- a unidade precisa ser da MESMA EMPRESA do checklist (agendamentos, tarefas, execuções)
+create or replace function checklist._mesma_empresa()
+returns trigger language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if checklist.rede_da_loja(new.loja_id) is distinct from checklist.rede_do_modelo(new.modelo_id) then
+    raise exception 'A unidade é de outra empresa: este checklist não vale para ela.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_agendamentos_mesma_empresa before insert or update of loja_id, modelo_id on checklist.agendamentos
+  for each row execute function checklist._mesma_empresa();
+create trigger trg_tarefas_mesma_empresa before insert or update of loja_id, modelo_id on checklist.tarefas
+  for each row execute function checklist._mesma_empresa();
 
 -- o agendamento vale para a data? (data local de São Paulo)
 create or replace function checklist.agenda_vale(_a checklist.agendamentos, _data date)
@@ -511,6 +620,8 @@ end;
 $$;
 create trigger trg_execucao_valida before insert on checklist.execucoes
   for each row execute function checklist._execucao_valida();
+create trigger trg_execucoes_mesma_empresa before insert or update of loja_id, modelo_id on checklist.execucoes
+  for each row execute function checklist._mesma_empresa();
 
 create table checklist.respostas (
   id            uuid primary key,
@@ -557,6 +668,19 @@ create unique index planos_execucao_item_uq on checklist.planos_acao (execucao_i
 create index planos_loja_idx on checklist.planos_acao (loja_id, status);
 create trigger trg_planos_sem_delete before delete on checklist.planos_acao
   for each row execute function checklist._bloqueia_delete();
+
+-- plano de uma execução fica na unidade (e na empresa) da execução
+create or replace function checklist._plano_mesma_empresa()
+returns trigger language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if new.execucao_id is not null and not exists (select 1 from checklist.execucoes e where e.id = new.execucao_id and e.loja_id = new.loja_id) then
+    raise exception 'O plano precisa ser da mesma unidade da execução.' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_planos_mesma_empresa before insert or update of loja_id, execucao_id on checklist.planos_acao
+  for each row execute function checklist._plano_mesma_empresa();
 
 create table checklist.fotos (
   id           uuid primary key,
@@ -687,7 +811,8 @@ $$;
 create or replace function checklist._responsavel_padrao(_loja uuid)
 returns uuid language sql stable security definer set search_path = checklist, public as $$
   select m.usuario_id from checklist.membros m
-  where m.loja_id = _loja and m.ativo and m.perfil in ('supervisor', 'gestor')
+  where m.ativo and ((m.loja_id = _loja and m.perfil = 'supervisor')
+                  or (m.loja_id is null and m.perfil = 'gestor' and m.rede_id = checklist.rede_da_loja(_loja)))
   order by checklist.nivel(m.perfil), m.criado_em limit 1;
 $$;
 
@@ -892,7 +1017,8 @@ begin
   if p.prazo is not distinct from coalesce(_prazo, p.prazo) and p.responsavel_id is not distinct from _responsavel then return; end if;
   if trim(coalesce(_justificativa, '')) = '' then raise exception 'Trocar prazo ou responsável exige justificativa.' using errcode = 'P0001'; end if;
   if p.status in ('concluido', 'cancelado') then raise exception 'Plano encerrado não pode ser alterado.' using errcode = 'P0001'; end if;
-  if _responsavel is not null and not exists (select 1 from checklist.membros m where m.usuario_id = _responsavel and m.loja_id = p.loja_id and m.ativo) then
+  if _responsavel is not null and not exists (select 1 from checklist.membros m where m.usuario_id = _responsavel and m.ativo
+       and (m.loja_id = p.loja_id or (m.loja_id is null and m.rede_id = checklist.rede_da_loja(p.loja_id)))) then
     raise exception 'O responsável precisa ser da equipe da unidade.' using errcode = 'P0001';
   end if;
   update checklist.planos_acao set prazo = coalesce(_prazo, prazo), responsavel_id = _responsavel, atualizado_em = now() where id = _id;
@@ -937,10 +1063,11 @@ from checklist.planos_acao p;
 -- ---------------------------------------------------------------------
 -- 9. DASHBOARD E RELATÓRIOS (só unidades onde o usuário é supervisor+)
 -- ---------------------------------------------------------------------
-create or replace function checklist.dashboard(_de date, _ate date, _loja uuid default null)
+create or replace function checklist.dashboard(_de date, _ate date, _loja uuid default null, _rede uuid default null)
 returns jsonb language sql stable security definer set search_path = checklist, public as $$
   with lojas as (
-    select l.id from public.lojas l where (_loja is null or l.id = _loja) and checklist.pode(l.id, 'supervisor')
+    select l.id from public.lojas l
+    where (_loja is null or l.id = _loja) and (_rede is null or l.rede_id = _rede) and checklist.pode(l.id, 'supervisor')
   ),
   t as (
     select t.*, (t.concluida_em is null and t.cancelada_em is null and t.prazo < now()) atrasada
@@ -985,12 +1112,13 @@ returns jsonb language sql stable security definer set search_path = checklist, 
   );
 $$;
 
-create or replace function checklist.relatorio_execucoes(_de date, _ate date, _loja uuid default null)
+create or replace function checklist.relatorio_execucoes(_de date, _ate date, _loja uuid default null, _rede uuid default null)
 returns table (execucao_id uuid, loja text, modelo text, versao int, pessoa text, data date, inicio timestamptz, fim timestamptz,
                duracao_seg int, status text, pontuacao numeric, nao_conformes bigint, planos bigint)
 language sql stable security definer set search_path = checklist, public as $$
   select e.id, l.nome, m.nome, v.numero,
-         coalesce((select mb.nome from checklist.membros mb where mb.usuario_id = e.usuario_id and mb.loja_id = e.loja_id), 'Usuário'),
+         coalesce((select mb.nome from checklist.membros mb where mb.usuario_id = e.usuario_id and mb.rede_id = l.rede_id
+                   order by (mb.loja_id = e.loja_id) desc nulls last limit 1), 'Usuário'),
          (e.inicio_em at time zone 'America/Sao_Paulo')::date, e.inicio_em, e.fim_em, e.duracao_seg, e.status, e.pontuacao,
          (select count(*) from checklist.respostas r where r.execucao_id = e.id and r.nao_conforme),
          (select count(*) from checklist.planos_acao p where p.execucao_id = e.id)
@@ -998,7 +1126,7 @@ language sql stable security definer set search_path = checklist, public as $$
   join public.lojas l on l.id = e.loja_id
   join checklist.modelos m on m.id = e.modelo_id
   join checklist.modelo_versoes v on v.id = e.versao_id
-  where (_loja is null or e.loja_id = _loja) and checklist.pode(e.loja_id, 'supervisor')
+  where (_loja is null or e.loja_id = _loja) and (_rede is null or l.rede_id = _rede) and checklist.pode(e.loja_id, 'supervisor')
     and (e.inicio_em at time zone 'America/Sao_Paulo')::date between _de and _ate
   order by e.inicio_em;
 $$;
@@ -1019,31 +1147,37 @@ alter table checklist.planos_acao    enable row level security;
 alter table checklist.fotos          enable row level security;
 
 -- membros: cada um vê a si; supervisor+ vê a equipe da unidade; gestor grava
+-- membros: cada um vê a si; supervisor vê a equipe da unidade; todos da empresa veem os gestores dela; gestor da empresa grava
 create policy membros_ler on checklist.membros for select to authenticated
-  using (usuario_id = auth.uid() or checklist.pode(loja_id, 'supervisor'));
+  using (usuario_id = auth.uid() or checklist.e_gestor(rede_id)
+      or (loja_id is not null and checklist.pode(loja_id, 'supervisor'))
+      or (loja_id is null and checklist.na_rede(rede_id)));
 create policy membros_inserir on checklist.membros for insert to authenticated
-  with check (checklist.pode(loja_id, 'gestor'));
+  with check (checklist.e_gestor(rede_id));
 create policy membros_editar on checklist.membros for update to authenticated
-  using (checklist.pode(loja_id, 'gestor')) with check (checklist.pode(loja_id, 'gestor'));
+  using (checklist.e_gestor(rede_id)) with check (checklist.e_gestor(rede_id));
 
 create policy historico_ler on checklist.historico for select to authenticated
-  using (autor = auth.uid() or (loja_id is not null and checklist.pode(loja_id, 'supervisor')) or (loja_id is null and checklist.e_gestor()));
+  using (autor = auth.uid() or (loja_id is not null and checklist.pode(loja_id, 'supervisor'))
+      or (loja_id is null and rede_id is not null and checklist.e_gestor(rede_id)));
 
-create policy modelos_ler on checklist.modelos for select to authenticated using (true);
-create policy modelos_inserir on checklist.modelos for insert to authenticated with check (checklist.e_gestor());
-create policy modelos_editar on checklist.modelos for update to authenticated using (checklist.e_gestor()) with check (checklist.e_gestor());
+-- modelos: só a própria empresa (admin: todas)
+create policy modelos_ler on checklist.modelos for select to authenticated using (checklist.na_rede(rede_id));
+create policy modelos_inserir on checklist.modelos for insert to authenticated with check (checklist.e_gestor(rede_id));
+create policy modelos_editar on checklist.modelos for update to authenticated using (checklist.e_gestor(rede_id)) with check (checklist.e_gestor(rede_id));
 
 create policy versoes_ler on checklist.modelo_versoes for select to authenticated
-  using (status <> 'rascunho' or checklist.e_gestor());
+  using (checklist.na_rede(checklist.rede_do_modelo(modelo_id))
+     and (status <> 'rascunho' or checklist.e_gestor(checklist.rede_do_modelo(modelo_id))));
 create policy versoes_inserir on checklist.modelo_versoes for insert to authenticated
-  with check (checklist.e_gestor() and status = 'rascunho');
+  with check (checklist.e_gestor(checklist.rede_do_modelo(modelo_id)) and status = 'rascunho');
 create policy versoes_editar on checklist.modelo_versoes for update to authenticated
-  using (checklist.e_gestor() and status = 'rascunho') with check (status = 'rascunho');
+  using (checklist.e_gestor(checklist.rede_do_modelo(modelo_id)) and status = 'rascunho') with check (status = 'rascunho');
 create policy versoes_apagar_rascunho on checklist.modelo_versoes for delete to authenticated
-  using (checklist.e_gestor() and status = 'rascunho');
+  using (checklist.e_gestor(checklist.rede_do_modelo(modelo_id)) and status = 'rascunho');
 
-create policy setores_ler on checklist.setores for select to authenticated using (true);
-create policy setores_gravar on checklist.setores for all to authenticated using (checklist.e_gestor()) with check (checklist.e_gestor());
+create policy setores_ler on checklist.setores for select to authenticated using (checklist.na_rede(rede_id));
+create policy setores_gravar on checklist.setores for all to authenticated using (checklist.e_gestor(rede_id)) with check (checklist.e_gestor(rede_id));
 
 create policy agend_ler on checklist.agendamentos for select to authenticated
   using (checklist.meu_perfil(loja_id) is not null);
@@ -1129,11 +1263,7 @@ create policy "checklist fotos: membro le" on storage.objects for select to auth
 -- ---------------------------------------------------------------------
 -- 13. SETORES iniciais + agenda diária automática (se pg_cron existir)
 -- ---------------------------------------------------------------------
-insert into checklist.setores (codigo, nome) values
-  ('frente_caixa', 'Frente de caixa'), ('ofertas', 'Ofertas e marketing'), ('padaria', 'Padaria'),
-  ('hortifruti', 'Hortifrúti'), ('acougue', 'Açougue'), ('laticinios', 'Laticínios'), ('frios', 'Frios'),
-  ('bebidas', 'Bebidas'), ('loja', 'Loja (geral)'), ('gestao', 'Gestão e resultados'), ('administrativo', 'Administrativo')
-on conflict do nothing;
+select checklist._setores_padrao(r.id) from public.redes r;
 
 do $$
 begin
@@ -1141,3 +1271,172 @@ begin
     perform cron.schedule('checklist_gerar_tarefas', '5 3 * * *', 'select checklist.gerar_tarefas()'); -- 00:05 em São Paulo (03:05 UTC)
   end if;
 end $$;
+
+-- ---------------------------------------------------------------------
+-- 14. EDITOR DE CHECKLISTS, EMPRESAS E ACESSOS (etapa 12 – multiempresa)
+-- ---------------------------------------------------------------------
+-- checklist novo, do zero: modelo + versão 1 em rascunho (vazia)
+create or replace function checklist.criar_modelo(_rede uuid, _nome text, _descricao text, _categoria text, _perfil text)
+returns uuid language plpgsql security definer set search_path = checklist, public as $$
+declare v_id uuid;
+begin
+  if not checklist.e_gestor(_rede) then raise exception 'Só o gestor da empresa cria checklists.' using errcode = '42501'; end if;
+  if trim(coalesce(_nome, '')) = '' then raise exception 'Informe o nome do checklist.' using errcode = 'P0001'; end if;
+  insert into checklist.modelos (rede_id, nome, descricao, categoria, perfil_executor)
+  values (_rede, trim(_nome), nullif(trim(coalesce(_descricao, '')), ''), coalesce(nullif(_categoria, ''), 'diaria'), coalesce(_perfil, 'operador'))
+  returning id into v_id;
+  insert into checklist.modelo_versoes (modelo_id, numero, status, conteudo) values (v_id, 1, 'rascunho', '{"secoes": []}');
+  perform checklist._hist('modelos', v_id, null, 'criado', null, jsonb_build_object('nome', _nome), null, _rede);
+  return v_id;
+end;
+$$;
+
+-- muda nome/descrição/perfil do checklist (a versão publicada continua igual)
+create or replace function checklist.editar_modelo(_modelo uuid, _nome text, _descricao text, _categoria text, _perfil text)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if not checklist.e_gestor(checklist.rede_do_modelo(_modelo)) then raise exception 'Só o gestor da empresa edita checklists.' using errcode = '42501'; end if;
+  if trim(coalesce(_nome, '')) = '' then raise exception 'Informe o nome do checklist.' using errcode = 'P0001'; end if;
+  update checklist.modelos set nome = trim(_nome), descricao = nullif(trim(coalesce(_descricao, '')), ''),
+    categoria = coalesce(nullif(_categoria, ''), categoria), perfil_executor = coalesce(_perfil, perfil_executor)
+  where id = _modelo;
+end;
+$$;
+
+-- cópia de um conjunto de checklists (mesma empresa ou outra): modelos NOVOS, versão 1 em rascunho.
+-- O conteúdo é copiado por valor: mexer na cópia NUNCA altera a original.
+create or replace function checklist._copiar(_modelo uuid, _para uuid, _nome text)
+returns uuid language plpgsql security definer set search_path = checklist, public as $$
+declare m checklist.modelos; v_cont jsonb; v_id uuid; v_cod text;
+begin
+  select * into m from checklist.modelos where id = _modelo;
+  select conteudo into v_cont from checklist.modelo_versoes where modelo_id = _modelo
+   order by (status = 'publicada') desc, numero desc limit 1;
+  v_cod := m.codigo;
+  if v_cod is not null and exists (select 1 from checklist.modelos x where x.rede_id = _para and x.codigo = v_cod) then
+    v_cod := v_cod || '_' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 6);
+  end if;
+  insert into checklist.modelos (rede_id, codigo, nome, descricao, categoria, perfil_executor)
+  values (_para, v_cod, coalesce(nullif(trim(coalesce(_nome, '')), ''), m.nome), m.descricao, m.categoria, m.perfil_executor)
+  returning id into v_id;
+  insert into checklist.modelo_versoes (modelo_id, numero, status, conteudo) values (v_id, 1, 'rascunho', coalesce(v_cont, '{"secoes": []}'));
+  perform checklist._hist('modelos', v_id, null, 'copiado', jsonb_build_object('origem', _modelo, 'rede_origem', m.rede_id), null, null, _para);
+  return v_id;
+end;
+$$;
+
+create or replace function checklist.duplicar_modelo(_modelo uuid, _nome text default null)
+returns uuid language plpgsql security definer set search_path = checklist, public as $$
+declare v_rede uuid := checklist.rede_do_modelo(_modelo);
+begin
+  if not checklist.e_gestor(v_rede) then raise exception 'Só o gestor da empresa duplica checklists.' using errcode = '42501'; end if;
+  return checklist._copiar(_modelo, v_rede, coalesce(_nome, (select nome || ' (cópia)' from checklist.modelos where id = _modelo)));
+end;
+$$;
+
+-- copia checklists de outra empresa (todos ou os escolhidos). Admin, ou gestor das DUAS empresas.
+create or replace function checklist.copiar_modelos(_de uuid, _para uuid, _modelos uuid[] default null)
+returns int language plpgsql security definer set search_path = checklist, public as $$
+declare r record; n int := 0;
+begin
+  if not (public.is_admin() or (checklist.e_gestor(_de) and checklist.e_gestor(_para))) then
+    raise exception 'Só o admin (ou quem é gestor das duas empresas) copia checklists entre empresas.' using errcode = '42501';
+  end if;
+  if _de = _para then raise exception 'Escolha uma empresa de origem diferente.' using errcode = 'P0001'; end if;
+  for r in select id from checklist.modelos where rede_id = _de and ativo and (_modelos is null or id = any (_modelos)) order by nome loop
+    perform checklist._copiar(r.id, _para, null);
+    n := n + 1;
+  end loop;
+  return n;
+end;
+$$;
+
+-- arquiva (não apaga): some das listas e não gera mais tarefas
+create or replace function checklist.arquivar_modelo(_modelo uuid, _arquivar boolean default true)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+declare v_rede uuid := checklist.rede_do_modelo(_modelo);
+begin
+  if not checklist.e_gestor(v_rede) then raise exception 'Só o gestor da empresa arquiva checklists.' using errcode = '42501'; end if;
+  update checklist.modelos set ativo = not coalesce(_arquivar, true) where id = _modelo;
+  if coalesce(_arquivar, true) then update checklist.agendamentos set ativo = false where modelo_id = _modelo; end if;
+  perform checklist._hist('modelos', _modelo, null, case when coalesce(_arquivar, true) then 'arquivado' else 'reativado' end, null, null, null, v_rede);
+end;
+$$;
+
+-- empresa nova no Check List: setores padrão (+ cópia opcional, feita por copiar_modelos)
+create or replace function checklist.preparar_empresa(_rede uuid)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+begin
+  if not checklist.e_gestor(_rede) then raise exception 'Só o admin ou o gestor da empresa.' using errcode = '42501'; end if;
+  perform checklist._setores_padrao(_rede);
+end;
+$$;
+
+-- ---------------------------------------------------------------------
+-- ACESSOS CENTRAIS: telas do Check List conforme o perfil (public.usuario_telas e usuario_permissoes)
+-- ---------------------------------------------------------------------
+create or replace function checklist.telas_do_perfil(_perfil text)
+returns text[] language sql immutable as $$
+  select case _perfil
+    when 'operador' then array['checklist.hoje', 'checklist.planos']
+    when 'supervisor' then array['checklist.hoje', 'checklist.planos', 'checklist.loja', 'checklist.dashboard', 'checklist.relatorios', 'checklist.agendamentos']
+    when 'gestor' then array['checklist.hoje', 'checklist.planos', 'checklist.loja', 'checklist.dashboard', 'checklist.relatorios', 'checklist.agendamentos',
+                             'checklist.modelos', 'checklist.equipe']
+    else array[]::text[] end;
+$$;
+
+-- grava as telas (e as ações por unidade) do perfil. Só soma: nunca tira acesso de outro sistema.
+create or replace function checklist._liberar_acesso(_usuario uuid, _rede uuid, _loja uuid, _perfil text)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+begin
+  insert into public.usuario_telas (user_id, tela_codigo, permitido)
+  select _usuario, t.codigo, true from public.telas t
+  where t.codigo = any (checklist.telas_do_perfil(_perfil)) and not t.somente_admin
+  on conflict (user_id, tela_codigo) do update set permitido = true;
+
+  insert into public.usuario_permissoes (user_id, unidade_id, tela_codigo, acao, permitido)
+  select _usuario, l.id, ta.tela_codigo, ta.acao, true
+  from public.lojas l
+  join public.tela_acoes ta on ta.tela_codigo = any (checklist.telas_do_perfil(_perfil))
+  where l.ativo and 'checklist' = any (l.sistemas)
+    and (case when _perfil = 'gestor' then l.rede_id = _rede else l.id = _loja end)
+  on conflict (user_id, unidade_id, tela_codigo, acao) do update set permitido = true;
+end;
+$$;
+
+-- o admin libera as telas de quem já está na equipe (botão na tela Equipe)
+create or replace function checklist.liberar_acesso(_membro uuid)
+returns void language plpgsql security definer set search_path = checklist, public as $$
+declare m checklist.membros;
+begin
+  if not public.is_admin() then raise exception 'Só o admin libera telas (regra do Ecossistema).' using errcode = '42501'; end if;
+  select * into m from checklist.membros where id = _membro;
+  if m.id is null then raise exception 'Pessoa não está na equipe.' using errcode = 'P0002'; end if;
+  perform checklist._liberar_acesso(m.usuario_id, m.rede_id, m.loja_id, m.perfil);
+end;
+$$;
+
+-- usado SÓ pela Edge Function admin-usuarios (service_role), logo depois de criar o login
+create or replace function checklist._incluir_colaborador(_usuario uuid, _nome text, _rede uuid, _loja uuid, _perfil text)
+returns uuid language plpgsql security definer set search_path = checklist, public as $$
+declare v_id uuid; v_loja uuid := case when _perfil = 'gestor' then null else _loja end;
+begin
+  if _perfil not in ('operador', 'supervisor', 'gestor') then raise exception 'Perfil inválido.' using errcode = 'P0001'; end if;
+  if _perfil <> 'gestor' and v_loja is null then raise exception 'Escolha a unidade.' using errcode = 'P0001'; end if;
+  insert into checklist.membros (usuario_id, rede_id, loja_id, perfil, nome)
+  values (_usuario, _rede, v_loja, _perfil, trim(_nome))
+  on conflict (usuario_id, rede_id, coalesce(loja_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  do update set perfil = excluded.perfil, nome = excluded.nome, ativo = true
+  returning id into v_id;
+  perform checklist._liberar_acesso(_usuario, _rede, v_loja, _perfil);
+  return v_id;
+end;
+$$;
+
+grant execute on all functions in schema checklist to authenticated, service_role;
+revoke execute on function checklist._incluir_colaborador(uuid, text, uuid, uuid, text) from public, anon, authenticated;
+revoke execute on function checklist._liberar_acesso(uuid, uuid, uuid, text) from public, anon, authenticated;
+revoke execute on function checklist._copiar(uuid, uuid, text) from public, anon, authenticated;
+revoke execute on function checklist._setores_padrao(uuid) from public, anon, authenticated;
+grant execute on function checklist._incluir_colaborador(uuid, text, uuid, uuid, text) to service_role;
+grant execute on function checklist._liberar_acesso(uuid, uuid, uuid, text) to service_role;

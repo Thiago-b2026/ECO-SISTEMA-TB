@@ -9,6 +9,7 @@ const U = {
   opB: "00000000-0000-4000-8000-000000000004",
   supB: "00000000-0000-4000-8000-000000000005",
 };
+const REDE_A = "40000000-0000-4000-8000-00000000000a";
 const LOJA_A = "10000000-0000-4000-8000-00000000000a";
 const LOJA_B = "10000000-0000-4000-8000-00000000000b";
 const MODELO = "20000000-0000-4000-8000-000000000001";
@@ -48,13 +49,16 @@ beforeAll(async () => {
   db = await novoBanco();
   await db.exec(`
     insert into auth.users (id) values ('${U.gestor}'), ('${U.sup}'), ('${U.op}'), ('${U.opB}'), ('${U.supB}');
-    insert into public.lojas (id, nome) values ('${LOJA_A}', 'Braz Matriz'), ('${LOJA_B}', 'Braz Filial');
-    insert into checklist.membros (usuario_id, loja_id, perfil, nome) values
-      ('${U.gestor}', '${LOJA_A}', 'gestor', 'Gestora'), ('${U.gestor}', '${LOJA_B}', 'gestor', 'Gestora'),
-      ('${U.sup}', '${LOJA_A}', 'supervisor', 'Líder A'), ('${U.op}', '${LOJA_A}', 'operador', 'Fiscal A'),
-      ('${U.opB}', '${LOJA_B}', 'operador', 'Fiscal B'), ('${U.supB}', '${LOJA_B}', 'supervisor', 'Líder B');
+    insert into public.redes (id, nome) values ('${REDE_A}', 'REDE TESTE A');
+    insert into public.lojas (id, nome, rede_id, cnpj) values ('${LOJA_A}', 'Braz Matriz', '${REDE_A}', '11111111000111'), ('${LOJA_B}', 'Braz Filial', '${REDE_A}', '11111111000292');
+    select checklist._setores_padrao('${REDE_A}');
+    -- gestor vale para a EMPRESA (sem unidade); supervisor e operador, para uma unidade
+    insert into checklist.membros (usuario_id, rede_id, loja_id, perfil, nome) values
+      ('${U.gestor}', '${REDE_A}', null, 'gestor', 'Gestora'),
+      ('${U.sup}', '${REDE_A}', '${LOJA_A}', 'supervisor', 'Líder A'), ('${U.op}', '${REDE_A}', '${LOJA_A}', 'operador', 'Fiscal A'),
+      ('${U.opB}', '${REDE_A}', '${LOJA_B}', 'operador', 'Fiscal B'), ('${U.supB}', '${REDE_A}', '${LOJA_B}', 'supervisor', 'Líder B');
   `);
-  await sql(U.gestor, `insert into checklist.modelos (id, codigo, nome, perfil_executor) values ($1, 'teste', 'Modelo teste', 'operador')`, [MODELO]);
+  await sql(U.gestor, `insert into checklist.modelos (id, rede_id, codigo, nome, perfil_executor) values ($1, $2, 'teste', 'Modelo teste', 'operador')`, [MODELO, REDE_A]);
   const [{ id }] = await sql(U.gestor, `select checklist.criar_rascunho($1) id`, [MODELO]) as { id: string }[];
   versao1 = id;
   await sql(U.gestor, `update checklist.modelo_versoes set conteudo = $2 where id = $1`, [versao1, JSON.stringify(CONTEUDO_V1)]);
@@ -326,7 +330,11 @@ describe("carga dos modelos reais", () => {
     const [{ n }] = await sql(null, `select count(*)::int n from checklist.modelo_versoes v, checklist._itens(v.conteudo) i
       join checklist.modelos m on true where m.id = v.modelo_id and m.codigo <> 'teste'`);
     expect(n).toBe(111);
-    expect(await sql(U.op, `select codigo from checklist.modelos where codigo = 'fiscal_manha'`)).toHaveLength(1);
+    const [{ rede }] = await sql(null, `select rede_id::text rede from checklist.modelos where codigo = 'fiscal_manha'`);
+    const [{ supermix }] = await sql(null, `select id::text supermix from public.redes where nome = 'SUPERMIX BRAZ'`);
+    expect(rede).toBe(supermix);
+    expect(await sql(U.op, `select codigo from checklist.modelos where codigo = 'fiscal_manha'`)).toHaveLength(0);
+    expect((await sql(null, `select count(*)::int n from checklist.setores where rede_id = $1`, [supermix]))[0].n).toBe(11);
   });
 });
 
@@ -341,10 +349,10 @@ describe("id do plano igual no celular e no banco", () => {
 describe("equipe (definir_membro)", () => {
   it("só o gestor define; e-mail sem login dá erro claro; não cria conta", async () => {
     await db.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-000000000009', 'novo@braz.com')`);
-    await deve(U.sup, `select checklist.definir_membro('novo@braz.com', $1, 'operador', 'Novo')`, [LOJA_A], "Só o gestor");
-    await deve(U.gestor, `select checklist.definir_membro('ninguem@braz.com', $1, 'operador', 'X')`, [LOJA_A], "Peça ao admin");
-    await sql(U.gestor, `select checklist.definir_membro('NOVO@braz.com', $1, 'operador', 'Novo Fiscal')`, [LOJA_A]);
-    await sql(U.gestor, `select checklist.definir_membro('novo@braz.com', $1, 'supervisor', 'Novo Líder')`, [LOJA_A]);
+    await deve(U.sup, `select checklist.definir_membro('novo@braz.com', $1, $2, 'operador', 'Novo')`, [REDE_A, LOJA_A], "Só o gestor");
+    await deve(U.gestor, `select checklist.definir_membro('ninguem@braz.com', $1, $2, 'operador', 'X')`, [REDE_A, LOJA_A], "Peça ao admin");
+    await sql(U.gestor, `select checklist.definir_membro('NOVO@braz.com', $1, $2, 'operador', 'Novo Fiscal')`, [REDE_A, LOJA_A]);
+    await sql(U.gestor, `select checklist.definir_membro('novo@braz.com', $1, $2, 'supervisor', 'Novo Líder')`, [REDE_A, LOJA_A]);
     const m = await sql(U.sup, `select perfil, nome from checklist.membros where usuario_id = '00000000-0000-4000-8000-000000000009'`);
     expect(m).toEqual([{ perfil: "supervisor", nome: "Novo Líder" }]);
     expect((await sql(null, `select count(*)::int n from auth.users`))[0].n).toBe(6);
@@ -353,13 +361,14 @@ describe("equipe (definir_membro)", () => {
 
 describe("equipe (alterar_membro)", () => {
   it("gestor muda perfil e inativa; não tira o próprio perfil; supervisor não altera", async () => {
-    await deve(U.sup, `select checklist.alterar_membro($1, $2, 'supervisor', true)`, [U.op, LOJA_A], "Só o gestor");
-    await deve(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', true)`, [U.gestor, LOJA_A], "próprio perfil");
-    await sql(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', false)`, [U.op, LOJA_A]);
+    const id = async (u: string) => (await sql(null, `select id from checklist.membros where usuario_id = $1 and rede_id = $2`, [u, REDE_A]))[0].id as string;
+    await deve(U.sup, `select checklist.alterar_membro($1, 'supervisor', true)`, [await id(U.op)], "Só o gestor");
+    await deve(U.gestor, `select checklist.alterar_membro($1, 'operador', true, $2)`, [await id(U.gestor), LOJA_A], "próprio perfil");
+    await sql(U.gestor, `select checklist.alterar_membro($1, 'operador', false)`, [await id(U.op)]);
     expect((await sql(null, `select ativo from checklist.membros where usuario_id = $1 and loja_id = $2`, [U.op, LOJA_A]))[0].ativo).toBe(false);
     // inativo não vê mais nada da loja
     expect(await sql(U.op, `select * from checklist.tarefas`)).toHaveLength(0);
-    await sql(U.gestor, `select checklist.alterar_membro($1, $2, 'operador', true)`, [U.op, LOJA_A]);
+    await sql(U.gestor, `select checklist.alterar_membro($1, 'operador', true)`, [await id(U.op)]);
     expect((await sql(U.op, `select * from checklist.tarefas`)).length).toBeGreaterThan(0);
   });
 });
