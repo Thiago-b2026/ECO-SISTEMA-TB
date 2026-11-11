@@ -6,11 +6,7 @@ import { ERRO_CONFIG } from "./data/conexao";
 import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
-import Agendamentos from "./pages/Agendamentos";
-import Empresas from "./pages/Empresas";
-import Equipe from "./pages/Equipe";
 import Login from "./pages/Login";
-import Modelos from "./pages/Modelos";
 import TarefasLoja from "./pages/TarefasLoja";
 import PlanoDetalhe from "./pages/PlanoDetalhe";
 import Planos from "./pages/Planos";
@@ -20,6 +16,11 @@ import { Carregando, Vazio } from "./ui/base";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
+// telas de configuração: só carregam quando abertas (o service worker guarda os pedaços para o uso offline)
+const Agendamentos = lazy(() => import("./pages/Agendamentos"));
+const Empresas = lazy(() => import("./pages/Empresas"));
+const Equipe = lazy(() => import("./pages/Equipe"));
+const Modelos = lazy(() => import("./pages/Modelos"));
 const tardio = (el: React.ReactNode) => <Suspense fallback={<Carregando />}>{el}</Suspense>;
 
 function Rotas() {
@@ -38,10 +39,10 @@ function Rotas() {
         <Route path="loja" element={<TarefasLoja />} />
         <Route path="dashboard" element={tardio(<Dashboard />)} />
         <Route path="relatorios" element={tardio(<Relatorios />)} />
-        <Route path="agendamentos" element={<Agendamentos />} />
-        <Route path="modelos" element={<Modelos />} />
-        <Route path="equipe" element={<Equipe />} />
-        <Route path="empresas" element={<Empresas />} />
+        <Route path="agendamentos" element={tardio(<Agendamentos />)} />
+        <Route path="modelos" element={tardio(<Modelos />)} />
+        <Route path="equipe" element={tardio(<Equipe />)} />
+        <Route path="empresas" element={tardio(<Empresas />)} />
         <Route path="*" element={<Vazio>Página não encontrada.</Vazio>} />
       </Route>
     </Routes>
