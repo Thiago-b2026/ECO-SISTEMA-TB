@@ -1,14 +1,15 @@
 // Gestão de usuários pelo admin (precisa da service_role, por isso fica no servidor).
 // Body:
 //  { acao: "criar", email, senha, nome, papel, lojas: string[], pessoa_id?: uuid }
+//  { acao: "criar", sistema: "checklist", email, senha, nome, rede_id, loja_id?, perfil }  (Check List:
+//     só o login + checklist.membros + telas do perfil; NÃO grava user_roles, usuario_lojas nem pessoas)
 //  { acao: "papel", user_id, papel }
 //  { acao: "ativo", user_id, ativo: boolean }
 //  { acao: "senha", user_id, senha }
 //  { acao: "motivos", user_id }  → { motivos: string[] } (por que não pode excluir; vazio = pode)
 //  { acao: "excluir", user_id }  → apaga o LOGIN (e permissões); o cadastro da pessoa continua
 import { adminClient, cors, exigirPapel, json } from "../_shared/ml.ts";
-
-const PAPEIS = ["admin", "gerente", "vendedor", "estoquista"];
+import { PAPEIS, criarUsuario, type ClienteAdmin } from "./criar.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -19,34 +20,8 @@ Deno.serve(async (req) => {
     const db = adminClient();
 
     if (body.acao === "criar") {
-      const email = String(body.email ?? "").trim().toLowerCase();
-      const senha = String(body.senha ?? "");
-      const nome = String(body.nome ?? "").trim();
-      if (!/^\S+@\S+\.\S+$/.test(email)) return json({ erro: "E-mail inválido." }, 400);
-      if (senha.length < 8) return json({ erro: "A senha precisa ter pelo menos 8 caracteres." }, 400);
-      if (!nome) return json({ erro: "Informe o nome." }, 400);
-      if (!PAPEIS.includes(body.papel)) return json({ erro: "Perfil inválido." }, 400);
-      const { data, error } = await db.auth.admin.createUser({
-        email,
-        password: senha,
-        email_confirm: true,
-        user_metadata: { nome },
-      });
-      if (error) return json({ erro: error.message.includes("already") ? "Já existe usuário com esse e-mail." : error.message }, 400);
-      const id = data.user.id;
-      await db.from("user_roles").upsert({ user_id: id, role: body.papel }, { onConflict: "user_id" });
-      const lojas: string[] = Array.isArray(body.lojas) ? body.lojas : [];
-      if (lojas.length) {
-        await db.from("usuario_lojas").delete().eq("user_id", id);
-        await db.from("usuario_lojas").insert(lojas.map((loja_id) => ({ user_id: id, loja_id })));
-      }
-      // Cadastro de Pessoas: liga o login à pessoa (ou cria a pessoa marcada como usuário)
-      if (body.pessoa_id) {
-        await db.from("pessoas").update({ user_id: id, eh_usuario: true, email }).eq("id", body.pessoa_id);
-      } else {
-        await db.from("pessoas").insert({ tipo: "F", nome, email, eh_usuario: true, user_id: id });
-      }
-      return json({ id });
+      const r = await criarUsuario(db as unknown as ClienteAdmin, body);
+      return json(r.corpo, r.status);
     }
 
     const alvo = String(body.user_id ?? "");
