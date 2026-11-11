@@ -1,6 +1,7 @@
 // MODO DEMONSTRAÇÃO: um "servidor" dentro do navegador (IndexedDB), com as MESMAS regras do banco
-// (RLS por unidade, versões imutáveis, pendências, pontuação, plano automático, fluxo do plano, histórico).
-// Serve para testar no celular sem tocar no banco de produção.
+// (multiempresa, RLS por empresa/unidade, versões imutáveis, pendências, pontuação, plano automático,
+// fluxo do plano, histórico). Serve para testar sem tocar no banco de produção.
+// Só abre no "npm run dev" ou com VITE_MODO_DEMO=1 (ver conexao.ts).
 import Dexie, { type Table } from "dexie";
 import { agendaVale } from "../domain/agenda";
 import { idPlano, md5Uuid, novoId } from "../domain/ids";
@@ -8,16 +9,17 @@ import { fator, itemVisivel, itensParaPlano, mapaRespostas, naoConforme, pendenc
 import { aplicarAcaoPlano, type AcaoPlano, type ArgsAcaoPlano } from "../domain/situacao";
 import { dataSP, diaSemana, instanteSP } from "../domain/tempo";
 import type { Agendamento, Execucao, Foto, Modelo, ModeloVersao, Perfil, PlanoAcao, Resposta, Tarefa } from "../domain/tipos";
+import { TELAS_APP, telasDoPerfil } from "../lib/telas";
 import { calcularDashboard, type RespostaCalculada } from "./dashboard-calc";
-import { MODELOS_SEED } from "./seed-modelos";
+import { MODELOS_SEED, SETORES } from "./seed-modelos";
 import {
-  ErroServidor, nivel, type Historico, type LinhaRelatorio, type LojaAcesso, type Membro, type NovoPlano, type Pacote,
-  type PacoteExecucao, type Servidor, type Sessao,
+  ErroServidor, nivel, type Empresa, type EmpresaCompleta, type Historico, type LinhaRelatorio, type LojaAcesso, type Membro,
+  type NovoColaborador, type NovoPlano, type Pacote, type PacoteExecucao, type Servidor, type Sessao, type Setor, type Unidade,
 } from "./servidor";
-import { telasDoPerfil } from "../lib/telas";
 
-interface Usuario { id: string; email: string; nome: string; senha: string }
-interface Loja { id: string; nome: string }
+interface Usuario { id: string; email: string; nome: string; senha: string; admin?: boolean }
+interface Rede { id: string; nome: string; ativo: boolean; ordem: number }
+interface Loja { id: string; nome: string; cnpj: string | null; rede_id: string | null; ativo: boolean; sistemas: string[] }
 type RespostaServ = Resposta & Partial<RespostaCalculada>;
 type ExecServ = Execucao & { motivo_cancelamento?: string | null; validado_em?: string | null };
 type PlanoServ = PlanoAcao & { atualizado_em?: string };
@@ -25,9 +27,11 @@ interface Arquivo { path: string; blob: Blob; mime: string }
 
 class BancoDemo extends Dexie {
   usuarios!: Table<Usuario, string>;
+  redes!: Table<Rede, string>;
   lojas!: Table<Loja, string>;
-  membros!: Table<Membro, [string, string]>;
-  modelos!: Table<Modelo & { codigo?: string }, string>;
+  membros!: Table<Membro, string>;
+  setores!: Table<Setor, [string, string]>;
+  modelos!: Table<Modelo, string>;
   versoes!: Table<ModeloVersao, string>;
   agendamentos!: Table<Agendamento, string>;
   tarefas!: Table<Tarefa, string>;
@@ -35,16 +39,18 @@ class BancoDemo extends Dexie {
   respostas!: Table<RespostaServ, string>;
   fotos!: Table<Foto & { loja_id: string; enviado_por: string }, string>;
   planos!: Table<PlanoServ, string>;
-  historico!: Table<Historico & { loja_id: string | null }, number>;
+  historico!: Table<Historico & { loja_id: string | null; rede_id: string | null }, number>;
   arquivos!: Table<Arquivo, string>;
 
   constructor(nome: string) {
     super(nome);
     this.version(1).stores({
       usuarios: "id, email",
-      lojas: "id",
-      membros: "[usuario_id+loja_id], loja_id, usuario_id",
-      modelos: "id",
+      redes: "id, nome",
+      lojas: "id, rede_id",
+      membros: "id, usuario_id, loja_id, rede_id",
+      setores: "[rede_id+codigo], rede_id",
+      modelos: "id, rede_id",
       versoes: "id, modelo_id",
       agendamentos: "id, loja_id",
       tarefas: "id, loja_id, data_ref, agendamento_id",
@@ -58,20 +64,33 @@ class BancoDemo extends Dexie {
   }
 }
 
+export const tipoDoCnpj = (cnpj: string | null | undefined): "matriz" | "filial" | null =>
+  cnpj && /^\d{14}$/.test(cnpj) ? (cnpj.slice(8, 12) === "0001" ? "matriz" : "filial") : null;
+
+export const REDES_DEMO: Rede[] = [
+  { id: md5Uuid("demo-rede:supermix"), nome: "SUPERMIX BRAZ", ativo: true, ordem: 20 },
+  { id: md5Uuid("demo-rede:exemplo2"), nome: "EMPRESA EXEMPLO 2", ativo: true, ordem: 90 },
+];
+const [SUPERMIX, EXEMPLO2] = REDES_DEMO.map((r) => r.id);
+
 export const LOJAS_DEMO: Loja[] = [
-  { id: md5Uuid("demo-loja:matriz"), nome: "Supermix Braz – Matriz (demo)" },
-  { id: md5Uuid("demo-loja:filial"), nome: "Supermix Braz – Filial (demo)" },
+  { id: md5Uuid("demo-loja:matriz"), nome: "Supermix Braz – Matriz (demo)", cnpj: "17890178000158", rede_id: SUPERMIX, ativo: true, sistemas: ["checklist"] },
+  { id: md5Uuid("demo-loja:filial"), nome: "Supermix Braz – Filial (demo)", cnpj: "17890178000239", rede_id: SUPERMIX, ativo: true, sistemas: ["checklist"] },
+  { id: md5Uuid("demo-loja:ex2-matriz"), nome: "Exemplo 2 – Matriz", cnpj: "22333444000110", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
+  { id: md5Uuid("demo-loja:ex2-filial"), nome: "Exemplo 2 – Filial", cnpj: "22333444000200", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
 ];
 const [MATRIZ, FILIAL] = LOJAS_DEMO.map((l) => l.id);
 
 export const USUARIOS_DEMO: (Usuario & { papel: string })[] = [
+  { id: md5Uuid("demo-user:admin"), email: "admin@demo.tb", nome: "Admin (Ecossistema TB)", senha: "demo", admin: true, papel: "Admin · todas as empresas, lojas e colaboradores" },
   { id: md5Uuid("demo-user:ana"), email: "ana@demo.braz", nome: "Ana (Fiscal – Matriz)", senha: "demo", papel: "Operador · fiscal de caixa" },
   { id: md5Uuid("demo-user:bruno"), email: "bruno@demo.braz", nome: "Bruno (Líder – Matriz)", senha: "demo", papel: "Supervisor · líder de loja" },
-  { id: md5Uuid("demo-user:carla"), email: "carla@demo.braz", nome: "Carla (Gestora)", senha: "demo", papel: "Gestor · todas as lojas" },
+  { id: md5Uuid("demo-user:carla"), email: "carla@demo.braz", nome: "Carla (Gestora)", senha: "demo", papel: "Gestor · empresa Supermix Braz" },
   { id: md5Uuid("demo-user:diego"), email: "diego@demo.braz", nome: "Diego (Fiscal – Filial)", senha: "demo", papel: "Operador · outra loja" },
   { id: md5Uuid("demo-user:elisa"), email: "elisa@demo.braz", nome: "Elisa (Líder – Filial)", senha: "demo", papel: "Supervisor · outra loja" },
+  { id: md5Uuid("demo-user:gabriel"), email: "gabriel@demo.ex2", nome: "Gabriel (Gestor – Exemplo 2)", senha: "demo", papel: "Gestor · outra empresa" },
 ];
-const [ANA, BRUNO, CARLA, DIEGO, ELISA] = USUARIOS_DEMO.map((u) => u.id);
+const [, ANA, BRUNO, CARLA, DIEGO, ELISA, GABRIEL] = USUARIOS_DEMO.map((u) => u.id);
 
 const CHAVE_SESSAO = "checklist-demo-sessao";
 const lerSessao = (): string | null => { try { return globalThis.localStorage?.getItem(CHAVE_SESSAO) ?? null; } catch { return null; } };
@@ -89,7 +108,7 @@ export class DemoServidor implements Servidor {
   /** relógio (os testes usam um relógio fixo) */
   agora: () => Date = () => new Date();
 
-  constructor(nomeBanco = "checklist-demo-servidor", usuarioInicial?: string | null) {
+  constructor(nomeBanco = "checklist-demo-servidor-v2", usuarioInicial?: string | null) {
     this.db = new BancoDemo(nomeBanco);
     this.usuario = usuarioInicial === undefined ? lerSessao() : usuarioInicial;
     this.pronto = this.semear();
@@ -97,21 +116,24 @@ export class DemoServidor implements Servidor {
 
   // ------------------------------------------------------------------ dados iniciais
   private async semear() {
-    if ((await this.db.lojas.count()) > 0) return;
+    if ((await this.db.redes.count()) > 0) return;
     await this.db.transaction("rw", this.db.tables, async () => {
+      await this.db.redes.bulkAdd(REDES_DEMO);
       await this.db.lojas.bulkAdd(LOJAS_DEMO);
       await this.db.usuarios.bulkAdd(USUARIOS_DEMO.map(({ papel: _p, ...u }) => u));
-      const m = (usuario_id: string, loja_id: string, perfil: Perfil): Membro => ({
-        usuario_id, loja_id, perfil, ativo: true, nome: USUARIOS_DEMO.find((u) => u.id === usuario_id)!.nome,
+      const m = (usuario_id: string, rede_id: string, loja_id: string | null, perfil: Perfil): Membro => ({
+        id: md5Uuid(`demo-membro:${usuario_id}:${rede_id}:${loja_id}`), usuario_id, rede_id, loja_id, perfil, ativo: true,
+        nome: USUARIOS_DEMO.find((u) => u.id === usuario_id)!.nome,
       });
       await this.db.membros.bulkAdd([
-        m(ANA, MATRIZ, "operador"), m(BRUNO, MATRIZ, "supervisor"), m(CARLA, MATRIZ, "gestor"), m(CARLA, FILIAL, "gestor"),
-        m(DIEGO, FILIAL, "operador"), m(ELISA, FILIAL, "supervisor"),
+        m(ANA, SUPERMIX, MATRIZ, "operador"), m(BRUNO, SUPERMIX, MATRIZ, "supervisor"), m(CARLA, SUPERMIX, null, "gestor"),
+        m(DIEGO, SUPERMIX, FILIAL, "operador"), m(ELISA, SUPERMIX, FILIAL, "supervisor"), m(GABRIEL, EXEMPLO2, null, "gestor"),
       ]);
+      for (const r of REDES_DEMO) await this.setoresPadrao(r.id);
       for (const s of MODELOS_SEED) {
         const id = md5Uuid(`checklist-modelo:${s.codigo}`);
         const vid = md5Uuid(`checklist-versao:${s.codigo}:1`);
-        await this.db.modelos.add({ id, codigo: s.codigo, nome: s.nome, descricao: s.descricao, categoria: s.categoria, perfil_executor: s.perfil_executor, ativo: true });
+        await this.db.modelos.add({ id, rede_id: SUPERMIX, codigo: s.codigo, nome: s.nome, descricao: s.descricao, categoria: s.categoria, perfil_executor: s.perfil_executor, ativo: true });
         await this.db.versoes.add({ id: vid, modelo_id: id, numero: 1, status: "publicada", conteudo: s.conteudo, publicada_em: new Date().toISOString() });
         const lojas = ["fiscal_manha", "fiscal_tarde", "lider_manha"].includes(s.codigo) ? [MATRIZ, FILIAL] : [MATRIZ];
         for (const loja of lojas) {
@@ -126,6 +148,12 @@ export class DemoServidor implements Servidor {
     });
   }
 
+  private async setoresPadrao(rede: string) {
+    for (const [codigo, nome] of Object.entries(SETORES)) {
+      if (!(await this.db.setores.get([rede, codigo]))) await this.db.setores.add({ rede_id: rede, codigo, nome, ativo: true });
+    }
+  }
+
   /** Apaga tudo e recomeça (botão "Reiniciar demonstração"). */
   async reiniciar() {
     await this.db.delete();
@@ -134,41 +162,73 @@ export class DemoServidor implements Servidor {
     await this.pronto;
   }
 
-  // ------------------------------------------------------------------ "RLS"
+  // ------------------------------------------------------------------ "RLS" (igual ao banco)
   private async uid(): Promise<string> {
     await this.pronto;
     if (!this.usuario) falha("Sem login.");
     return this.usuario!;
   }
 
+  private async eAdmin(u?: string) {
+    const id = u ?? (await this.uid());
+    return !!(await this.db.usuarios.get(id))?.admin;
+  }
+
+  private async redeDaLoja(loja: string) {
+    return (await this.db.lojas.get(loja))?.rede_id ?? null;
+  }
+
+  private async redeDoModelo(modelo: string) {
+    return (await this.db.modelos.get(modelo))?.rede_id ?? null;
+  }
+
+  private async membrosDe(u: string) {
+    return (await this.db.membros.where("usuario_id").equals(u).toArray()).filter((m) => m.ativo);
+  }
+
+  /** admin = gestor; gestor da empresa da unidade = gestor; senão o perfil da unidade */
   private async perfil(loja: string, u?: string): Promise<Perfil | null> {
     const id = u ?? (await this.uid());
-    const m = await this.db.membros.get([id, loja]);
-    return m?.ativo ? m.perfil : null;
+    if (await this.eAdmin(id)) return "gestor";
+    const rede = await this.redeDaLoja(loja);
+    const ms = await this.membrosDe(id);
+    if (ms.some((m) => m.perfil === "gestor" && m.rede_id === rede)) return "gestor";
+    return ms.find((m) => m.loja_id === loja)?.perfil ?? null;
   }
 
   private async pode(loja: string, minimo: Perfil) {
     return nivel(await this.perfil(loja)) >= nivel(minimo);
   }
 
-  private async eGestor() {
+  private async eGestor(rede: string | null) {
+    if (!rede) return false;
     const u = await this.uid();
-    return (await this.db.membros.where("usuario_id").equals(u).toArray()).some((m) => m.ativo && m.perfil === "gestor");
+    return (await this.eAdmin(u)) || (await this.membrosDe(u)).some((m) => m.perfil === "gestor" && m.rede_id === rede);
   }
 
-  private async hist(tabela: string, registro_id: string, loja_id: string | null, acao: string, justificativa?: string | null) {
+  private async naRede(rede: string | null) {
+    if (!rede) return false;
+    const u = await this.uid();
+    return (await this.eAdmin(u)) || (await this.membrosDe(u)).some((m) => m.rede_id === rede);
+  }
+
+  private async hist(tabela: string, registro_id: string, loja_id: string | null, acao: string, justificativa?: string | null, rede?: string | null) {
     await this.db.historico.add({
-      tabela, registro_id, loja_id, acao, autor: this.usuario, data: this.agora().toISOString(),
-      justificativa: justificativa?.trim() || null,
-    } as Historico & { loja_id: string | null });
+      tabela, registro_id, loja_id, rede_id: rede ?? (loja_id ? await this.redeDaLoja(loja_id) : null), acao, autor: this.usuario,
+      data: this.agora().toISOString(), justificativa: justificativa?.trim() || null,
+    } as Historico & { loja_id: string | null; rede_id: string | null });
   }
 
   // ------------------------------------------------------------------ sessão / acesso
+  private sessao(u: Usuario): Sessao {
+    return { usuario_id: u.id, email: u.email, nome: u.nome, admin: !!u.admin };
+  }
+
   async sessaoAtual(): Promise<Sessao | null> {
     await this.pronto;
     if (!this.usuario) return null;
     const u = await this.db.usuarios.get(this.usuario);
-    return u ? { usuario_id: u.id, email: u.email, nome: u.nome } : null;
+    return u ? this.sessao(u) : null;
   }
 
   async entrar(email: string, senha: string): Promise<Sessao> {
@@ -177,7 +237,7 @@ export class DemoServidor implements Servidor {
     if (!u || u.senha !== senha) falha("E-mail ou senha incorretos.");
     this.usuario = u!.id;
     gravarSessao(u!.id);
-    return { usuario_id: u!.id, email: u!.email, nome: u!.nome };
+    return this.sessao(u!);
   }
 
   async sair() {
@@ -187,23 +247,38 @@ export class DemoServidor implements Servidor {
 
   async minhasTelas() {
     const u = await this.uid();
-    const ms = (await this.db.membros.where("usuario_id").equals(u).toArray()).filter((m) => m.ativo);
-    const maior = ms.reduce<Perfil | null>((a, m) => (nivel(m.perfil) > nivel(a) ? m.perfil : a), null);
+    if (await this.eAdmin(u)) return TELAS_APP.map((t) => t.codigo);
+    const maior = (await this.membrosDe(u)).reduce<Perfil | null>((a, m) => (nivel(m.perfil) > nivel(a) ? m.perfil : a), null);
     return telasDoPerfil(maior);
   }
 
-  async minhasLojas(): Promise<LojaAcesso[]> {
+  async minhasEmpresas(): Promise<Empresa[]> {
     const u = await this.uid();
-    const ms = (await this.db.membros.where("usuario_id").equals(u).toArray()).filter((m) => m.ativo);
-    const lojas = await this.db.lojas.bulkGet(ms.map((m) => m.loja_id));
-    return ms.map((m, i) => ({ loja_id: m.loja_id, nome: lojas[i]?.nome ?? "?", perfil: m.perfil })).sort((a, b) => a.nome.localeCompare(b.nome));
+    const admin = await this.eAdmin(u);
+    const ms = await this.membrosDe(u);
+    return (await this.db.redes.toArray()).filter((r) => r.ativo && (admin || ms.some((m) => m.rede_id === r.id)))
+      .sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome))
+      .map((r) => ({
+        rede_id: r.id, nome: r.nome,
+        perfil: admin ? "gestor" : ms.filter((m) => m.rede_id === r.id).reduce<Perfil | null>((a, m) => (nivel(m.perfil) > nivel(a) ? m.perfil : a), null),
+      }));
+  }
+
+  async minhasLojas(): Promise<LojaAcesso[]> {
+    const out: LojaAcesso[] = [];
+    const redes = new Map((await this.db.redes.toArray()).map((r) => [r.id, r.nome]));
+    for (const l of await this.db.lojas.toArray()) {
+      if (!l.ativo || !l.sistemas.includes("checklist")) continue;
+      const p = await this.perfil(l.id);
+      if (p) out.push({ loja_id: l.id, nome: l.nome, perfil: p, rede_id: l.rede_id, rede_nome: l.rede_id ? redes.get(l.rede_id) ?? null : null, tipo: tipoDoCnpj(l.cnpj), cnpj: l.cnpj });
+    }
+    return out.sort((a, b) => (a.rede_nome ?? "").localeCompare(b.rede_nome ?? "") || (a.tipo === "matriz" ? -1 : 1) - (b.tipo === "matriz" ? -1 : 1) || a.nome.localeCompare(b.nome));
   }
 
   async gerarTarefas(data: string) {
-    const u = await this.uid();
-    const minhas = new Set((await this.db.membros.where("usuario_id").equals(u).toArray()).filter((m) => m.ativo).map((m) => m.loja_id));
+    await this.uid();
     for (const a of await this.db.agendamentos.toArray()) {
-      if (!a.ativo || !minhas.has(a.loja_id) || !agendaVale(a, data)) continue;
+      if (!a.ativo || !(await this.perfil(a.loja_id)) || !agendaVale(a, data)) continue;
       const modelo = await this.db.modelos.get(a.modelo_id);
       const publicada = (await this.db.versoes.where("modelo_id").equals(a.modelo_id).toArray()).some((v) => v.status === "publicada");
       if (!modelo?.ativo || !publicada) continue;
@@ -231,21 +306,26 @@ export class DemoServidor implements Servidor {
     return (await this.pode(p.loja_id, "supervisor")) || p.responsavel_id === u || p.criado_por === u;
   }
 
-  async baixar(lojas: string[], de: string, ate: string): Promise<Pacote> {
+  private async membroVisivel(m: Membro) {
     const u = await this.uid();
-    const minhas = [];
-    for (const l of lojas) if (await this.perfil(l)) minhas.push(l);
-    const sup = new Set<string>();
-    for (const l of minhas) if (await this.pode(l, "supervisor")) sup.add(l);
+    return m.usuario_id === u || (await this.eGestor(m.rede_id)) || (m.loja_id ? await this.pode(m.loja_id, "supervisor") : await this.naRede(m.rede_id));
+  }
+
+  async baixar(rede: string, lojas: string[], de: string, ate: string): Promise<Pacote> {
     const filtra = async <T,>(xs: T[], f: (x: T) => Promise<boolean>) => { const r: T[] = []; for (const x of xs) if (await f(x)) r.push(x); return r; };
-    const tarefas = await filtra(await this.db.tarefas.where("loja_id").anyOf(minhas).toArray(), async (t) => t.data_ref >= de && t.data_ref <= ate && (await this.tarefaVisivel(t)));
-    const execucoes = await filtra(await this.db.execucoes.where("loja_id").anyOf(minhas).toArray(), async (e) => dataSP(e.inicio_em) >= de && (await this.execVisivel(e)));
-    const planos = await filtra(await this.db.planos.where("loja_id").anyOf(minhas).toArray(), (p) => this.planoVisivel(p));
-    const membros = (await this.db.membros.where("loja_id").anyOf(minhas).toArray()).filter((m) => m.usuario_id === u || sup.has(m.loja_id));
+    const dentro = rede && (await this.naRede(rede));
+    const minhas: string[] = [];
+    for (const l of lojas) if ((await this.redeDaLoja(l)) === rede && (await this.perfil(l))) minhas.push(l);
+    const modelos = dentro ? (await this.db.modelos.where("rede_id").equals(rede).toArray()).filter((m) => m.ativo) : [];
+    const ids = new Set(modelos.map((m) => m.id));
     return {
-      modelos: (await this.db.modelos.toArray()).filter((m) => m.ativo),
-      versoes: (await this.db.versoes.toArray()).filter((v) => v.status !== "rascunho"),
-      tarefas, planos, membros, execucoes,
+      setores: dentro ? await this.db.setores.where("rede_id").equals(rede).toArray() : [],
+      modelos,
+      versoes: (await this.db.versoes.toArray()).filter((v) => ids.has(v.modelo_id) && v.status !== "rascunho"),
+      membros: dentro ? await filtra(await this.db.membros.where("rede_id").equals(rede).toArray(), (m) => this.membroVisivel(m)) : [],
+      tarefas: await filtra(await this.db.tarefas.where("loja_id").anyOf(minhas).toArray(), async (t) => t.data_ref >= de && t.data_ref <= ate && (await this.tarefaVisivel(t))),
+      execucoes: await filtra(await this.db.execucoes.where("loja_id").anyOf(minhas).toArray(), async (e) => dataSP(e.inicio_em) >= de && (await this.execVisivel(e))),
+      planos: await filtra(await this.db.planos.where("loja_id").anyOf(minhas).toArray(), (p) => this.planoVisivel(p)),
       agendamentos: await this.db.agendamentos.where("loja_id").anyOf(minhas).toArray(),
     };
   }
@@ -272,6 +352,7 @@ export class DemoServidor implements Servidor {
     let ex = await this.db.execucoes.get(e.id);
     if (!ex) {
       if (!(await this.perfil(e.loja_id))) falha("Você não faz parte desta unidade.");
+      if ((await this.redeDaLoja(e.loja_id)) !== (await this.redeDoModelo(e.modelo_id))) falha("A unidade é de outra empresa: este checklist não vale para ela.");
       const v = await this.db.versoes.get(e.versao_id);
       if (!v || v.modelo_id !== e.modelo_id || v.status === "rascunho") falha("Versão de modelo inválida.");
       if (e.tarefa_id) {
@@ -297,6 +378,12 @@ export class DemoServidor implements Servidor {
       }
     }
     return { status: ex!.status };
+  }
+
+  private async responsavelPadrao(loja: string): Promise<string | null> {
+    const rede = await this.redeDaLoja(loja);
+    const ms = (await this.db.membros.toArray()).filter((m) => m.ativo && ((m.loja_id === loja && m.perfil === "supervisor") || (m.loja_id == null && m.perfil === "gestor" && m.rede_id === rede)));
+    return ms.sort((a, b) => nivel(a.perfil) - nivel(b.perfil))[0]?.usuario_id ?? null;
   }
 
   async concluirExecucao(id: string, fim: string, assinaturaPath: string | null, lat: number | null, lng: number | null) {
@@ -333,9 +420,7 @@ export class DemoServidor implements Servidor {
       status: "concluida", fim_em: fimOk, pontuacao: p.percentual, assinatura_path: assinaturaPath ?? e!.assinatura_path ?? null,
       lat: lat ?? e!.lat ?? null, lng: lng ?? e!.lng ?? null, motivo_devolucao: null,
     });
-    const resp = (await this.db.membros.where("loja_id").equals(e!.loja_id).toArray())
-      .filter((m) => m.ativo && (m.perfil === "supervisor" || m.perfil === "gestor"))
-      .sort((a, b) => nivel(a.perfil) - nivel(b.perfil))[0]?.usuario_id ?? null;
+    const resp = await this.responsavelPadrao(e!.loja_id);
     for (const item of itensParaPlano(v.conteudo, rs, dow)) {
       const pid = idPlano(id, item.id);
       if (await this.db.planos.get(pid)) continue;
@@ -411,8 +496,10 @@ export class DemoServidor implements Servidor {
     if (!p) falha("Plano de ação não encontrado.");
     const sup = await this.pode(p!.loja_id, "supervisor");
     if (acao === "alterar" && args.responsavel_id) {
-      const m = await this.db.membros.get([args.responsavel_id, p!.loja_id]);
-      if (!m?.ativo) falha("O responsável precisa ser da equipe da unidade.");
+      const rede = await this.redeDaLoja(p!.loja_id);
+      const ok = (await this.db.membros.where("usuario_id").equals(args.responsavel_id).toArray())
+        .some((m) => m.ativo && (m.loja_id === p!.loja_id || (m.loja_id == null && m.rede_id === rede)));
+      if (!ok) falha("O responsável precisa ser da equipe da unidade.");
     }
     let novo: PlanoAcao;
     try {
@@ -452,14 +539,16 @@ export class DemoServidor implements Servidor {
   }
 
   // ------------------------------------------------------------------ dashboard / relatório
-  private async lojasSupervisor(loja: string | null) {
+  private async lojasSupervisor(loja: string | null, rede: string | null) {
     const out: { id: string; nome: string }[] = [];
-    for (const l of await this.db.lojas.toArray()) if ((!loja || l.id === loja) && (await this.pode(l.id, "supervisor"))) out.push(l);
+    for (const l of await this.db.lojas.toArray()) {
+      if ((!loja || l.id === loja) && (!rede || l.rede_id === rede) && (await this.pode(l.id, "supervisor"))) out.push(l);
+    }
     return out;
   }
 
-  async dashboard(de: string, ate: string, loja: string | null) {
-    const lojas = await this.lojasSupervisor(loja);
+  async dashboard(de: string, ate: string, loja: string | null, rede: string | null) {
+    const lojas = await this.lojasSupervisor(loja, rede);
     return calcularDashboard({
       de, ate, lojas, agora: this.agora(),
       tarefas: await this.db.tarefas.toArray(), execucoes: await this.db.execucoes.toArray(),
@@ -468,8 +557,8 @@ export class DemoServidor implements Servidor {
     });
   }
 
-  async relatorio(de: string, ate: string, loja: string | null): Promise<LinhaRelatorio[]> {
-    const lojas = await this.lojasSupervisor(loja);
+  async relatorio(de: string, ate: string, loja: string | null, rede: string | null): Promise<LinhaRelatorio[]> {
+    const lojas = await this.lojasSupervisor(loja, rede);
     const ids = new Set(lojas.map((l) => l.id));
     const es = (await this.db.execucoes.toArray()).filter((e) => ids.has(e.loja_id) && dataSP(e.inicio_em) >= de && dataSP(e.inicio_em) <= ate)
       .sort((a, b) => a.inicio_em.localeCompare(b.inicio_em));
@@ -477,22 +566,23 @@ export class DemoServidor implements Servidor {
     for (const e of es) {
       const m = await this.db.modelos.get(e.modelo_id);
       const v = await this.db.versoes.get(e.versao_id);
-      const mb = await this.db.membros.get([e.usuario_id, e.loja_id]);
+      const mb = (await this.db.membros.where("usuario_id").equals(e.usuario_id).toArray())[0];
       const rs = await this.db.respostas.where("execucao_id").equals(e.id).toArray();
       out.push({
         execucao_id: e.id, loja: lojas.find((l) => l.id === e.loja_id)!.nome, modelo: m?.nome ?? "?", versao: v?.numero ?? 0,
         pessoa: mb?.nome ?? "Usuário", data: dataSP(e.inicio_em), inicio: e.inicio_em, fim: e.fim_em ?? null,
         duracao_seg: e.fim_em ? Math.round((new Date(e.fim_em).getTime() - new Date(e.inicio_em).getTime()) / 1000) : null,
         status: e.status, pontuacao: e.pontuacao ?? null, nao_conformes: rs.filter((r) => r.nao_conforme).length,
-        planos: (await this.db.planos.where("execucao_id").equals(e.id).count()),
+        planos: await this.db.planos.where("execucao_id").equals(e.id).count(),
       });
     }
     return out;
   }
 
-  // ------------------------------------------------------------------ cadastros
+  // ------------------------------------------------------------------ agendamentos
   async salvarAgendamento(a: Agendamento) {
     if (!(await this.pode(a.loja_id, "supervisor"))) falha("Só supervisor ou gestor agenda.");
+    if ((await this.redeDaLoja(a.loja_id)) !== (await this.redeDoModelo(a.modelo_id))) falha("A unidade é de outra empresa: este checklist não vale para ela.");
     if (!a.responsavel_id && !a.perfil_responsavel) falha("Escolha um responsável ou um perfil.");
     if (a.frequencia === "semanal" && !(a.dias_semana ?? []).length) falha("Escolha os dias da semana.");
     if (a.frequencia === "mensal" && a.dia_mes == null && a.dias_antes_fim_mes == null) falha("Escolha o dia do mês.");
@@ -500,13 +590,69 @@ export class DemoServidor implements Servidor {
     await this.db.agendamentos.put(a);
   }
 
+  // ------------------------------------------------------------------ checklists (editor)
+  private async exigirGestorDoModelo(modeloId: string, acao = "edita") {
+    const rede = await this.redeDoModelo(modeloId);
+    if (!rede) falha("Checklist não encontrado.");
+    if (!(await this.eGestor(rede))) falha(`Só o gestor da empresa ${acao} checklists.`);
+    return rede!;
+  }
+
+  async modelosDaEmpresa(rede: string) {
+    if (!(await this.naRede(rede))) return [];
+    return (await this.db.modelos.where("rede_id").equals(rede).toArray()).sort((a, b) => a.nome.localeCompare(b.nome));
+  }
+
   async versoesDoModelo(modeloId: string) {
-    const g = await this.eGestor();
+    const rede = await this.redeDoModelo(modeloId);
+    if (!(await this.naRede(rede))) return [];
+    const g = await this.eGestor(rede);
     return (await this.db.versoes.where("modelo_id").equals(modeloId).sortBy("numero")).filter((v) => g || v.status !== "rascunho");
   }
 
+  async criarModelo(rede: string, nome: string, descricao: string | null, categoria: string, perfil: Perfil) {
+    if (!(await this.eGestor(rede))) falha("Só o gestor da empresa cria checklists.");
+    if (!nome.trim()) falha("Informe o nome do checklist.");
+    const id = novoId();
+    await this.db.modelos.add({ id, rede_id: rede, codigo: null, nome: nome.trim(), descricao: descricao?.trim() || undefined, categoria: categoria || "diaria", perfil_executor: perfil, ativo: true });
+    await this.db.versoes.add({ id: novoId(), modelo_id: id, numero: 1, status: "rascunho", conteudo: { secoes: [] } });
+    await this.hist("modelos", id, null, "criado", null, rede);
+    return id;
+  }
+
+  async editarModelo(id: string, nome: string, descricao: string | null, categoria: string, perfil: Perfil) {
+    await this.exigirGestorDoModelo(id);
+    if (!nome.trim()) falha("Informe o nome do checklist.");
+    await this.db.modelos.update(id, { nome: nome.trim(), descricao: descricao?.trim() || undefined, categoria, perfil_executor: perfil });
+  }
+
+  private async copiar(modeloId: string, para: string, nome?: string | null) {
+    const m = (await this.db.modelos.get(modeloId))!;
+    const vs = await this.db.versoes.where("modelo_id").equals(modeloId).sortBy("numero");
+    const base = vs.find((v) => v.status === "publicada") ?? vs[vs.length - 1];
+    let codigo = m.codigo ?? null;
+    if (codigo && (await this.db.modelos.where("rede_id").equals(para).toArray()).some((x) => x.codigo === codigo)) codigo = `${codigo}_${novoId().slice(0, 6)}`;
+    const id = novoId();
+    await this.db.modelos.add({ ...m, id, rede_id: para, codigo, nome: nome?.trim() || m.nome, ativo: true });
+    await this.db.versoes.add({ id: novoId(), modelo_id: id, numero: 1, status: "rascunho", conteudo: structuredClone(base?.conteudo ?? { secoes: [] }) });
+    await this.hist("modelos", id, null, "copiado", null, para);
+    return id;
+  }
+
+  async duplicarModelo(id: string, nome?: string) {
+    const rede = await this.exigirGestorDoModelo(id, "duplica");
+    return this.copiar(id, rede, nome ?? `${(await this.db.modelos.get(id))!.nome} (cópia)`);
+  }
+
+  async arquivarModelo(id: string, arquivar: boolean) {
+    const rede = await this.exigirGestorDoModelo(id, "arquiva");
+    await this.db.modelos.update(id, { ativo: !arquivar });
+    if (arquivar) for (const a of await this.db.agendamentos.toArray()) if (a.modelo_id === id) await this.db.agendamentos.update(a.id, { ativo: false });
+    await this.hist("modelos", id, null, arquivar ? "arquivado" : "reativado", null, rede);
+  }
+
   async criarRascunho(modeloId: string) {
-    if (!(await this.eGestor())) falha("Só o gestor edita modelos.");
+    await this.exigirGestorDoModelo(modeloId);
     const vs = await this.db.versoes.where("modelo_id").equals(modeloId).sortBy("numero");
     const r = vs.find((v) => v.status === "rascunho");
     if (r) return r.id;
@@ -517,17 +663,17 @@ export class DemoServidor implements Servidor {
   }
 
   async salvarRascunho(v: ModeloVersao) {
-    if (!(await this.eGestor())) falha("Só o gestor edita modelos.");
     const atual = await this.db.versoes.get(v.id);
     if (!atual) falha("Versão não encontrada.");
+    await this.exigirGestorDoModelo(atual!.modelo_id);
     if (atual!.status !== "rascunho") falha(`Versão ${atual!.numero} já publicada: não pode ser alterada. Crie um rascunho.`);
-    await this.db.versoes.update(v.id, { conteudo: v.conteudo });
+    await this.db.versoes.update(v.id, { conteudo: structuredClone(v.conteudo) });
   }
 
   async publicarVersao(id: string) {
-    if (!(await this.eGestor())) falha("Só o gestor publica modelos.");
     const v = await this.db.versoes.get(id);
     if (!v) falha("Versão não encontrada.");
+    const rede = await this.exigirGestorDoModelo(v!.modelo_id, "publica");
     if (v!.status === "publicada") return;
     if (v!.status !== "rascunho") falha("Só um rascunho pode ser publicado.");
     if (!todosItens(v!.conteudo).length) falha("O modelo precisa de pelo menos um item.");
@@ -535,27 +681,117 @@ export class DemoServidor implements Servidor {
       if (x.status === "publicada") await this.db.versoes.update(x.id, { status: "arquivada" });
     }
     await this.db.versoes.update(id, { status: "publicada", publicada_em: this.agora().toISOString() });
-    await this.hist("modelo_versoes", id, null, "publicada");
+    await this.hist("modelo_versoes", id, null, "publicada", null, rede);
   }
 
-  async equipe(loja: string) {
-    const u = await this.uid();
-    const sup = await this.pode(loja, "supervisor");
-    return (await this.db.membros.where("loja_id").equals(loja).toArray()).filter((m) => sup || m.usuario_id === u).sort((a, b) => a.nome.localeCompare(b.nome));
+  // ------------------------------------------------------------------ equipe e colaboradores
+  async equipe(rede: string) {
+    const out: Membro[] = [];
+    for (const m of await this.db.membros.where("rede_id").equals(rede).toArray()) if (await this.membroVisivel(m)) out.push(m);
+    return out.sort((a, b) => a.nome.localeCompare(b.nome));
   }
 
-  async alterarMembro(usuario: string, loja: string, perfil: Perfil, ativo: boolean) {
-    if (!(await this.pode(loja, "gestor"))) falha("Só o gestor define a equipe.");
-    if (usuario === this.usuario && (!ativo || perfil !== "gestor")) falha("Você não pode tirar o seu próprio perfil de gestor.");
-    const m = await this.db.membros.get([usuario, loja]);
-    if (!m) falha("Pessoa não está na equipe desta unidade.");
-    await this.db.membros.put({ ...m!, perfil, ativo });
+  private async gravarMembro(usuario: string, rede: string, loja: string | null, perfil: Perfil, nome: string, ativo: boolean) {
+    const lojaOk = perfil === "gestor" ? null : loja;
+    if (perfil !== "gestor" && !lojaOk) falha("Escolha a unidade.");
+    if (lojaOk && (await this.redeDaLoja(lojaOk)) !== rede) falha("A unidade não é desta empresa.");
+    const atual = (await this.db.membros.where("usuario_id").equals(usuario).toArray()).find((m) => m.rede_id === rede && m.loja_id === lojaOk);
+    const m: Membro = { id: atual?.id ?? novoId(), usuario_id: usuario, rede_id: rede, loja_id: lojaOk, perfil, nome: nome.trim(), ativo };
+    await this.db.membros.put(m);
+    return m;
   }
 
-  async definirMembro(email: string, loja: string, perfil: Perfil, nome: string, ativo: boolean) {
-    if (!(await this.pode(loja, "gestor"))) falha("Só o gestor define a equipe.");
+  async definirMembro(email: string, rede: string, loja: string | null, perfil: Perfil, nome: string, ativo: boolean) {
+    if (!(await this.eGestor(rede))) falha("Só o gestor da empresa define a equipe.");
     const u = await this.db.usuarios.where("email").equals(email.trim().toLowerCase()).first();
-    if (!u) falha(`Não existe login com o e-mail ${email}. Peça ao admin para criar o usuário no Portal.`);
-    await this.db.membros.put({ usuario_id: u!.id, loja_id: loja, perfil, nome: nome.trim() || email, ativo });
+    if (!u) falha(`Não existe login com o e-mail ${email}. Peça ao admin para criar o colaborador.`);
+    await this.gravarMembro(u!.id, rede, loja, perfil, nome || email, ativo);
+  }
+
+  async alterarMembro(id: string, perfil: Perfil, ativo: boolean, loja?: string | null) {
+    const m = await this.db.membros.get(id);
+    if (!m) falha("Pessoa não está na equipe.");
+    if (!(await this.eGestor(m!.rede_id))) falha("Só o gestor da empresa define a equipe.");
+    const u = await this.uid();
+    if (m!.usuario_id === u && m!.perfil === "gestor" && (!ativo || perfil !== "gestor") && !(await this.eAdmin(u))) falha("Você não pode tirar o seu próprio perfil de gestor.");
+    const novaLoja = perfil === "gestor" ? null : loja ?? m!.loja_id;
+    if (perfil !== "gestor" && !novaLoja) falha("Escolha a unidade.");
+    if (novaLoja && (await this.redeDaLoja(novaLoja)) !== m!.rede_id) falha("A unidade não é desta empresa.");
+    await this.db.membros.put({ ...m!, perfil, ativo, loja_id: novaLoja });
+  }
+
+  async liberarAcesso(membroId: string) {
+    if (!(await this.eAdmin())) falha("Só o admin libera telas (regra do Ecossistema).");
+    if (!(await this.db.membros.get(membroId))) falha("Pessoa não está na equipe.");
+    // no modo demonstração as telas saem do perfil (minhasTelas); nada a gravar
+  }
+
+  async criarColaborador(c: NovoColaborador) {
+    if (!(await this.eAdmin())) falha("Só o admin cria colaborador (login do Ecossistema).");
+    const email = c.email.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) falha("E-mail inválido.");
+    if (c.senha.length < 8) falha("A senha precisa ter pelo menos 8 caracteres.");
+    if (!c.nome.trim()) falha("Informe o nome.");
+    if (await this.db.usuarios.where("email").equals(email).first()) falha("Já existe usuário com esse e-mail. Use \"Incluir quem já tem login\".");
+    const id = novoId();
+    await this.db.usuarios.add({ id, email, nome: c.nome.trim(), senha: c.senha });
+    await this.gravarMembro(id, c.rede_id, c.loja_id, c.perfil, c.nome, true);
+  }
+
+  // ------------------------------------------------------------------ empresas e lojas (admin)
+  private async exigirAdmin() {
+    if (!(await this.eAdmin())) falha("Só o admin cadastra empresas e lojas.");
+  }
+
+  async empresas(): Promise<EmpresaCompleta[]> {
+    await this.exigirAdmin();
+    const lojas = await this.db.lojas.toArray();
+    return (await this.db.redes.toArray()).sort((a, b) => a.ordem - b.ordem || a.nome.localeCompare(b.nome)).map((r) => ({
+      id: r.id, nome: r.nome, ativo: r.ativo,
+      unidades: lojas.filter((l) => l.rede_id === r.id).map((l): Unidade => ({ ...l, tipo: tipoDoCnpj(l.cnpj) })).sort((a, b) => a.nome.localeCompare(b.nome)),
+    }));
+  }
+
+  async criarEmpresa(nome: string) {
+    await this.exigirAdmin();
+    const n = nome.trim().toUpperCase();
+    if (!n) falha("Informe o nome da empresa.");
+    if ((await this.db.redes.where("nome").equals(n).count()) > 0) falha("Já existe uma empresa com esse nome.");
+    const id = novoId();
+    await this.db.redes.add({ id, nome: n, ativo: true, ordem: 100 });
+    await this.prepararEmpresa(id);
+    return id;
+  }
+
+  async salvarUnidade(u: { id?: string; rede_id: string; nome: string; cnpj: string | null; ativo: boolean; usaChecklist: boolean }) {
+    await this.exigirAdmin();
+    const cnpj = u.cnpj ? u.cnpj.replace(/\D/g, "") || null : null;
+    if (cnpj && !/^\d{14}$/.test(cnpj)) falha("CNPJ precisa ter 14 dígitos.");
+    if (!u.nome.trim()) falha("Informe o nome da unidade.");
+    const todas = await this.db.lojas.toArray();
+    if (todas.some((l) => l.id !== u.id && l.nome.toLowerCase() === u.nome.trim().toLowerCase())) falha("Já existe uma unidade com esse nome.");
+    if (cnpj && todas.some((l) => l.id !== u.id && l.cnpj === cnpj)) falha("Já existe uma unidade com esse CNPJ.");
+    const atual = u.id ? await this.db.lojas.get(u.id) : undefined;
+    const sistemas = new Set(atual?.sistemas ?? []);
+    if (u.usaChecklist) sistemas.add("checklist"); else sistemas.delete("checklist");
+    const id = u.id ?? novoId();
+    await this.db.lojas.put({ id, nome: u.nome.trim(), cnpj, rede_id: u.rede_id, ativo: u.ativo, sistemas: [...sistemas] });
+    return id;
+  }
+
+  async prepararEmpresa(rede: string) {
+    if (!(await this.eGestor(rede))) falha("Só o admin ou o gestor da empresa.");
+    await this.setoresPadrao(rede);
+  }
+
+  async copiarModelos(de: string, para: string, modelos: string[] | null) {
+    if (!((await this.eAdmin()) || ((await this.eGestor(de)) && (await this.eGestor(para))))) falha("Só o admin (ou quem é gestor das duas empresas) copia checklists entre empresas.");
+    if (de === para) falha("Escolha uma empresa de origem diferente.");
+    let n = 0;
+    for (const m of (await this.db.modelos.where("rede_id").equals(de).toArray()).filter((x) => x.ativo && (!modelos || modelos.includes(x.id)))) {
+      await this.copiar(m.id, para);
+      n++;
+    }
+    return n;
   }
 }

@@ -15,7 +15,7 @@ import { SeloExecucao, SeloTarefa } from "../ui/estados";
 const ORDEM: Record<SituacaoTarefa, number> = { atrasada: 0, em_andamento: 1, pendente: 2, concluida: 3, cancelada: 4 };
 
 export default function Hoje() {
-  const { lojaAtual, perfil, sessao } = useApp();
+  const { lojaAtual, perfil, sessao, empresaAtual } = useApp();
   const { db, repo, pronto, atualizar } = useDados();
   const navigate = useNavigate();
   const [erro, setErro] = useState<string | null>(null);
@@ -29,13 +29,14 @@ export default function Hoje() {
     if (!loja) return null;
     const tarefas = (await db.tarefas.where("loja_id").equals(loja).toArray()).filter((t) => t.data_ref === hoje);
     const execs = await db.execucoes.where("loja_id").equals(loja).toArray();
-    const modelos = new Map((await db.modelos.toArray()).map((m) => [m.id, m]));
+    // só os checklists da empresa escolhida
+    const modelos = new Map((await db.modelos.where("rede_id").equals(empresaAtual?.rede_id ?? "-").toArray()).map((m) => [m.id, m]));
     // "minhas": atribuídas a mim, ou ao meu perfil sem responsável
     const minhas = tarefas.filter((t) => t.responsavel_id === usuario || (!t.responsavel_id && t.perfil_responsavel === perfil));
     const devolvidas = execs.filter((e) => e.usuario_id === usuario && e.status === "devolvida");
     const avulsas = execs.filter((e) => e.usuario_id === usuario && !e.tarefa_id && e.status === "em_andamento");
     return { minhas, execs, modelos, devolvidas, avulsas };
-  }, [loja, hoje, usuario, perfil]);
+  }, [loja, hoje, usuario, perfil, empresaAtual?.rede_id]);
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
   if (!pronto || !dados) return <Carregando />;

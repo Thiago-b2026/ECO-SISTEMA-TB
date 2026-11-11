@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
+import { equipeDaLoja } from "../data/equipe";
 import { ChevronRight, Plus } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
@@ -27,7 +28,7 @@ export default function Planos() {
   const d = useLiveQuery(async () => {
     if (!loja) return null;
     const planos = await db.planos.where("loja_id").equals(loja).toArray();
-    const membros = await db.membros.where("loja_id").equals(loja).toArray();
+    const membros = await equipeDaLoja(db, loja);
     return { planos, membros };
   }, [loja]);
 

@@ -63,7 +63,7 @@ function GraficoConformidade({ titulo, linhas }: { titulo: string; linhas: { nom
 }
 
 export default function Dashboard() {
-  const { lojas } = useApp();
+  const { lojas, empresaAtual } = useApp();
   const supervisorEm = lojas.filter((l) => l.perfil === "supervisor" || l.perfil === "gestor");
   const [de, setDe] = useState(somarDias(dataSP(), -6));
   const [ate, setAte] = useState(dataSP());
@@ -75,9 +75,9 @@ export default function Dashboard() {
   async function carregar() {
     setErro(null);
     setCarregando(true);
-    try { setD(await servidor.dashboard(de, ate, loja || null)); } catch (e) { setErro((e as Error).message); } finally { setCarregando(false); }
+    try { setD(await servidor.dashboard(de, ate, loja || null, empresaAtual?.rede_id ?? null)); } catch (e) { setErro((e as Error).message); } finally { setCarregando(false); }
   }
-  useEffect(() => { void carregar(); }, [de, ate, loja]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void carregar(); }, [de, ate, loja, empresaAtual?.rede_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-4">

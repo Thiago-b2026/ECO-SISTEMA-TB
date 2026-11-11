@@ -99,7 +99,7 @@ describe("cópia de checklists entre empresas", () => {
     await sql(U.admin, `select checklist.preparar_empresa($1)`, [REDE_B]);
     const [{ n }] = await sql(U.admin, `select checklist.copiar_modelos($1, $2, $3) n`, [REDE_A, REDE_B, `{${MOD_A}}`]);
     expect(n).toBe(1);
-    const copia = await sql(U.gB, `select m.id::text id, m.codigo, v.status, v.numero, v.id::text vid from checklist.modelos m join checklist.modelo_versoes v on v.modelo_id = m.id`);
+    const copia = await sql(U.gB, `select m.id::text id, m.codigo, v.status, v.numero, v.id::text vid from checklist.modelos m join checklist.modelo_versoes v on v.modelo_id = m.id`) as { id: string; codigo: string; status: string; numero: number; vid: string }[];
     expect(copia).toHaveLength(1);
     expect(copia[0]).toMatchObject({ codigo: "rotina", status: "rascunho", numero: 1 });
     expect(copia[0].id).not.toBe(MOD_A);
@@ -117,7 +117,7 @@ describe("cópia de checklists entre empresas", () => {
 
 describe("checklist do zero: seção, itens, condicional, publicar e executar", () => {
   it("o gestor B cria, publica, agenda; o operador B executa; a condicional pede a causa", async () => {
-    const [{ m }] = await sql(U.gB, `select checklist.criar_modelo($1, 'Abertura B', 'Teste', 'diaria', 'operador')::text m`, [REDE_B]);
+    const [{ m }] = await sql(U.gB, `select checklist.criar_modelo($1, 'Abertura B', 'Teste', 'diaria', 'operador')::text m`, [REDE_B]) as { m: string }[];
     const [{ v }] = await sql(U.gB, `select id::text v from checklist.modelo_versoes where modelo_id = $1`, [m]);
     await deve(U.gB, `select checklist.publicar_versao($1)`, [v], "pelo menos um item"); // vazio não publica
     const conteudo = { secoes: [{ id: "s1", titulo: "Abertura", setor: "loja", itens: [

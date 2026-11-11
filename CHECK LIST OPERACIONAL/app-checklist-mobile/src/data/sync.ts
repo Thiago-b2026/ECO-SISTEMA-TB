@@ -35,7 +35,8 @@ export class Sincronizador {
   private ouvintes = new Set<(e: EstadoSync) => void>();
   private rodando: Promise<boolean> | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
-  /** unidades usadas no download */
+  /** empresa e unidades usadas no download (só da empresa escolhida) */
+  rede: string | null = null;
   lojas: string[] = [];
 
   constructor(public readonly db: BancoLocal, public readonly srv: Servidor, public readonly usuario: string, online = true) {
@@ -201,18 +202,23 @@ export class Sincronizador {
 
   /** Baixa o que mudou no servidor sem pisar no que ainda está na fila. */
   async baixar(dias = 7) {
-    if (!this.lojas.length) return;
+    const rede = this.rede;
+    if (!rede) return;
     const hoje = dataSP();
-    const pac = await this.srv.baixar(this.lojas, somarDias(hoje, -dias), somarDias(hoje, 1));
+    const pac = await this.srv.baixar(rede, this.lojas, somarDias(hoje, -dias), somarDias(hoje, 1));
     const fila = await this.db.fila.toArray();
     const pendentes = new Set(fila.map((o) => o.chave));
-    await this.db.transaction("rw", [this.db.modelos, this.db.versoes, this.db.membros, this.db.agendamentos, this.db.tarefas, this.db.planos, this.db.execucoes], async () => {
-      await this.db.modelos.clear();
+    const tabelas = [this.db.modelos, this.db.versoes, this.db.membros, this.db.setores, this.db.agendamentos, this.db.tarefas, this.db.planos, this.db.execucoes];
+    await this.db.transaction("rw", tabelas, async () => {
+      // substitui só o que é DESTA empresa (o aparelho pode guardar mais de uma)
+      await this.db.modelos.where("rede_id").equals(rede).delete();
       await this.db.modelos.bulkPut(pac.modelos);
       await this.db.versoes.bulkPut(pac.versoes);
-      await this.db.membros.clear();
+      await this.db.membros.where("rede_id").equals(rede).delete();
       await this.db.membros.bulkPut(pac.membros);
-      await this.db.agendamentos.clear();
+      await this.db.setores.where("rede_id").equals(rede).delete();
+      await this.db.setores.bulkPut(pac.setores);
+      if (this.lojas.length) await this.db.agendamentos.where("loja_id").anyOf(this.lojas).delete();
       await this.db.agendamentos.bulkPut(pac.agendamentos);
       for (const t of pac.tarefas) {
         const local = await this.db.tarefas.get(t.id);

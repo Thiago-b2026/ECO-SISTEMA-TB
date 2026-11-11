@@ -1,7 +1,7 @@
 // Critérios 3, 4, 5 e 7: offline, sair e voltar, reenvio sem duplicar, conclusão bloqueada, plano ligado ao item.
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { DemoServidor, LOJAS_DEMO, USUARIOS_DEMO } from "../src/data/demo-servidor";
+import { DemoServidor, LOJAS_DEMO, REDES_DEMO, USUARIOS_DEMO } from "../src/data/demo-servidor";
 import { BancoLocal } from "../src/data/local";
 import { Repositorio } from "../src/data/repositorio";
 import { Sincronizador } from "../src/data/sync";
@@ -15,7 +15,9 @@ const hoje = dataSP();
 async function aparelho(srv: DemoServidor, nomeBanco: string, online: boolean) {
   const db = new BancoLocal(ana.id, nomeBanco);
   const s = new Sincronizador(db, srv, ana.id, online);
+  s.rede = REDES_DEMO[0].id;
   s.lojas = [MATRIZ];
+  await db.lojas.bulkPut(await srv.minhasLojas());
   await s.iniciar();
   return { db, s, repo: new Repositorio(s) };
 }
@@ -91,7 +93,7 @@ describe("offline-first", () => {
 
     await srv.sair();
     await srv.entrar(USUARIOS_DEMO.find((u) => u.email.startsWith("bruno"))!.email, "demo");
-    const pac = await srv.baixar([MATRIZ], hoje, hoje);
+    const pac = await srv.baixar(REDES_DEMO[0].id, [MATRIZ], hoje, hoje);
     const planos = pac.planos.filter((p) => p.execucao_id === execId);
     expect(planos).toHaveLength(1);
     expect(planos[0].id).toBe(planoLocal!.id); // o MESMO plano do aparelho

@@ -2,6 +2,7 @@
 // Gravar precisa de internet (é cadastro); as tarefas do dia saem daqui (checklist.gerar_tarefas).
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { equipeDaLoja } from "../data/equipe";
 import { CalendarPlus, Pencil, Power, Wand2 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
@@ -20,7 +21,7 @@ const vazio = (loja: string): Agendamento => ({
 });
 
 export default function Agendamentos() {
-  const { lojaAtual } = useApp();
+  const { lojaAtual, empresaAtual } = useApp();
   const { db, sinc } = useDados();
   const [edit, setEdit] = useState<Agendamento | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -32,10 +33,10 @@ export default function Agendamentos() {
     if (!loja) return null;
     return {
       ags: await db.agendamentos.where("loja_id").equals(loja).toArray(),
-      modelos: (await db.modelos.toArray()).sort((a, b) => a.nome.localeCompare(b.nome)),
-      membros: (await db.membros.where("loja_id").equals(loja).toArray()).filter((m) => m.ativo),
+      modelos: (await db.modelos.where("rede_id").equals(empresaAtual?.rede_id ?? "-").toArray()).sort((a, b) => a.nome.localeCompare(b.nome)),
+      membros: (await equipeDaLoja(db, loja)).filter((m) => m.ativo),
     };
-  }, [loja]);
+  }, [loja, empresaAtual?.rede_id]);
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
   if (!d) return <Carregando />;

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import {
-  BarChart3, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Store, Users, Wrench, X,
+  BarChart3, Briefcase, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Network, Store, Users, Wrench, X,
 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { MODO_DEMO } from "../data/conexao";
@@ -14,6 +14,7 @@ import { Aviso, cx } from "./base";
 const ICONES: Record<string, typeof Store> = {
   "checklist.hoje": ClipboardCheck, "checklist.planos": Wrench, "checklist.loja": LayoutList, "checklist.dashboard": BarChart3,
   "checklist.relatorios": FileSpreadsheet, "checklist.agendamentos": CalendarClock, "checklist.modelos": ClipboardList, "checklist.equipe": Users,
+  "checklist.empresas": Network,
 };
 
 export function AcessoNegado() {
@@ -36,7 +37,7 @@ export function Guarda({ children }: { children: ReactNode }) {
 }
 
 export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
-  const { sessao, lojas, lojaAtual, setLojaAtual, perfil, podeTela, sair, liberadas, erroAcesso } = useApp();
+  const { sessao, admin, empresas, empresaAtual, setEmpresa, lojas, lojaAtual, setLojaAtual, perfil, podeTela, sair, liberadas, erroAcesso } = useApp();
   const [aberto, setAberto] = useState(false);
   const telas = TELAS_APP.filter((t) => podeTela(t.codigo));
   const principais = telas.slice(0, 4);
@@ -50,7 +51,19 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
           <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="flex min-h-12 items-center gap-2 font-extrabold text-marca hover:underline">
             <Store className="size-5" aria-hidden /> <span className="whitespace-nowrap">Eco Sistema TB</span>
           </a>
-          <span className="hidden text-sm text-gray-500 sm:inline">· Check List</span>
+          <span className="hidden text-sm text-gray-500 md:inline">· Check List</span>
+          {/* empresa escolhida: SEMPRE visível; seletor quando houver mais de uma (admin vê todas) */}
+          {empresas.length > 1 ? (
+            <label className="flex min-w-0 items-center gap-1 text-sm">
+              <Briefcase className="size-4 shrink-0 text-gray-500" aria-hidden />
+              <span className="sr-only">Empresa</span>
+              <select value={empresaAtual?.rede_id ?? ""} onChange={(e) => setEmpresa(e.target.value)} className="min-h-10 max-w-[9.5rem] rounded-lg border border-gray-300 px-2 text-sm font-semibold sm:max-w-[14rem]">
+                {empresas.map((e) => <option key={e.rede_id} value={e.rede_id}>{e.nome}</option>)}
+              </select>
+            </label>
+          ) : empresaAtual && (
+            <span className="flex min-w-0 items-center gap-1 truncate text-sm font-semibold text-gray-800"><Briefcase className="size-4 shrink-0 text-gray-500" aria-hidden /> {empresaAtual.nome}</span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             {lojas.filter((l) => l.perfil).length > 1 ? (
               <label className="flex items-center gap-1 text-sm">
@@ -73,7 +86,8 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
         <nav aria-label="Menu" className={cx("fixed inset-x-0 top-[64px] z-20 border-b bg-white p-3 shadow-lg lg:static lg:block lg:w-60 lg:shrink-0 lg:border-0 lg:shadow-none", aberto ? "block" : "hidden")}>
           <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm">
             <div className="font-semibold">{sessao?.nome}</div>
-            <div className="text-gray-600">{perfil ? PERFIS[perfil] : "Sem perfil nesta unidade"}{lojaAtual ? ` · ${lojaAtual.nome}` : ""}</div>
+            <div className="text-gray-600">{admin ? "Admin do Ecossistema" : perfil ? PERFIS[perfil] : "Sem perfil nesta unidade"}{lojaAtual ? ` · ${lojaAtual.nome}` : ""}</div>
+            {empresaAtual && <div className="text-gray-600">Empresa: <b>{empresaAtual.nome}</b></div>}
             {MODO_DEMO && <div className="mt-1 text-xs font-semibold text-amber-800">Modo demonstração</div>}
           </div>
           <ul className="space-y-1" onClick={() => setAberto(false)}>
@@ -97,10 +111,16 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
               </Aviso>
             </div>
           )}
-          {!lojas.some((l) => l.perfil) && (
+          {!empresaAtual ? (
             <div className="mb-3">
-              <Aviso tom="alerta" titulo="Você ainda não está em nenhuma equipe">
-                Peça ao gestor para incluir você na equipe de uma unidade (tela Equipe e perfis).
+              <Aviso tom="alerta" titulo="Você ainda não está em nenhuma empresa">
+                {admin ? "Cadastre a primeira empresa em Empresas e lojas." : "Peça ao gestor para incluir você na equipe de uma unidade (tela Equipe e perfis)."}
+              </Aviso>
+            </div>
+          ) : !lojas.some((l) => l.perfil) && (
+            <div className="mb-3">
+              <Aviso tom="alerta" titulo={`${empresaAtual.nome}: nenhuma unidade usando o Check List`}>
+                {admin ? "Cadastre a matriz e as filiais em Empresas e lojas (marcando “usa o Check List”)." : "Peça ao gestor para incluir você na equipe de uma unidade."}
               </Aviso>
             </div>
           )}

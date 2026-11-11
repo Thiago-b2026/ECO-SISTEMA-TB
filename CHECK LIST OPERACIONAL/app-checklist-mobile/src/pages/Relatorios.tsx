@@ -13,7 +13,7 @@ import { Aviso, Botao, Campo, Cartao, Carregando, Titulo, Vazio, classeEntrada }
 import { SeloExecucao } from "../ui/estados";
 
 export default function Relatorios() {
-  const { lojas } = useApp();
+  const { lojas, empresaAtual } = useApp();
   const { db } = useDados();
   const minhas = lojas.filter((l) => l.perfil === "supervisor" || l.perfil === "gestor");
   const [de, setDe] = useState(somarDias(dataSP(), -6));
@@ -26,9 +26,9 @@ export default function Relatorios() {
   async function carregar() {
     setErro(null);
     setOcupado("lista");
-    try { setLinhas(await servidor.relatorio(de, ate, loja || null)); } catch (e) { setErro((e as Error).message); } finally { setOcupado(null); }
+    try { setLinhas(await servidor.relatorio(de, ate, loja || null, empresaAtual?.rede_id ?? null)); } catch (e) { setErro((e as Error).message); } finally { setOcupado(null); }
   }
-  useEffect(() => { void carregar(); }, [de, ate, loja]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void carregar(); }, [de, ate, loja, empresaAtual?.rede_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function excel() {
     if (!linhas) return;
@@ -37,9 +37,9 @@ export default function Relatorios() {
     try {
       const ids = loja ? [loja] : minhas.map((l) => l.loja_id);
       const planos = (await db.planos.where("loja_id").anyOf(ids).toArray()).filter((p) => p.criado_em.slice(0, 10) >= de && p.criado_em.slice(0, 10) <= somarDias(ate, 1));
-      const membros = await db.membros.where("loja_id").anyOf(ids).toArray();
+      const membros = empresaAtual ? await db.membros.where("rede_id").equals(empresaAtual.rede_id).toArray() : [];
       const nomeLoja = loja ? minhas.find((l) => l.loja_id === loja)?.nome : "todas as unidades";
-      baixar(await gerarExcel(linhas, planos, membros, `Check List – ${nomeLoja} – ${dataBR(de)} a ${dataBR(ate)}`), `checklist-${hojeArquivo()}.xlsx`);
+      baixar(await gerarExcel(linhas, planos, membros, `Check List – ${empresaAtual?.nome ?? ""} – ${nomeLoja} – ${dataBR(de)} a ${dataBR(ate)}`), `checklist-${hojeArquivo()}.xlsx`);
     } catch (e) { setErro((e as Error).message); } finally { setOcupado(null); }
   }
 

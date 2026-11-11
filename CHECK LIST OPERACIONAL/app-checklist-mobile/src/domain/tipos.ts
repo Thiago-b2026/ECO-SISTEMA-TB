@@ -70,6 +70,8 @@ export type StatusVersao = "rascunho" | "publicada" | "arquivada";
 
 export interface Modelo {
   id: string;
+  /** empresa (public.redes) dona do checklist */
+  rede_id: string;
   /** código fixo dos modelos da carga inicial (ex.: fiscal_manha) */
   codigo?: string | null;
   nome: string;

@@ -10,24 +10,76 @@ export interface Sessao {
   usuario_id: string;
   email: string;
   nome: string;
+  /** admin do Ecossistema (vê todas as empresas; só ele cria empresa, loja e colaborador) */
+  admin: boolean;
+}
+
+/** Empresa = public.redes */
+export interface Empresa {
+  rede_id: string;
+  nome: string;
+  /** maior perfil da pessoa na empresa (admin = gestor) */
+  perfil: Perfil | null;
 }
 
 export interface LojaAcesso {
   loja_id: string;
   nome: string;
-  /** perfil no Check List (checklist.membros). null = unidade liberada no Portal, mas sem perfil */
+  /** perfil no Check List (checklist.membros; gestor da empresa vale em todas as unidades dela) */
   perfil: Perfil | null;
+  rede_id: string | null;
+  rede_nome: string | null;
+  tipo: "matriz" | "filial" | null;
+  cnpj: string | null;
 }
 
+/** Gestor: loja_id nulo (vale para a empresa). Supervisor e operador: uma unidade. */
 export interface Membro {
+  id: string;
   usuario_id: string;
-  loja_id: string;
+  rede_id: string;
+  loja_id: string | null;
   perfil: Perfil;
   nome: string;
   ativo: boolean;
 }
 
+export interface Setor {
+  rede_id: string;
+  codigo: string;
+  nome: string;
+  ativo: boolean;
+}
+
+/** Unidade como aparece na tela Empresas e lojas (todas as unidades da empresa, usem ou não o Check List). */
+export interface Unidade {
+  id: string;
+  nome: string;
+  cnpj: string | null;
+  tipo: "matriz" | "filial" | null;
+  rede_id: string | null;
+  ativo: boolean;
+  sistemas: string[];
+}
+
+export interface EmpresaCompleta {
+  id: string;
+  nome: string;
+  ativo: boolean;
+  unidades: Unidade[];
+}
+
+export interface NovoColaborador {
+  nome: string;
+  email: string;
+  senha: string;
+  rede_id: string;
+  loja_id: string | null;
+  perfil: Perfil;
+}
+
 export interface Pacote {
+  setores: Setor[];
   modelos: Modelo[];
   versoes: ModeloVersao[];
   tarefas: Tarefa[];
@@ -110,10 +162,13 @@ export interface Servidor {
   sair(): Promise<void>;
   /** telas liberadas (public.minhas_telas('checklist')). Lança erro se a consulta falhar. */
   minhasTelas(): Promise<string[]>;
-  /** unidades do Portal (minhas_unidades('checklist')) com o perfil do Check List */
+  /** empresas em que a pessoa está (admin: todas as ativas) */
+  minhasEmpresas(): Promise<Empresa[]>;
+  /** unidades do Check List com o perfil (de todas as empresas da pessoa) */
   minhasLojas(): Promise<LojaAcesso[]>;
   gerarTarefas(data: string): Promise<void>;
-  baixar(lojas: string[], de: string, ate: string): Promise<Pacote>;
+  /** dados de UMA empresa (modelos/setores/equipe) e das unidades dela */
+  baixar(rede: string, lojas: string[], de: string, ate: string): Promise<Pacote>;
 
   enviarArquivo(path: string, blob: Blob, mime: string): Promise<void>;
   urlArquivo(path: string): Promise<string>;
@@ -129,17 +184,37 @@ export interface Servidor {
   registrarFotoPlano(f: Foto): Promise<void>;
   historico(registroId: string): Promise<Historico[]>;
 
-  dashboard(de: string, ate: string, loja: string | null): Promise<Dashboard>;
-  relatorio(de: string, ate: string, loja: string | null): Promise<LinhaRelatorio[]>;
+  dashboard(de: string, ate: string, loja: string | null, rede: string | null): Promise<Dashboard>;
+  relatorio(de: string, ate: string, loja: string | null, rede: string | null): Promise<LinhaRelatorio[]>;
 
   salvarAgendamento(a: Agendamento): Promise<void>;
+  // checklists (editor) – sempre rascunho → publicar
+  modelosDaEmpresa(rede: string): Promise<Modelo[]>;
   versoesDoModelo(modeloId: string): Promise<ModeloVersao[]>;
+  criarModelo(rede: string, nome: string, descricao: string | null, categoria: string, perfil: Perfil): Promise<string>;
+  editarModelo(id: string, nome: string, descricao: string | null, categoria: string, perfil: Perfil): Promise<void>;
+  duplicarModelo(id: string, nome?: string): Promise<string>;
+  arquivarModelo(id: string, arquivar: boolean): Promise<void>;
   criarRascunho(modeloId: string): Promise<string>;
   salvarRascunho(v: ModeloVersao): Promise<void>;
   publicarVersao(id: string): Promise<void>;
-  equipe(loja: string): Promise<Membro[]>;
-  definirMembro(email: string, loja: string, perfil: Perfil, nome: string, ativo: boolean): Promise<void>;
-  alterarMembro(usuario: string, loja: string, perfil: Perfil, ativo: boolean): Promise<void>;
+
+  // equipe e colaboradores
+  equipe(rede: string): Promise<Membro[]>;
+  definirMembro(email: string, rede: string, loja: string | null, perfil: Perfil, nome: string, ativo: boolean): Promise<void>;
+  alterarMembro(id: string, perfil: Perfil, ativo: boolean, loja?: string | null): Promise<void>;
+  /** só o admin: libera as telas do Check List conforme o perfil (permissões centrais) */
+  liberarAcesso(membroId: string): Promise<void>;
+  /** só o admin: cria o LOGIN (serviço central admin-usuarios) e põe na equipe */
+  criarColaborador(c: NovoColaborador): Promise<void>;
+
+  // empresas e lojas (só o admin) – public.redes / public.lojas
+  empresas(): Promise<EmpresaCompleta[]>;
+  criarEmpresa(nome: string): Promise<string>;
+  salvarUnidade(u: { id?: string; rede_id: string; nome: string; cnpj: string | null; ativo: boolean; usaChecklist: boolean }): Promise<string>;
+  /** prepara a empresa no Check List (setores padrão) */
+  prepararEmpresa(rede: string): Promise<void>;
+  copiarModelos(de: string, para: string, modelos: string[] | null): Promise<number>;
 }
 
 export const PERFIS: Record<Perfil, string> = { operador: "Operador", supervisor: "Supervisor", gestor: "Gestor" };

@@ -6,7 +6,8 @@ import { dataSP, diaSemana } from "../domain/tempo";
 import type { ModeloVersao, PlanoAcao, Resposta, Tarefa, ValorResposta } from "../domain/tipos";
 import { obterPosicao } from "../lib/gps";
 import type { ExecucaoLocal, FotoLocal } from "./local";
-import { nivel, type NovoPlano } from "./servidor";
+import { equipeDaLoja, responsavelPadrao } from "./equipe";
+import type { NovoPlano } from "./servidor";
 import type { Sincronizador } from "./sync";
 
 export class Repositorio {
@@ -135,9 +136,7 @@ export class Repositorio {
     const p = pontuacaoExecucao(v.conteudo, rs, dow);
     const fim = new Date().toISOString();
     // planos automáticos no aparelho (o servidor cria os mesmos, com o mesmo id)
-    const responsavel = (await this.db.membros.where("loja_id").equals(e.loja_id).toArray())
-      .filter((m) => m.ativo && (m.perfil === "supervisor" || m.perfil === "gestor"))
-      .sort((a, b) => nivel(a.perfil) - nivel(b.perfil))[0]?.usuario_id ?? null;
+    const responsavel = responsavelPadrao(await equipeDaLoja(this.db, e.loja_id));
     const mapa = mapaRespostas(rs);
     const itens = itensParaPlano(v.conteudo, rs, dow);
     for (const item of itens) {

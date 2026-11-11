@@ -2,7 +2,7 @@
 // depois enviado pela fila. Um banco por usuário: num celular compartilhado, um não vê os dados do outro.
 import Dexie, { type Table } from "dexie";
 import type { Agendamento, Execucao, Foto, Modelo, ModeloVersao, PlanoAcao, Resposta, Tarefa } from "../domain/tipos";
-import type { Membro } from "./servidor";
+import type { LojaAcesso, Membro, Setor } from "./servidor";
 
 /** Execução no aparelho: + marcas de envio. */
 export interface ExecucaoLocal extends Execucao {
@@ -43,7 +43,10 @@ export class BancoLocal extends Dexie {
   versoes!: Table<ModeloVersao, string>;
   tarefas!: Table<Tarefa, string>;
   planos!: Table<PlanoAcao & { local?: boolean }, string>;
-  membros!: Table<Membro, [string, string]>;
+  membros!: Table<Membro, string>;
+  setores!: Table<Setor, [string, string]>;
+  /** unidades do usuário (com a empresa) – para saber a empresa de cada loja sem internet */
+  lojas!: Table<LojaAcesso, string>;
   agendamentos!: Table<Agendamento, string>;
   execucoes!: Table<ExecucaoLocal, string>;
   respostas!: Table<Resposta, string>;
@@ -51,14 +54,17 @@ export class BancoLocal extends Dexie {
   fila!: Table<Operacao, number>;
   meta!: Table<Meta, string>;
 
-  constructor(usuarioId: string, prefixo = "checklist-local") {
+  // v2 = multiempresa (membros por empresa). Nada foi para produção antes, então não há migração de dados.
+  constructor(usuarioId: string, prefixo = "checklist-local-v2") {
     super(`${prefixo}-${usuarioId}`);
     this.version(1).stores({
-      modelos: "id",
+      modelos: "id, rede_id",
       versoes: "id, modelo_id",
       tarefas: "id, loja_id, data_ref",
       planos: "id, loja_id, execucao_id, responsavel_id",
-      membros: "[usuario_id+loja_id], loja_id",
+      membros: "id, loja_id, rede_id, usuario_id",
+      setores: "[rede_id+codigo], rede_id",
+      lojas: "loja_id, rede_id",
       agendamentos: "id, loja_id",
       execucoes: "id, tarefa_id, loja_id, usuario_id, status",
       respostas: "id, execucao_id, &[execucao_id+item_id]",

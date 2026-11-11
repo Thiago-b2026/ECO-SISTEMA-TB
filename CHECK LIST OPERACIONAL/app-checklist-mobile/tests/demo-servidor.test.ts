@@ -1,11 +1,12 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { DemoServidor, LOJAS_DEMO, USUARIOS_DEMO } from "../src/data/demo-servidor";
+import { DemoServidor, LOJAS_DEMO, REDES_DEMO, USUARIOS_DEMO } from "../src/data/demo-servidor";
 import { idPlano, novoId } from "../src/domain/ids";
 import { dataSP } from "../src/domain/tempo";
 import type { Execucao, Foto, Resposta } from "../src/domain/tipos";
 
 const [MATRIZ, FILIAL] = LOJAS_DEMO.map((l) => l.id);
+const SUPERMIX = REDES_DEMO[0].id;
 const email = (n: string) => USUARIOS_DEMO.find((u) => u.email.startsWith(n))!.email;
 const hoje = dataSP();
 
@@ -20,7 +21,7 @@ describe("servidor de demonstração (mesmas regras do banco)", () => {
     await como(srv, "ana");
     await srv.gerarTarefas(hoje);
     await srv.gerarTarefas(hoje); // idempotente
-    let pac = await srv.baixar([MATRIZ, FILIAL], hoje, hoje);
+    let pac = await srv.baixar(SUPERMIX, [MATRIZ, FILIAL], hoje, hoje);
     const tarefas = pac.tarefas.filter((t) => t.loja_id === MATRIZ);
     // Ana (operador) só vê as tarefas de operador da Matriz: fiscal manhã e tarde
     expect(tarefas).toHaveLength(2);
@@ -49,7 +50,7 @@ describe("servidor de demonstração (mesmas regras do banco)", () => {
 
     // plano automático ligado ao item, responsável = líder da loja
     await como(srv, "bruno");
-    pac = await srv.baixar([MATRIZ], hoje, hoje);
+    pac = await srv.baixar(SUPERMIX, [MATRIZ], hoje, hoje);
     expect(pac.planos).toHaveLength(1);
     const plano = pac.planos[0];
     expect(plano).toMatchObject({ id: idPlano(e.id, "ft_validade_padaria"), item_id: "ft_validade_padaria", status: "aberto" });
@@ -70,13 +71,13 @@ describe("servidor de demonstração (mesmas regras do banco)", () => {
     const hist = await srv.historico(plano.id);
     expect(hist.map((h) => h.acao)).toEqual(["criado_automatico", "iniciado", "solucao_enviada", "rejeitado", "solucao_enviada", "validado"]);
 
-    const d = await srv.dashboard(hoje, hoje, MATRIZ);
+    const d = await srv.dashboard(hoje, hoje, MATRIZ, null);
     expect(d.tarefas_concluidas).toBe(1);
     expect(d.execucoes).toBe(1);
     expect(d.conformidade).toBeCloseTo(76.92, 2);
     expect(d.por_pessoa[0]).toMatchObject({ nome: "Ana (Fiscal – Matriz)", execucoes: 1 });
     expect(d.planos_abertos).toBe(0);
-    expect((await srv.relatorio(hoje, hoje, null))[0]).toMatchObject({ pessoa: "Ana (Fiscal – Matriz)", nao_conformes: 1, planos: 1, status: "validada" });
+    expect((await srv.relatorio(hoje, hoje, null, null))[0]).toMatchObject({ pessoa: "Ana (Fiscal – Matriz)", nao_conformes: 1, planos: 1, status: "validada" });
   });
 
   it("operador de outra loja não vê nada da Matriz nem envia em nome de outro", async () => {
@@ -85,10 +86,12 @@ describe("servidor de demonstração (mesmas regras do banco)", () => {
     await srv.gerarTarefas(hoje);
     await como(srv, "diego");
     await srv.gerarTarefas(hoje);
-    const pac = await srv.baixar([MATRIZ, FILIAL], hoje, hoje);
+    const pac = await srv.baixar(SUPERMIX, [MATRIZ, FILIAL], hoje, hoje);
     expect(pac.tarefas.every((t) => t.loja_id === FILIAL)).toBe(true);
-    expect(pac.membros.every((m) => m.loja_id === FILIAL)).toBe(true);
-    await expect(srv.dashboard(hoje, hoje, MATRIZ)).resolves.toMatchObject({ tarefas_total: 0 });
+    // vê a equipe da própria unidade e os gestores da empresa; ninguém da Matriz
+    expect(pac.membros.some((m) => m.loja_id === MATRIZ)).toBe(false);
+    expect(pac.membros.every((m) => m.loja_id === FILIAL || (m.loja_id == null && m.perfil === "gestor"))).toBe(true);
+    await expect(srv.dashboard(hoje, hoje, MATRIZ, null)).resolves.toMatchObject({ tarefas_total: 0 });
     await expect(srv.enviarArquivo(`${MATRIZ}/x/y.jpg`, new Blob(["x"]), "image/jpeg")).rejects.toThrow("Sem permissão");
   });
 });

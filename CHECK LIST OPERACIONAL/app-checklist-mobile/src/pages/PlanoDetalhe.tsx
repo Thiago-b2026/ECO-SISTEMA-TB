@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
+import { equipeDaLoja } from "../data/equipe";
 import { ArrowLeft, Ban, Camera, CheckCircle2, History, Pencil, Play, Send, Undo2 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
@@ -37,7 +38,7 @@ export default function PlanoDetalhe() {
   const d = useLiveQuery(async () => {
     const p = await db.planos.get(id!);
     if (!p) return { p: null };
-    const membros = await db.membros.where("loja_id").equals(p.loja_id).toArray();
+    const membros = await equipeDaLoja(db, p.loja_id);
     const fotos = await db.fotos.where("plano_id").equals(p.id).toArray();
     const pendente = (await db.fila.where("chave").equals(p.id).count()) > 0;
     return { p, membros, fotos, pendente };

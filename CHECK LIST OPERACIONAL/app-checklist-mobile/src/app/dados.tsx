@@ -30,7 +30,7 @@ export function useEstadoSync(): EstadoSync {
 }
 
 export function DadosProvider({ children }: { children: ReactNode }) {
-  const { sessao, lojas } = useApp();
+  const { sessao, lojas, todasLojas, empresaAtual } = useApp();
   const usuario = sessao!.usuario_id;
   const { db, sinc, repo } = useMemo(() => {
     const db = new BancoLocal(usuario);
@@ -40,6 +40,12 @@ export function DadosProvider({ children }: { children: ReactNode }) {
   }, [usuario]);
   const [pronto, setPronto] = useState(false);
   const idsLojas = lojas.filter((l) => l.perfil).map((l) => l.loja_id).join(",");
+  const rede = empresaAtual?.rede_id ?? null;
+
+  // guarda no aparelho as unidades (com a empresa de cada uma) – usadas sem internet
+  useEffect(() => {
+    if (todasLojas.length) void db.lojas.bulkPut(todasLojas);
+  }, [db, todasLojas]);
 
   async function atualizar() {
     try {
@@ -52,6 +58,7 @@ export function DadosProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    sinc.rede = rede;
     sinc.lojas = idsLojas ? idsLojas.split(",") : [];
     let vivo = true;
     (async () => {
@@ -75,7 +82,7 @@ export function DadosProvider({ children }: { children: ReactNode }) {
       clearInterval(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sinc, idsLojas]);
+  }, [sinc, idsLojas, rede]);
 
   const valor = useMemo(() => ({ db, sinc, repo, pronto, atualizar }), [db, sinc, repo, pronto]); // eslint-disable-line react-hooks/exhaustive-deps
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;

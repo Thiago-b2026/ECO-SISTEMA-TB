@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
+import { equipeDaLoja } from "../data/equipe";
 import { Ban, Eye, ShieldCheck, Undo2 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
@@ -29,7 +30,7 @@ export default function TarefasLoja() {
       tarefas: (await db.tarefas.where("loja_id").equals(loja).toArray()).filter((t) => t.data_ref === data),
       execs: await db.execucoes.where("loja_id").equals(loja).toArray(),
       modelos: new Map((await db.modelos.toArray()).map((m) => [m.id, m])),
-      membros: await db.membros.where("loja_id").equals(loja).toArray(),
+      membros: await equipeDaLoja(db, loja),
     };
   }, [loja, data]);
 
