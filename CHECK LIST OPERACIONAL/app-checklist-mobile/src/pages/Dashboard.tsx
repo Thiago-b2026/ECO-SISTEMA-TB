@@ -15,11 +15,12 @@ const COR = "#0f5132";
 
 function Bloco({ rotulo, valor, icone: I, detalhe }: { rotulo: string; valor: string; icone: typeof Clock; detalhe?: string }) {
   return (
-    <Cartao className="flex items-start gap-3">
+    <Cartao className="flex min-w-0 items-start gap-3">
       <I className="mt-1 size-6 shrink-0 text-marca" aria-hidden />
-      <div>
+      <div className="min-w-0">
         <div className="text-sm text-gray-600">{rotulo}</div>
-        <div className="text-2xl font-bold text-gray-900">{valor}</div>
+        {/* textos longos ("Sem pontuação aplicável") não podem passar da largura do celular */}
+        <div className={`${valor.length > 12 ? "text-lg leading-tight" : "text-2xl"} break-words font-bold text-gray-900`}>{valor}</div>
         {detalhe && <div className="text-xs text-gray-600">{detalhe}</div>}
       </div>
     </Cartao>
