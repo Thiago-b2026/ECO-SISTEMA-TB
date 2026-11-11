@@ -1,6 +1,6 @@
 // Componentes básicos. Regra J: estado SEMPRE com texto + ícone (nunca só cor),
 // alvos de toque grandes (min 48px) e foco visível no teclado.
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { cloneElement, isValidElement, useId, type ButtonHTMLAttributes, type ReactElement, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Info, Loader2, XCircle } from "lucide-react";
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(" ");
@@ -79,13 +79,20 @@ export function Vazio({ children }: { children: ReactNode }) {
   return <div className="rounded-lg border border-dashed border-gray-300 p-6 text-center text-gray-600">{children}</div>;
 }
 
+/** Rótulo + campo. A ajuda fica FORA do rótulo (o leitor de tela anuncia só o rótulo) e é ligada ao campo por aria-describedby. */
 export function Campo({ rotulo, children, ajuda }: { rotulo: string; children: ReactNode; ajuda?: string }) {
+  const id = useId();
+  const filho = ajuda && isValidElement(children)
+    ? cloneElement(children as ReactElement<{ "aria-describedby"?: string }>, { "aria-describedby": `${id}-ajuda` })
+    : children;
   return (
-    <label className="block text-sm">
-      <span className="mb-1 block font-semibold text-gray-800">{rotulo}</span>
-      {children}
-      {ajuda && <span className="mt-1 block text-xs text-gray-600">{ajuda}</span>}
-    </label>
+    <div className="block text-sm">
+      <label className="block">
+        <span className="mb-1 block font-semibold text-gray-800">{rotulo}</span>
+        {filho}
+      </label>
+      {ajuda && <span id={`${id}-ajuda`} className="mt-1 block text-xs text-gray-600">{ajuda}</span>}
+    </div>
   );
 }
 
