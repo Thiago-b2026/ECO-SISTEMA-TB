@@ -24,9 +24,9 @@ export const TELAS_APP: TelaApp[] = [
   { codigo: "checklist.loja", nome: "Tarefas da loja", rota: "/loja", grupo: "supervisao", perfilMinimo: "supervisor" },
   { codigo: "checklist.dashboard", nome: "Dashboard", rota: "/dashboard", grupo: "supervisao", perfilMinimo: "supervisor" },
   { codigo: "checklist.relatorios", nome: "Relatórios", rota: "/relatorios", grupo: "supervisao", perfilMinimo: "supervisor" },
-  { codigo: "checklist.agendamentos", nome: "Agendamentos", rota: "/agendamentos", grupo: "cadastros", perfilMinimo: "supervisor" },
-  { codigo: "checklist.modelos", nome: "Modelos de checklist", rota: "/modelos", grupo: "cadastros", perfilMinimo: "gestor" },
-  { codigo: "checklist.equipe", nome: "Equipe e perfis", rota: "/equipe", grupo: "cadastros", perfilMinimo: "gestor" },
+  { codigo: "checklist.agendamentos", nome: "Agendar tarefas", rota: "/agendamentos", grupo: "cadastros", perfilMinimo: "supervisor" },
+  { codigo: "checklist.modelos", nome: "Cadastrar tarefas e checklists", rota: "/modelos", grupo: "cadastros", perfilMinimo: "gestor" },
+  { codigo: "checklist.equipe", nome: "Colaboradores", rota: "/equipe", grupo: "cadastros", perfilMinimo: "gestor" },
   { codigo: "checklist.empresas", nome: "Empresas e lojas", rota: "/empresas", grupo: "cadastros", perfilMinimo: "gestor", somenteAdmin: true },
 ];
 

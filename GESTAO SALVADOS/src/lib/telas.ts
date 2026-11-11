@@ -110,9 +110,9 @@ export const TELAS: Tela[] = [
   { codigo: "checklist.loja", nome: "Tarefas da loja", sistema: "checklist", grupo: "supervisao", rota: "/loja", perfis: [] },
   { codigo: "checklist.dashboard", nome: "Dashboard", sistema: "checklist", grupo: "supervisao", rota: "/dashboard", perfis: [] },
   { codigo: "checklist.relatorios", nome: "Relatórios", sistema: "checklist", grupo: "supervisao", rota: "/relatorios", perfis: [] },
-  { codigo: "checklist.agendamentos", nome: "Agendamentos", sistema: "checklist", grupo: "cadastros", rota: "/agendamentos", perfis: [] },
-  { codigo: "checklist.modelos", nome: "Modelos de checklist", sistema: "checklist", grupo: "cadastros", rota: "/modelos", perfis: [] },
-  { codigo: "checklist.equipe", nome: "Equipe e perfis", sistema: "checklist", grupo: "cadastros", rota: "/equipe", perfis: [] },
+  { codigo: "checklist.agendamentos", nome: "Agendar tarefas", sistema: "checklist", grupo: "cadastros", rota: "/agendamentos", perfis: [] },
+  { codigo: "checklist.modelos", nome: "Cadastrar tarefas e checklists", sistema: "checklist", grupo: "cadastros", rota: "/modelos", perfis: [] },
+  { codigo: "checklist.equipe", nome: "Colaboradores", sistema: "checklist", grupo: "cadastros", rota: "/equipe", perfis: [] },
   // migration 20261110000024_checklist_empresas.sql (multiempresa)
   { codigo: "checklist.empresas", nome: "Empresas e lojas", sistema: "checklist", grupo: "cadastros", rota: "/empresas", somenteAdmin: true, perfis: [] },
   // Portal (fase 2): exclusivas do Admin

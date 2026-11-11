@@ -23,7 +23,7 @@ describe("app (modo demonstração)", () => {
     // operador: sem Dashboard/Modelos no menu; botão do Portal no topo
     const menu = screen.getByRole("navigation", { name: "Menu" });
     expect(within(menu).queryByText("Dashboard")).toBeNull();
-    expect(within(menu).queryByText("Modelos de checklist")).toBeNull();
+    expect(within(menu).queryByText("Cadastrar tarefas e checklists")).toBeNull();
     expect(screen.getByTitle("Ir para o Portal do Ecossistema TB").getAttribute("href")).toBe("https://portal-grupotb.vercel.app");
 
     // as tarefas do dia aparecem (geradas pela agenda) e a barra de status está visível
@@ -52,10 +52,14 @@ describe("app (modo demonstração)", () => {
     render(<App />);
     fireEvent.click(await screen.findByText("Bruno (Líder – Matriz)"));
     const menu = await screen.findByRole("navigation", { name: "Menu" }, { timeout: 8000 });
-    for (const t of ["Minhas tarefas", "Planos de ação", "Tarefas da loja", "Dashboard", "Relatórios", "Agendamentos"]) {
+    for (const t of ["Minhas tarefas", "Planos de ação", "Tarefas da loja", "Dashboard", "Relatórios", "Agendar tarefas"]) {
       expect(within(menu).getByText(t)).toBeTruthy();
     }
-    expect(within(menu).queryByText("Equipe e perfis")).toBeNull();
+    expect(within(menu).queryByText("Colaboradores")).toBeNull();
+    // configurações vêm ANTES do dia a dia (não ficam escondidas no fim do menu) e há o botão "Configurar" embaixo
+    const itens = within(menu).getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(itens.findIndex((t) => t.includes("Agendar tarefas"))).toBeLessThan(itens.findIndex((t) => t.includes("Minhas tarefas")));
+    expect(within(screen.getByRole("navigation", { name: "Atalhos" })).getByRole("button", { name: /Configurar/ })).toBeTruthy();
   }, 30000);
 });
 
@@ -68,9 +72,9 @@ describe("todas as telas abrem sem erro", () => {
     console.error = (...a: unknown[]) => { erros.push(a); orig(...a); };
     try {
       for (const [quem, telas] of [
-        ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendamentos", "Relatórios", "Dashboard"]],
-        ["Carla (Gestora)", ["Modelos de checklist", "Equipe e perfis"]],
-        ["Admin (Ecossistema TB)", ["Empresas e lojas", "Modelos de checklist", "Equipe e perfis"]],
+        ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendar tarefas", "Relatórios", "Dashboard"]],
+        ["Carla (Gestora)", ["Cadastrar tarefas e checklists", "Colaboradores"]],
+        ["Admin (Ecossistema TB)", ["Empresas e lojas", "Cadastrar tarefas e checklists", "Colaboradores"]],
       ] as const) {
         localStorage.clear();
         render(<App />);

@@ -73,7 +73,7 @@ export default function Equipe() {
 
   return (
     <div className="space-y-4">
-      <Titulo>Equipe e colaboradores · {empresaAtual.nome}</Titulo>
+      <Titulo>Colaboradores · {empresaAtual.nome}</Titulo>
       <Aviso tom="info">
         O login (e-mail e senha) é do Ecossistema TB e vale para todos os sistemas. Tirar alguém da equipe aqui só <b>inativa</b> no Check List; o login nunca é apagado.
       </Aviso>

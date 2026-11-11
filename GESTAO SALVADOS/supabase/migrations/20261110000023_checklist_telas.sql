@@ -23,9 +23,9 @@ insert into public.telas (codigo, nome, app, grupo, rota, ordem, somente_admin) 
   ('checklist.loja',         'Tarefas da loja',           'checklist', 'supervisao', '/loja',         30, false),
   ('checklist.dashboard',    'Dashboard',                 'checklist', 'supervisao', '/dashboard',    40, false),
   ('checklist.relatorios',   'Relatórios',                'checklist', 'supervisao', '/relatorios',   50, false),
-  ('checklist.agendamentos', 'Agendamentos',              'checklist', 'cadastros',  '/agendamentos', 60, false),
-  ('checklist.modelos',      'Modelos de checklist',      'checklist', 'cadastros',  '/modelos',      70, false),
-  ('checklist.equipe',       'Equipe e perfis',           'checklist', 'cadastros',  '/equipe',       80, false)
+  ('checklist.agendamentos', 'Agendar tarefas',           'checklist', 'cadastros',  '/agendamentos', 60, false),
+  ('checklist.modelos',      'Cadastrar tarefas e checklists', 'checklist', 'cadastros',  '/modelos',      70, false),
+  ('checklist.equipe',       'Colaboradores',             'checklist', 'cadastros',  '/equipe',       80, false)
 on conflict (codigo) do update set nome = excluded.nome, grupo = excluded.grupo, rota = excluded.rota,
   ordem = excluded.ordem, somente_admin = excluded.somente_admin, ativo = true;
 

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router";
 import {
-  BarChart3, Briefcase, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Network, Store, Users, Wrench, X,
+  BarChart3, Briefcase, Building2, CalendarClock, ClipboardCheck, ClipboardList, FileSpreadsheet, LayoutList, LogOut, Menu, Network, Settings, Store, Users, Wrench, X,
 } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { MODO_DEMO } from "../data/conexao";
@@ -40,7 +40,14 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
   const { sessao, admin, empresas, empresaAtual, setEmpresa, lojas, lojaAtual, setLojaAtual, perfil, podeTela, sair, liberadas, erroAcesso } = useApp();
   const [aberto, setAberto] = useState(false);
   const telas = TELAS_APP.filter((t) => podeTela(t.codigo));
-  const principais = telas.slice(0, 4);
+  // cadastros (configurações) primeiro no menu, para nunca ficarem escondidos no fim da lista
+  // na ordem em que se configura: empresa e lojas → tarefas → agenda → colaboradores
+  const ORDEM_CONFIG = ["checklist.empresas", "checklist.modelos", "checklist.agendamentos", "checklist.equipe"];
+  const config = telas.filter((t) => t.grupo === "cadastros").sort((a, b) => ORDEM_CONFIG.indexOf(a.codigo) - ORDEM_CONFIG.indexOf(b.codigo));
+  const diaADia = telas.filter((t) => t.grupo !== "cadastros");
+  // barra de baixo: quem configura ganha o botão "Configurar" (abre o menu na seção de configurações)
+  const principais = config.length ? diaADia.slice(0, 3) : diaADia.slice(0, 4);
+  const colunas = principais.length + (config.length ? 1 : 0);
   const link = ({ isActive }: { isActive: boolean }) =>
     cx("flex min-h-12 items-center gap-2 rounded-lg px-3 font-medium", isActive ? "bg-marca-claro text-marca" : "text-gray-800 hover:bg-gray-100");
 
@@ -83,7 +90,7 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
       </header>
 
       <div className="mx-auto flex w-full max-w-6xl flex-1">
-        <nav aria-label="Menu" className={cx("fixed inset-x-0 top-[64px] z-20 border-b bg-white p-3 shadow-lg lg:static lg:block lg:w-60 lg:shrink-0 lg:border-0 lg:shadow-none", aberto ? "block" : "hidden")}>
+        <nav aria-label="Menu" className={cx("fixed inset-x-0 top-[64px] bottom-16 z-20 overflow-y-auto border-b bg-white p-3 shadow-lg lg:static lg:bottom-auto lg:block lg:w-60 lg:shrink-0 lg:overflow-visible lg:border-0 lg:shadow-none", aberto ? "block" : "hidden")}>
           <div className="mb-3 rounded-lg bg-gray-50 p-3 text-sm">
             <div className="font-semibold">{sessao?.nome}</div>
             <div className="text-gray-600">{admin ? "Admin do Ecossistema" : perfil ? PERFIS[perfil] : "Sem perfil nesta unidade"}{lojaAtual ? ` · ${lojaAtual.nome}` : ""}</div>
@@ -91,7 +98,17 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
             {MODO_DEMO && <div className="mt-1 text-xs font-semibold text-amber-800">Modo demonstração</div>}
           </div>
           <ul className="space-y-1" onClick={() => setAberto(false)}>
-            {telas.map((t) => {
+            {config.length > 0 && (
+              <>
+                <li className="flex items-center gap-2 px-3 pb-1 pt-1 text-xs font-bold uppercase tracking-wide text-marca"><Settings className="size-4" aria-hidden /> Configurações</li>
+                {config.map((t) => {
+                  const I = ICONES[t.codigo] ?? ClipboardCheck;
+                  return <li key={t.codigo}><NavLink to={t.rota} end={t.rota === "/"} className={link}><I className="size-5" aria-hidden /> {t.nome}</NavLink></li>;
+                })}
+                <li className="px-3 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-gray-500">Dia a dia</li>
+              </>
+            )}
+            {diaADia.map((t) => {
               const I = ICONES[t.codigo] ?? ClipboardCheck;
               return <li key={t.codigo}><NavLink to={t.rota} end={t.rota === "/"} className={link}><I className="size-5" aria-hidden /> {t.nome}</NavLink></li>;
             })}
@@ -114,7 +131,7 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
           {!empresaAtual ? (
             <div className="mb-3">
               <Aviso tom="alerta" titulo="Você ainda não está em nenhuma empresa">
-                {admin ? "Cadastre a primeira empresa em Empresas e lojas." : "Peça ao gestor para incluir você na equipe de uma unidade (tela Equipe e perfis)."}
+                {admin ? "Cadastre a primeira empresa em Empresas e lojas." : "Peça ao gestor para incluir você na equipe de uma unidade (tela Colaboradores)."}
               </Aviso>
             </div>
           ) : !lojas.some((l) => l.perfil) && (
@@ -129,7 +146,7 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
       </div>
 
       {/* barra inferior no celular */}
-      <nav aria-label="Atalhos" className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-white lg:hidden" style={{ gridTemplateColumns: `repeat(${Math.max(principais.length, 1)}, minmax(0, 1fr))` }}>
+      <nav aria-label="Atalhos" className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-white lg:hidden" style={{ gridTemplateColumns: `repeat(${Math.max(colunas, 1)}, minmax(0, 1fr))` }}>
         {principais.map((t) => {
           const I = ICONES[t.codigo] ?? ClipboardCheck;
           return (
@@ -138,6 +155,11 @@ export function Layout({ barraStatus }: { barraStatus?: ReactNode }) {
             </NavLink>
           );
         })}
+        {config.length > 0 && (
+          <button onClick={() => setAberto((v) => !v)} aria-expanded={aberto} className={cx("flex min-h-16 flex-col items-center justify-center gap-0.5 text-xs", aberto ? "font-bold text-marca" : "text-gray-700")}>
+            <Settings className="size-6" aria-hidden /> Configurar
+          </button>
+        )}
       </nav>
     </div>
   );

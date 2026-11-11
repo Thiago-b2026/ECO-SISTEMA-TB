@@ -52,6 +52,9 @@ export default function Login() {
         <Cartao className="border-amber-300 bg-amber-50">
           <div className="mb-2 font-semibold text-amber-900">Modo demonstração (sem banco de dados)</div>
           <p className="mb-3 text-sm text-amber-900">Os dados ficam só neste navegador. Escolha quem você quer ser:</p>
+          <p className="mb-3 rounded-lg bg-white/70 p-2 text-sm text-amber-900">
+            <b>Para cadastrar empresas, lojas, tarefas e colaboradores, entre como Admin.</b> Os cadastros ficam no botão <b>Configurar</b>, na barra de baixo (ou no menu ☰).
+          </p>
           <div className="grid gap-2">
             {USUARIOS_DEMO.map((u) => (
               <Botao key={u.id} variante="secundario" disabled={enviando} onClick={() => enviar(undefined, u.email, u.senha)} className="justify-start text-left">

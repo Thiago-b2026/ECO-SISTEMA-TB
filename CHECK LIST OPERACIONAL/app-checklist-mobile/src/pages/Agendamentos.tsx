@@ -92,7 +92,7 @@ export default function Agendamentos() {
 
   return (
     <div className="space-y-4">
-      <Titulo acao={<Botao variante="secundario" onClick={() => setEdit(vazio(lojaAtual.loja_id))}><CalendarPlus className="size-5" aria-hidden /> Novo</Botao>}>Agendamentos · {lojaAtual.nome}</Titulo>
+      <Titulo acao={<Botao variante="secundario" onClick={() => setEdit(vazio(lojaAtual.loja_id))}><CalendarPlus className="size-5" aria-hidden /> Novo</Botao>}>Agendar tarefas · {lojaAtual.nome}</Titulo>
       {erro && <Aviso tom="erro">{erro}</Aviso>}
       {ok && <Aviso tom="ok">{ok}</Aviso>}
       {edit && <Formulario a={edit} modelos={d.modelos} membros={d.membros} ocupado={ocupado} onSalvar={salvar} onCancelar={() => setEdit(null)} />}

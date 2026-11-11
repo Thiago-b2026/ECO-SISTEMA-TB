@@ -73,7 +73,7 @@ export default function Modelos() {
 
   return (
     <div className="space-y-4">
-      <Titulo acao={<Botao variante="secundario" onClick={() => setNovo((v) => !v)}><Plus className="size-5" aria-hidden /> Novo checklist</Botao>}>Modelos de checklist · {empresaAtual.nome}</Titulo>
+      <Titulo acao={<Botao variante="secundario" onClick={() => setNovo((v) => !v)}><Plus className="size-5" aria-hidden /> Novo checklist</Botao>}>Cadastrar tarefas e checklists · {empresaAtual.nome}</Titulo>
       {erro && <Aviso tom="erro">{erro}</Aviso>}
       {ok && <Aviso tom="ok">{ok}</Aviso>}
 
