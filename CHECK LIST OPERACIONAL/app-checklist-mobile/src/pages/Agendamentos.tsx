@@ -1,6 +1,7 @@
 // Agendamento e atribuição: qual checklist, em que unidade, com que frequência, até que horas e para quem.
 // Gravar precisa de internet (é cadastro); as tarefas do dia saem daqui (checklist.gerar_tarefas).
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { equipeDaLoja } from "../data/equipe";
 import { CalendarPlus, Pencil, Power, Wand2 } from "lucide-react";
@@ -28,6 +29,7 @@ export default function Agendamentos() {
   const [ok, setOk] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const loja = lojaAtual?.loja_id;
+  const [params, setParams] = useSearchParams();
 
   const d = useLiveQuery(async () => {
     if (!loja) return null;
@@ -38,7 +40,17 @@ export default function Agendamentos() {
     };
   }, [loja, empresaAtual?.rede_id]);
 
+  // veio do editor ("Criar agendamento" depois de publicar): abre o formulário já com o checklist
+  const doEditor = params.get("modelo");
+  useEffect(() => {
+    if (!doEditor || !d || !lojaAtual) return;
+    const m = d.modelos.find((x) => x.id === doEditor);
+    if (m) setEdit({ ...vazio(lojaAtual.loja_id), modelo_id: m.id, perfil_responsavel: m.perfil_executor });
+    setParams({}, { replace: true });
+  }, [doEditor, d, lojaAtual, setParams]);
+
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
+
   if (!d) return <Carregando />;
   const nomeModelo = (id: string) => d.modelos.find((m) => m.id === id)?.nome ?? "?";
   const quem = (a: Agendamento) => a.responsavel_id ? d.membros.find((m) => m.usuario_id === a.responsavel_id)?.nome ?? "—" : `Qualquer ${PERFIS[a.perfil_responsavel ?? "operador"].toLowerCase()}`;
