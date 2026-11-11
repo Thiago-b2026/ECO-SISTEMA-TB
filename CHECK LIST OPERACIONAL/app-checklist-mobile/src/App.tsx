@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { AppProvider, useApp } from "./app/contexto";
 import { DadosProvider } from "./app/dados";
+import { ERRO_CONFIG } from "./data/conexao";
 import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
@@ -48,7 +49,22 @@ function Rotas() {
   );
 }
 
+/** Build de produção sem as variáveis do Supabase: NÃO abre o modo demonstração. */
+function ErroConfiguracao() {
+  return (
+    <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center gap-3 p-6">
+      <div className="text-2xl font-extrabold text-marca">Eco Sistema TB</div>
+      <div role="alert" className="rounded-xl border-2 border-red-300 bg-red-50 p-4 text-red-900">
+        <h1 className="text-lg font-bold">Erro de configuração</h1>
+        <p className="mt-1">O Check List foi publicado sem o endereço do banco de dados (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).</p>
+        <p className="mt-1">Avise o administrador: as variáveis precisam ser cadastradas na Vercel e o site publicado de novo.</p>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
+  if (ERRO_CONFIG) return <ErroConfiguracao />;
   return (
     <AppProvider>
       <BrowserRouter>
