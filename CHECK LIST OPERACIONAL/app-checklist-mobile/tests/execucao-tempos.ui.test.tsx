@@ -3,7 +3,9 @@
 // (hora de fim visível); app em 2º plano = "Pausado"; voltar = retoma; sair da tela pausa e voltar retoma.
 import "fake-indexeddb/auto";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { dataSP, somarDias } from "../src/domain/tempo";
+import { CONFIG_PADRAO, analisarExecucoes, resumoTempos } from "../src/domain/tempos";
 import App from "../src/App";
 import { servidor } from "../src/data/conexao";
 import { USUARIOS_DEMO } from "../src/data/demo-servidor";
@@ -135,5 +137,31 @@ describe("execução: tempos pela tela", () => {
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Salvar limites/ })); });
     await screen.findByText("Limites salvos.", {}, T);
     await waitFor(() => expect(screen.getByText(/Rápido demais: menos de 10%/)).toBeTruthy(), T);
+  }, 120000);
+
+  it("Dashboard: tempo médio × padrão, % no tempo e rápido demais; se os tempos falharem, o resto continua", async () => {
+    localStorage.clear();
+    render(<App />);
+    fireEvent.click(await screen.findByText("Carla (Gestora)", {}, T));
+    await screen.findByRole("navigation", { name: "Menu" }, T);
+    await ir("/dashboard");
+    const secao = (await screen.findByRole("heading", { name: /Tempo de execução/ }, T)).closest("section") as HTMLElement;
+    await waitFor(() => expect(within(secao).getByText("% no tempo")).toBeTruthy(), T);
+    const hoje = dataSP();
+    const dt = await servidor.dadosTempos(somarDias(hoje, -6), hoje, null, null);
+    const r = resumoTempos(analisarExecucoes(dt.execucoes, (rede) => dt.config.find((c) => c.rede_id === rede) ?? CONFIG_PADRAO)); // limites salvos da empresa
+    const bloco = (rotulo: string) => within(secao).getByText(rotulo).parentElement!.textContent ?? "";
+    expect(bloco("% no tempo")).toContain(`${r.pct_no_tempo}%`);
+    expect(bloco("Rápido demais")).toContain(String(r.rapido_demais));
+    expect(bloco("Tempo médio × padrão")).toMatch(/\d+min \/ \d+min/);
+
+    // tempos com erro (ex.: migration ainda não aplicada): aviso amarelo, sem erro vermelho, e o resto aparece
+    const espiao = vi.spyOn(servidor, "dadosTempos").mockRejectedValue(new Error("function checklist.dados_tempos does not exist"));
+    try {
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: /Atualizar/ })); });
+      await screen.findByText(/Os tempos não puderam ser carregados/, {}, T);
+      expect(screen.getByText("Tarefas concluídas")).toBeTruthy();
+      expect(within(document.querySelector("main")!).queryAllByRole("alert")).toEqual([]);
+    } finally { espiao.mockRestore(); }
   }, 120000);
 });
