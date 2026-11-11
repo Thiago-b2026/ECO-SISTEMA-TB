@@ -3,13 +3,20 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { TELAS_APP, podeVerTela, telaDaRota } from "./telas";
 
-const SQL = readFileSync(resolve(import.meta.dirname, "../../../../GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql"), "utf8");
+const MIG = resolve(import.meta.dirname, "../../../../GESTAO SALVADOS/supabase/migrations");
+const SQL = ["20261110000023_checklist_telas.sql", "20261110000024_checklist_empresas.sql"].map((f) => readFileSync(resolve(MIG, f), "utf8")).join("\n");
 
 describe("telas do Check List no Ecossistema", () => {
   it("mesmos códigos, rotas e grupos da migration do PDV", () => {
-    const doSql = [...SQL.matchAll(/\('(checklist\.[a-z_]+)',\s+'([^']+)',\s+'checklist',\s+'([a-z]+)',\s+'([^']+)',/g)]
-      .map((m) => ({ codigo: m[1], nome: m[2], grupo: m[3], rota: m[4] }));
-    expect(doSql).toEqual(TELAS_APP.map(({ codigo, nome, grupo, rota }) => ({ codigo, nome, grupo, rota })));
+    const doSql = [...SQL.matchAll(/\('(checklist\.[a-z_]+)',\s+'([^']+)',\s+'checklist',\s+'([a-z]+)',\s+'([^']+)',\s+\d+,\s+(true|false)\)/g)]
+      .map((m) => ({ codigo: m[1], nome: m[2], grupo: m[3], rota: m[4], somenteAdmin: m[5] === "true" }));
+    expect(doSql).toEqual(TELAS_APP.map(({ codigo, nome, grupo, rota, somenteAdmin }) => ({ codigo, nome, grupo, rota, somenteAdmin: !!somenteAdmin })));
+  });
+
+  it("Empresas e lojas é só do admin", () => {
+    const todas = new Set(TELAS_APP.map((t) => t.codigo));
+    expect(podeVerTela("checklist.empresas", { liberadas: todas, perfil: "gestor" })).toBe(false);
+    expect(podeVerTela("checklist.empresas", { admin: true, liberadas: new Set(), perfil: "gestor" })).toBe(true);
   });
 
   it("sem tela liberada = bloqueada; consulta com erro não bloqueia todo mundo", () => {

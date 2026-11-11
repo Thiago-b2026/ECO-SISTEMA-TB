@@ -12,7 +12,8 @@ const SQL17 = readFileSync(resolve(process.cwd(), "supabase/migrations/202611080
 const SQL18 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261108000018_portal_redes_unidades.sql"), "utf8");
 // migrations posteriores que incluem sistemas/telas novos (ex.: Check List, 0023)
 const SQL23 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261110000023_checklist_telas.sql"), "utf8");
-const SQL = `${SQL17}\n${SQL18}\n${SQL23}`;
+const SQL24 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261110000024_checklist_empresas.sql"), "utf8");
+const SQL = `${SQL17}\n${SQL18}\n${SQL23}\n${SQL24}`;
 const CONF18 = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_portal_antes.sql"), "utf8");
 const CONFERIR = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_telas_antes.sql"), "utf8");
 const CATALOGO = JSON.parse(readFileSync(resolve(process.cwd(), "../MEU SUPERVISOR/sistemas.json"), "utf8")) as { sistemas: { codigo?: string; nome: string }[] };
@@ -38,7 +39,7 @@ describe("regra de tela", () => {
   });
 
   it("Login de acesso, Lojas, Usuários do RH e o Portal são só do Admin (sem checkbox); Pessoas é liberável", () => {
-    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios", "portal.usuarios", "portal.redes", "portal.permissoes"];
+    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios", "portal.usuarios", "portal.redes", "portal.permissoes", "checklist.empresas"];
     const liberadas = new Set([...so, "pdv.pessoas"]);
     for (const c of so) {
       expect(podeVerTela(c, { admin: false, liberadas })).toBe(false);
@@ -171,7 +172,8 @@ describe("catálogo", () => {
   it("toda tela/ação usada na conversão existe no catálogo de ações da tela (tela_acoes)", () => {
     const bloco = (sql: string) => sql.slice(sql.indexOf("insert into public.tela_acoes"), sql.indexOf(") as x(t, a)"));
     const ta = `${bloco(SQL18)}
-${bloco(SQL23)}`;
+${bloco(SQL23)}
+${bloco(SQL24)}`;
     const mapa = new Map([...ta.matchAll(/\('([a-z_]+\.[a-z_]+)',\s+array\[([^\]]+)\]\)/g)].map((m) => [m[1], m[2].replace(/'/g, "").split(",")]));
     expect([...mapa.keys()].sort()).toEqual(TELAS.map((t) => t.codigo).sort());
     for (const m of SQL18.matchAll(/\('((?:pdv|rh)\.[a-z_]+)',\s+'([a-z_]+)',\s+(?:array|true|false)/g)) {

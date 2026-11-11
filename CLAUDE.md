@@ -69,3 +69,4 @@ bloco, mas todos compartilham **um login** e **um cadastro de permissões**.
    sistemas cada unidade aparece). Cada sistema liga as suas tabelas à unidade (`unidade_id` / `loja_id`).
 7. Segredos só em `.env` (fora do Git); `service_role` nunca no front-end.
 8. Publicar na Vercel (time `grupotb`) e cadastrar a `url` do sistema em `public.sistemas`.
+9. Portal: todo sistema novo aparece como quadro na página do Portal ECO SISTEMA TB (PORTAL/src/pages/Inicio.tsx) e é aberto a partir dele, com o mesmo login. Só juntar ao main depois que o sistema estiver publicado na Vercel, para o quadro não abrir página de erro.

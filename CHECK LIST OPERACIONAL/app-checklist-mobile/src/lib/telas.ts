@@ -14,6 +14,8 @@ export interface TelaApp {
   grupo: "operacao" | "supervisao" | "cadastros";
   /** perfil mínimo para a tela fazer sentido */
   perfilMinimo: Perfil;
+  /** só o admin do Ecossistema entra (sem checkbox no editor de permissões) */
+  somenteAdmin?: boolean;
 }
 
 export const TELAS_APP: TelaApp[] = [
@@ -25,6 +27,7 @@ export const TELAS_APP: TelaApp[] = [
   { codigo: "checklist.agendamentos", nome: "Agendamentos", rota: "/agendamentos", grupo: "cadastros", perfilMinimo: "supervisor" },
   { codigo: "checklist.modelos", nome: "Modelos de checklist", rota: "/modelos", grupo: "cadastros", perfilMinimo: "gestor" },
   { codigo: "checklist.equipe", nome: "Equipe e perfis", rota: "/equipe", grupo: "cadastros", perfilMinimo: "gestor" },
+  { codigo: "checklist.empresas", nome: "Empresas e lojas", rota: "/empresas", grupo: "cadastros", perfilMinimo: "gestor", somenteAdmin: true },
 ];
 
 /** Rotas filhas que pertencem a uma tela (ex.: /execucao/123 é parte de "Minhas tarefas"). */
@@ -47,10 +50,12 @@ export interface CtxAcesso {
 export function podeVerTela(codigo: string, ctx: CtxAcesso): boolean {
   const t = TELAS_APP.find((x) => x.codigo === codigo);
   if (!t) return true;
+  if (t.somenteAdmin) return !!ctx.admin;
+  if (ctx.admin) return true;
   if (nivel(ctx.perfil) < nivel(t.perfilMinimo)) return false;
   if (ctx.liberadas === null) return true;
   return ctx.liberadas.has(codigo);
 }
 
 /** Telas que um perfil normalmente recebe (usado no modo demonstração). */
-export const telasDoPerfil = (p: Perfil | null) => TELAS_APP.filter((t) => nivel(p) >= nivel(t.perfilMinimo)).map((t) => t.codigo);
+export const telasDoPerfil = (p: Perfil | null) => TELAS_APP.filter((t) => !t.somenteAdmin && nivel(p) >= nivel(t.perfilMinimo)).map((t) => t.codigo);
