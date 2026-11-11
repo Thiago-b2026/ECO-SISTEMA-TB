@@ -47,3 +47,10 @@
 - **Segurança:** o modo demonstração só abre no `npm run dev` ou com `VITE_MODO_DEMO=1`; o build de produção sem variáveis mostra "Erro de configuração". A demonstração ganhou Admin e "Empresa Exemplo 2" (matriz, filial e gestor Gabriel).
 - `CLAUDE.md` da raiz: item 9 (quadro no Portal; só juntar ao main depois da Vercel). Quadro do Check List no Portal conferido.
 - Testes novos: multiempresa em PGlite (A não vê B, gestor da A não edita B, admin vê as duas, cópia não altera a original, checklist do zero com condicional, loja e colaborador só pelo admin), editor, fluxo do editor até a execução, modo de conexão, CNPJ e admin-usuarios. **72 testes no app e 131 no PDV.**
+
+## Sessão 4 – 10/11/2026 (configurações visíveis)
+- O usuário testou e não achou onde cadastrar tarefa nem empresa: as telas existiam, mas ficavam no fim do menu ☰, atrás da barra de baixo, com nomes técnicos, e "Empresas e lojas" só aparece para o Admin.
+- Ajuste: seção **CONFIGURAÇÕES** no topo do menu, na ordem empresa e lojas → tarefas → agenda → colaboradores, com rolagem própria. Botão **Configurar** na barra de baixo para quem tem tela de cadastro.
+- Nomes novos (app, migration 0023 e espelho no PDV): **Cadastrar tarefas e checklists**, **Agendar tarefas**, **Colaboradores**.
+- O login do modo demonstração avisa que os cadastros ficam com o Admin, no botão Configurar.
+- 72 testes no app e 131 no PDV passam; o build passa. Conferido no navegador como Admin.
