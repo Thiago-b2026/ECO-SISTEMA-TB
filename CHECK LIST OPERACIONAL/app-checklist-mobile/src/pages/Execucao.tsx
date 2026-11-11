@@ -50,16 +50,22 @@ export default function Execucao() {
   }, [id]);
 
   // execução de outra pessoa (ex.: o líder conferindo) ou só no servidor: traz respostas e fotos
+  // e também quando a execução ainda NÃO está no aparelho (link direto, relatório, download não terminou)
   const [buscou, setBuscou] = useState(false);
+  const [buscando, setBuscando] = useState(false);
   const [erroBusca, setErroBusca] = useState<string | null>(null);
+  useEffect(() => { setBuscou(false); setErroBusca(null); }, [id]);
   useEffect(() => {
-    if (!d?.e || buscou) return;
-    const deOutro = d.e.usuario_id !== sessao!.usuario_id;
-    const semRespostas = d.rs !== undefined && d.rs.length === 0 && d.e.status !== "em_andamento";
-    if (!deOutro && !semRespostas) return;
+    if (!d || buscou) return;
+    const naoTem = !d.e;
+    const deOutro = !!d.e && d.e.usuario_id !== sessao!.usuario_id;
+    const semRespostas = !!d.e && d.rs !== undefined && d.rs.length === 0 && d.e.status !== "em_andamento";
+    if (!naoTem && !deOutro && !semRespostas) return;
     setBuscou(true);
-    repo.trazerDoServidor(d.e.id).catch((x: Error) => setErroBusca(x.message));
-  }, [d?.e, d?.rs, buscou, repo, sessao]);
+    setBuscando(true);
+    // no sucesso continua "carregando" até a consulta do aparelho enxergar a execução (sem piscar "não encontrada")
+    repo.trazerDoServidor(id!).catch((x: Error) => { setErroBusca(x.message); setBuscando(false); });
+  }, [d, buscou, repo, sessao, id]);
 
   // rola até o item pedido (link das pendências: #item-<id>)
   useEffect(() => {
@@ -68,8 +74,8 @@ export default function Execucao() {
     if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); (el.querySelector("button, input, textarea") as HTMLElement | null)?.focus({ preventScroll: true }); }
   }, [hash, d?.e]);
 
-  if (!d) return <Carregando />;
-  if (!d.e) return <Aviso tom="erro" titulo="Execução não encontrada neste aparelho">Volte para Minhas tarefas e atualize.</Aviso>;
+  if (!d || (!d.e && (buscando || !buscou))) return <Carregando />;
+  if (!d.e) return <Aviso tom="erro" titulo="Execução não encontrada">Ela não existe ou é de uma unidade em que você não está. Volte para Minhas tarefas.{erroBusca ? ` (${erroBusca})` : ""}</Aviso>;
   if (!d.v) return <Aviso tom="alerta" titulo="Modelo ainda não baixado">Conecte à internet e toque em Atualizar.</Aviso>;
   const { e, v, m, t, rs, fotos } = d;
 

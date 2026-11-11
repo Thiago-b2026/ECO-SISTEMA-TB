@@ -27,6 +27,7 @@ export default function TarefasLoja() {
   const d = useLiveQuery(async () => {
     if (!loja) return null;
     return {
+      chave: `${loja}|${data}`,
       tarefas: (await db.tarefas.where("loja_id").equals(loja).toArray()).filter((t) => t.data_ref === data),
       execs: await db.execucoes.where("loja_id").equals(loja).toArray(),
       modelos: new Map((await db.modelos.toArray()).map((m) => [m.id, m])),
@@ -35,7 +36,7 @@ export default function TarefasLoja() {
   }, [loja, data]);
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
-  if (!d) return <Carregando />;
+  if (!d || d.chave !== `${loja}|${data}`) return <Carregando />;
   const nome = (u: string | null | undefined) => d.membros.find((m) => m.usuario_id === u)?.nome ?? "—";
   const aguardando = d.execs.filter((e) => e.status === "concluida" && e.usuario_id !== usuario && !e.conclusao_pendente);
 

@@ -35,11 +35,12 @@ export default function Hoje() {
     const minhas = tarefas.filter((t) => t.responsavel_id === usuario || (!t.responsavel_id && t.perfil_responsavel === perfil));
     const devolvidas = execs.filter((e) => e.usuario_id === usuario && e.status === "devolvida");
     const avulsas = execs.filter((e) => e.usuario_id === usuario && !e.tarefa_id && e.status === "em_andamento");
-    return { minhas, execs, modelos, devolvidas, avulsas };
+    // a chave diz de qual unidade/empresa é o resultado (evita mostrar a unidade anterior ao trocar)
+    return { chave: `${loja}|${empresaAtual?.rede_id}`, minhas, execs, modelos, devolvidas, avulsas };
   }, [loja, hoje, usuario, perfil, empresaAtual?.rede_id]);
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
-  if (!pronto || !dados) return <Carregando />;
+  if (!pronto || !dados || dados.chave !== `${loja}|${empresaAtual?.rede_id}`) return <Carregando />;
 
   const execDaTarefa = (t: Tarefa) => dados.execs.filter((e) => e.tarefa_id === t.id).sort((a, b) => b.inicio_em.localeCompare(a.inicio_em))[0];
   const lista = dados.minhas

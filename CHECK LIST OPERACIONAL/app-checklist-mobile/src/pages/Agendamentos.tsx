@@ -34,6 +34,7 @@ export default function Agendamentos() {
   const d = useLiveQuery(async () => {
     if (!loja) return null;
     return {
+      chave: `${loja}|${empresaAtual?.rede_id}`,
       ags: await db.agendamentos.where("loja_id").equals(loja).toArray(),
       modelos: (await db.modelos.where("rede_id").equals(empresaAtual?.rede_id ?? "-").toArray()).sort((a, b) => a.nome.localeCompare(b.nome)),
       membros: (await equipeDaLoja(db, loja)).filter((m) => m.ativo),
@@ -51,7 +52,7 @@ export default function Agendamentos() {
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
 
-  if (!d) return <Carregando />;
+  if (!d || d.chave !== `${loja}|${empresaAtual?.rede_id}`) return <Carregando />;
   const nomeModelo = (id: string) => d.modelos.find((m) => m.id === id)?.nome ?? "?";
   const quem = (a: Agendamento) => a.responsavel_id ? d.membros.find((m) => m.usuario_id === a.responsavel_id)?.nome ?? "—" : `Qualquer ${PERFIS[a.perfil_responsavel ?? "operador"].toLowerCase()}`;
 

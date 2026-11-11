@@ -29,11 +29,11 @@ export default function Planos() {
     if (!loja) return null;
     const planos = await db.planos.where("loja_id").equals(loja).toArray();
     const membros = await equipeDaLoja(db, loja);
-    return { planos, membros };
+    return { chave: loja, planos, membros };
   }, [loja]);
 
   if (!lojaAtual) return <Vazio>Você ainda não está na equipe de nenhuma unidade.</Vazio>;
-  if (!d) return <Carregando />;
+  if (!d || d.chave !== loja) return <Carregando />;
 
   const aberto = (p: PlanoAcao) => p.status !== "concluido" && p.status !== "cancelado";
   const filtros: { id: Filtro; nome: string; f: (p: PlanoAcao) => boolean; so?: boolean }[] = [
