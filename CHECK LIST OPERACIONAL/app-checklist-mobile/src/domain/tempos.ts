@@ -184,3 +184,20 @@ export function resumoTempos(analisadas: ExecAnalisada[]) {
     rapido_demais: com.filter((e) => e.situacao === "rapido_demais").length,
   };
 }
+
+/** Tempo ATIVO de uma execução agora: do início até o fim (ou agora) menos as pausas, inclusive a pausa aberta. */
+export function tempoAtivoSeg(
+  e: { inicio_em: string; fim_em?: string | null; tempo_pausado_seg?: number | null; pausa_desde?: string | null },
+  agora: string = new Date().toISOString(),
+): number {
+  const fim = e.fim_em ?? agora;
+  const total = Math.max(0, Math.round((new Date(fim).getTime() - new Date(e.inicio_em).getTime()) / 1000));
+  const aberta = !e.fim_em && e.pausa_desde ? Math.max(0, Math.round((new Date(agora).getTime() - new Date(e.pausa_desde).getTime()) / 1000)) : 0;
+  return Math.max(0, total - (e.tempo_pausado_seg ?? 0) - aberta);
+}
+
+/** Duração de um item (início → fim); sem fim, até agora (item em andamento). */
+export function duracaoItemSeg(r: { iniciado_em?: string | null; concluido_em?: string | null } | undefined, agora: string = new Date().toISOString()): number | null {
+  if (!r?.iniciado_em) return null;
+  return Math.max(0, Math.round((new Date(r.concluido_em ?? agora).getTime() - new Date(r.iniciado_em).getTime()) / 1000));
+}

@@ -107,25 +107,39 @@ export class Repositorio {
     else if (!completo && r.concluido_em) await this.db.respostas.update(r.id, { concluido_em: null, respondido_em: agora });
   }
 
-  /** Pausa: app foi para 2º plano ou a pessoa saiu da tela (o tempo parado fica fora do tempo ativo). */
-  async pausar(execId: string) {
-    const e = await this.db.execucoes.get(execId);
-    if (!e || e.usuario_id !== this.usuario || (e.status !== "em_andamento" && e.status !== "devolvida") || e.pausa_desde) return;
-    await this.db.execucoes.update(execId, { pausa_desde: new Date().toISOString() });
+  // pausar/retomar em FILA: trocar de tela (Execução → Concluir) dispara "pausar" e "retomar" quase juntos;
+  // sem a fila, o "retomar" podia ler antes do "pausar" gravar e a pausa ficava aberta.
+  private filaPausa: Promise<unknown> = Promise.resolve();
+  private emFila<T>(f: () => Promise<T>): Promise<T> {
+    const p = this.filaPausa.then(f, f);
+    this.filaPausa = p.catch(() => undefined);
+    return p;
   }
 
-  /** Volta da pausa: soma o tempo parado e registra a pausa. */
-  async retomar(execId: string) {
-    const e = await this.db.execucoes.get(execId);
-    if (!e?.pausa_desde) return;
-    const fim = new Date().toISOString();
-    const seg = Math.max(0, Math.round((new Date(fim).getTime() - new Date(e.pausa_desde).getTime()) / 1000));
-    await this.db.execucoes.update(execId, {
-      pausa_desde: null,
-      tempo_pausado_seg: (e.tempo_pausado_seg ?? 0) + seg,
-      pausas: [...(e.pausas ?? []), { inicio: e.pausa_desde, fim }],
+  /** Pausa: app foi para 2º plano ou a pessoa saiu da tela (o tempo parado fica fora do tempo ativo). */
+  pausar(execId: string) {
+    return this.emFila(async () => {
+      const e = await this.db.execucoes.get(execId);
+      if (!e || e.usuario_id !== this.usuario || (e.status !== "em_andamento" && e.status !== "devolvida") || e.pausa_desde) return;
+      await this.db.execucoes.update(execId, { pausa_desde: new Date().toISOString() });
     });
-    if (seg > 0) await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
+  }
+
+  /** Volta da pausa: soma o tempo parado e registra a pausa (menos de 2 s, ex.: troca de tela, não conta). */
+  retomar(execId: string) {
+    return this.emFila(async () => {
+      const e = await this.db.execucoes.get(execId);
+      if (!e?.pausa_desde) return;
+      const fim = new Date().toISOString();
+      const seg = Math.max(0, Math.round((new Date(fim).getTime() - new Date(e.pausa_desde).getTime()) / 1000));
+      if (seg < 2) { await this.db.execucoes.update(execId, { pausa_desde: null }); return; }
+      await this.db.execucoes.update(execId, {
+        pausa_desde: null,
+        tempo_pausado_seg: (e.tempo_pausado_seg ?? 0) + seg,
+        pausas: [...(e.pausas ?? []), { inicio: e.pausa_desde, fim }],
+      });
+      await this.s.enfileirar({ tipo: "execucao", chave: execId, dados: {} });
+    });
   }
 
   async observar(execId: string, itemId: string, texto: string) {

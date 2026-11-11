@@ -1,15 +1,20 @@
 // Execução de um checklist: itens por seção, condicionais, prazos por item, fotos, observações.
 // Início registrado ao abrir; fim ao concluir (tela Concluir). Tudo salvo no aparelho na hora.
+// Tempos: cada item começa no 1º toque e termina quando fica completo; app em 2º plano ou sair da tela = pausa
+// (o tempo ativo não conta o tempo parado).
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { AlarmClock, ArrowRight, Camera, ChevronDown, FileDown, FileText, Info, MessageSquare, Timer } from "lucide-react";
+import { AlarmClock, ArrowRight, Camera, ChevronDown, Clock, FileDown, FileText, Info, MessageSquare, Pause, Timer } from "lucide-react";
 import { useApp } from "../app/contexto";
 import { useDados } from "../app/dados";
 import { instanteDoDia } from "../domain/agenda";
 import { itemVisivel, mapaRespostas, naoConforme, pontuacaoExecucao, progresso, semResposta, textoPontuacao, todosItens } from "../domain/regras";
-import { dataSP, diaSemana, duracao, horaSP, segundosEntre } from "../domain/tempo";
-import type { Item, ValorResposta } from "../domain/tipos";
+import { dataSP, diaSemana, duracao, horaSP } from "../domain/tempo";
+import { duracaoItemSeg, tempoAtivoSeg } from "../domain/tempos";
+import { usePausaAutomatica } from "../app/pausa-automatica";
+import type { Item, Resposta, ValorResposta } from "../domain/tipos";
+import type { ExecucaoLocal } from "../data/local";
 import { nomeSetor } from "../data/seed-modelos";
 import { Aviso, Botao, Cartao, Carregando, Selo, classeEntrada, cx } from "../ui/base";
 import { CampoResposta } from "../ui/CampoResposta";
@@ -19,14 +24,46 @@ import { servidor } from "../data/conexao";
 import { baixarPdfExecucao } from "../lib/pdf-execucao";
 import { ItemAssinatura } from "../ui/ItemAssinatura";
 
-function Cronometro({ inicio, fim }: { inicio: string; fim?: string | null }) {
+/** Relógio da tela: atualiza de tempos em tempos enquanto houver algo correndo. */
+function useAgora(ligado: boolean, ms = 5000) {
   const [agora, setAgora] = useState(() => new Date().toISOString());
   useEffect(() => {
-    if (fim) return;
-    const t = setInterval(() => setAgora(new Date().toISOString()), 15000);
+    if (!ligado) return;
+    setAgora(new Date().toISOString());
+    const t = setInterval(() => setAgora(new Date().toISOString()), ms);
     return () => clearInterval(t);
-  }, [fim]);
-  return <span className="inline-flex items-center gap-1"><Timer className="size-4" aria-hidden /> {duracao(segundosEntre(inicio, fim ?? agora))}</span>;
+  }, [ligado, ms]);
+  return agora;
+}
+
+/** Tempo ATIVO da execução (total menos pausas) e o tempo parado. */
+function Cronometro({ e, agora }: { e: ExecucaoLocal; agora: string }) {
+  const parado = (e.tempo_pausado_seg ?? 0);
+  return (
+    <span className="inline-flex items-center gap-1" title="Tempo ativo (sem as pausas)">
+      <Timer className="size-4" aria-hidden /> {duracao(tempoAtivoSeg(e, agora))}
+      {parado > 0 && <span className="text-gray-500">(parado {duracao(parado)})</span>}
+    </span>
+  );
+}
+
+/** Linha de tempo do item: hora de início, hora de fim e duração (padrão, se houver). */
+function TempoItem({ r, item, agora }: { r: Resposta | undefined; item: Item; agora: string }) {
+  if (!r?.iniciado_em) {
+    return item.tempo_padrao_min ? <p className="mt-2 text-xs text-gray-500">Padrão: {item.tempo_padrao_min} min</p> : null;
+  }
+  const seg = duracaoItemSeg(r, agora);
+  return (
+    <p className="mt-2 flex flex-wrap items-center gap-x-2 text-xs text-gray-600" data-testid={`tempo-${item.id}`}>
+      <Clock className="size-3.5" aria-hidden />
+      <span>{[
+        `Início ${horaSP(r.iniciado_em)}`,
+        r.concluido_em ? `Fim ${horaSP(r.concluido_em)}` : "em andamento",
+        duracao(seg),
+        item.tempo_padrao_min ? `padrão ${item.tempo_padrao_min} min` : null,
+      ].filter(Boolean).join(" · ")}</span>
+    </p>
+  );
 }
 
 export default function Execucao() {
@@ -74,6 +111,10 @@ export default function Execucao() {
     if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); (el.querySelector("button, input, textarea") as HTMLElement | null)?.focus({ preventScroll: true }); }
   }, [hash, d?.e]);
 
+  const meu = !!d?.e && d.e.usuario_id === sessao!.usuario_id && (d.e.status === "em_andamento" || d.e.status === "devolvida");
+  usePausaAutomatica(repo, d?.e?.id, meu);
+  const agora = useAgora(meu);
+
   if (!d || (!d.e && (buscando || !buscou))) return <Carregando />;
   if (!d.e) return <Aviso tom="erro" titulo="Execução não encontrada">Ela não existe ou é de uma unidade em que você não está. Volte para Minhas tarefas.{erroBusca ? ` (${erroBusca})` : ""}</Aviso>;
   if (!d.v) return <Aviso tom="alerta" titulo="Modelo ainda não baixado">Conecte à internet e toque em Atualizar.</Aviso>;
@@ -92,6 +133,11 @@ export default function Execucao() {
     setErro(null);
     try { await repo.responder(e.id, item.id, valor); } catch (x) { setErro((x as Error).message); }
   }
+  /** 1º toque no item (ou foco pelo teclado): marca o início dele. */
+  function iniciarItem(item: Item, r: Resposta | undefined) {
+    if (!editavel || r?.iniciado_em) return;
+    void repo.iniciarItem(e.id, item.id).catch((x: Error) => setErro(x.message));
+  }
   async function salvarObs(item: Item, texto: string) {
     setErro(null);
     try { await repo.observar(e.id, item.id, texto); } catch (x) { setErro((x as Error).message); }
@@ -105,7 +151,8 @@ export default function Execucao() {
           <SeloExecucao s={e.status} />
           <span>Versão {v.numero}</span>
           <span>Início {horaSP(e.inicio_em)}{e.fim_em ? ` · Fim ${horaSP(e.fim_em)}` : ""}</span>
-          <Cronometro inicio={e.inicio_em} fim={e.fim_em} />
+          <Cronometro e={e} agora={agora} />
+          {e.pausa_desde && <span className="inline-flex items-center gap-1 text-amber-800"><Pause className="size-4" aria-hidden /> Pausado</span>}
           {t && <span>Prazo {horaSP(t.prazo)}</span>}
         </div>
         <div className="mt-3">
@@ -139,7 +186,8 @@ export default function Execucao() {
               const prazoVencido = prazo && new Date(prazo) < new Date() && semResposta(r?.valor);
               const mostrarObs = exigeObs || obsAberta[i.id] || !!r?.observacao;
               return (
-                <Cartao key={i.id} id={`item-${i.id}`} className={cx("scroll-mt-28", nc && "border-red-300")}>
+                <Cartao key={i.id} id={`item-${i.id}`} className={cx("scroll-mt-28", nc && "border-red-300")}
+                  onPointerDownCapture={() => iniciarItem(i, r)} onFocusCapture={() => iniciarItem(i, r)}>
                   <div className="mb-2 font-medium leading-snug">{i.texto}</div>
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {i.obrigatorio && <Selo tom="neutro">Obrigatório</Selo>}
@@ -172,6 +220,7 @@ export default function Execucao() {
                       <MessageSquare className="size-5" aria-hidden /> Adicionar observação
                     </Botao>
                   )}
+                  <TempoItem r={r} item={i} agora={agora} />
                 </Cartao>
               );
             })}

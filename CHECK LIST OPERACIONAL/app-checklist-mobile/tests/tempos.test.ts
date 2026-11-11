@@ -7,7 +7,7 @@ import { Repositorio } from "../src/data/repositorio";
 import { Sincronizador } from "../src/data/sync";
 import { novoId } from "../src/domain/ids";
 import { dataSP, somarDias } from "../src/domain/tempo";
-import { analisarExecucoes, analisarItens, sugestaoPadrao } from "../src/domain/tempos";
+import { analisarExecucoes, analisarItens, sugestaoPadrao, tempoAtivoSeg } from "../src/domain/tempos";
 
 const [SUPERMIX, EX2] = REDES_DEMO.map((r) => r.id);
 const MATRIZ = LOJAS_DEMO[0].id;
@@ -86,6 +86,22 @@ describe("tempo de execução", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("trocar de tela (pausar e retomar juntos) não deixa pausa aberta nem conta segundos; tempo ativo desconta a pausa aberta", async () => {
+    const srv = new DemoServidor(`srv-${novoId()}`, null);
+    const a = await aparelho(srv, "ana");
+    const modelo = (await a.db.modelos.toArray()).find((m) => m.codigo === "fiscal_tarde")!;
+    const exec = await a.repo.iniciar({ modeloId: modelo.id, lojaId: MATRIZ });
+    await Promise.all([a.repo.pausar(exec), a.repo.retomar(exec)]); // Execução → Concluir
+    let e = (await a.db.execucoes.get(exec))!;
+    expect(e.pausa_desde ?? null).toBeNull();
+    expect(e.tempo_pausado_seg ?? 0).toBe(0);
+    expect(e.pausas ?? []).toEqual([]);
+    await a.repo.pausar(exec);
+    e = (await a.db.execucoes.get(exec))!;
+    const daqui10min = new Date(new Date(e.pausa_desde!).getTime() + 600000).toISOString();
+    expect(tempoAtivoSeg({ ...e, inicio_em: new Date(new Date(e.pausa_desde!).getTime() - 120000).toISOString() }, daqui10min)).toBe(120);
   });
 
   it("dois aparelhos: o reenvio de quem abriu o item DEPOIS não apaga nem atrasa o início", async () => {

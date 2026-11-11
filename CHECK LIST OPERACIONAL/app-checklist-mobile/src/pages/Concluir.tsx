@@ -8,6 +8,8 @@ import { useDados, useEstadoSync } from "../app/dados";
 import { itensParaPlano, pendencias, pontuacaoExecucao, textoPontuacao } from "../domain/regras";
 import { dataSP, diaSemana, duracao, segundosEntre } from "../domain/tempo";
 import { Assinatura, type AssinaturaRef } from "../ui/Assinatura";
+import { usePausaAutomatica } from "../app/pausa-automatica";
+import { tempoAtivoSeg } from "../domain/tempos";
 import { Aviso, Botao, Cartao, Carregando, Titulo } from "../ui/base";
 
 const ICONE = { resposta: PenLine, foto: Camera, observacao: MessageSquare };
@@ -33,6 +35,9 @@ export default function Concluir() {
     return { e, v, t, rs, fotos };
   }, [id]);
 
+  // revisar e assinar também é tempo ativo: sair desta tela ou mandar o app para 2º plano pausa
+  usePausaAutomatica(repo, d?.e?.id, !!d?.e && d.e.usuario_id === sessao!.usuario_id && (d.e.status === "em_andamento" || d.e.status === "devolvida") && !resultado);
+
   if (!d) return <Carregando />;
   if (!d.e || !d.v) return <Aviso tom="erro">Execução não encontrada neste aparelho.</Aviso>;
   const { e, v, t, rs, fotos } = d;
@@ -48,7 +53,7 @@ export default function Concluir() {
         <Cartao className="border-green-300 text-center">
           <CheckCircle2 className="mx-auto size-14 text-green-700" aria-hidden />
           <h1 className="mt-2 text-xl font-bold">Checklist concluído</h1>
-          <p className="mt-1">Nota: <b>{textoPontuacao(pont)}</b> · Tempo: <b>{duracao(e.fim_em ? segundosEntre(e.inicio_em, e.fim_em) : null)}</b></p>
+          <p className="mt-1">Nota: <b>{textoPontuacao(pont)}</b> · Tempo ativo: <b>{duracao(e.fim_em ? tempoAtivoSeg(e) : null)}</b>{(e.tempo_pausado_seg ?? 0) > 0 && <> (total {duracao(segundosEntre(e.inicio_em, e.fim_em!))}, parado {duracao(e.tempo_pausado_seg)})</>}</p>
           {(resultado?.planos ?? 0) > 0 && <p className="mt-1">{resultado!.planos} plano(s) de ação aberto(s) para os itens não conformes.</p>}
         </Cartao>
         {sync.pendentes > 0 && !sync.erro && <Aviso tom="alerta" titulo="Salvo no aparelho">Será enviado assim que houver internet.</Aviso>}
