@@ -1,7 +1,7 @@
 # Histórico – Check List Operacional (código `checklist`, schema `checklist`)
 
 ## 📍 ONDE PARAMOS
-- **Etapa 12 concluída (multiempresa e configurações completas)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 72 testes do app e 131 do PDV passam; build ok.
+- **Etapa 12 concluída (multiempresa e configurações completas)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 86 testes do app e 131 do PDV passam; build ok (varredura de erros na sessão 5).
 - **Nada foi aplicado no banco de produção, nenhuma Edge Function foi publicada, nenhum schema foi exposto e nada foi para a Vercel.**
 - **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`, nesta ordem:
   1. `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql` (versão multiempresa);
@@ -54,3 +54,17 @@
 - Nomes novos (app, migration 0023 e espelho no PDV): **Cadastrar tarefas e checklists**, **Agendar tarefas**, **Colaboradores**.
 - O login do modo demonstração avisa que os cadastros ficam com o Admin, no botão Configurar.
 - 72 testes no app e 131 no PDV passam; o build passa. Conferido no navegador como Admin.
+
+## Sessão 5 – 10/11/2026 (varredura de erros)
+- **Verificações:** `tsc -b` sem erros; não há script de lint; 86 testes do app (18 arquivos) e 131 do PDV passam. Pacote principal **810 kB → 351 kB** (109 kB compactado), porque as telas de configuração passaram a carregar sob demanda; nenhum pedaço passa de 500 kB.
+- **Varredura automática** (`tests/todas-telas.ui.test.tsx`): 7 usuários × 11 rotas, inclusive as proibidas. Conferem o menu, o botão Configurar, o isolamento do Gabriel (nada da Supermix), a troca de empresa (Admin) e a troca de unidade (Carla).
+- **Fluxos automáticos:** `tests/fluxos.ui.test.tsx` (pela tela: Admin cria empresa do zero com matriz e filial, inativa e reativa, copia checklists, cria colaborador; Gestor cria checklist do zero com os 7 tipos e condicional, pré-visualiza, publica e agenda; a tarefa aparece para a operadora) e `tests/fluxos-dados.test.ts` (executar com foto, observação e assinatura → devolver → corrigir e reenviar → validar; plano com rejeição e aprovação; dashboard, relatório, Excel e PDF). O offline já estava em `tests/offline.test.ts`.
+- **Chrome de verdade** (sem janela, via CDP; `scripts/teste-navegador.mjs`): os 7 usuários em todas as rotas com **zero erros de console**; service worker registrado; **abre sem internet**; build de produção sem variáveis mostra "Erro de configuração".
+- **Erros encontrados e corrigidos:**
+  1. Execução aberta por link ou relatório aparecia como "não encontrada" quando ainda não estava no aparelho (ex.: Admin). Agora busca no servidor antes.
+  2. Entre a busca e a leitura do aparelho, piscava "não encontrada". Agora continua carregando.
+  3. Ao trocar unidade, empresa ou dia, a tela mostrava por um instante os dados da anterior (Hoje, Planos, Agendamentos, Tarefas da loja). Agora cada resultado tem a chave da unidade e só aparece se for da atual.
+  4. Acessibilidade: o texto de ajuda ficava dentro do rótulo do campo (o leitor de tela lia "CNPJ O tipo sai do CNPJ…"). Agora fica fora, ligado por `aria-describedby`.
+  5. **Celular (390 px):** com mais de uma empresa e unidade, os seletores do topo ficavam um em cima do outro e o botão ☰ saía da tela. Agora há duas linhas no topo, com a altura medida para o menu e os títulos fixos. Achado só no Chrome de verdade (o jsdom não desenha a tela).
+  6. Empresas e lojas no celular: o nome da unidade quebrava em 4 linhas. Agora os botões descem para a linha de baixo.
+- **Não testado:** câmera e GPS reais num celular, envio em segundo plano no iPhone, banco Supabase de produção e Edge Function publicada (dependem do OK do usuário).

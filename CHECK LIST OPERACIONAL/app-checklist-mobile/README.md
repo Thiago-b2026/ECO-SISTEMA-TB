@@ -31,11 +31,13 @@ npm run dev          # http://localhost:5191
 - **Segurança:** o **build de produção** sem `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` mostra **"Erro de configuração"**, e a demonstração nunca abre por engano. Para um build de teste em demonstração, use `VITE_MODO_DEMO=1`.
 
 ```bash
-npm test             # 72 testes (regras, editor, banco em PGlite com 2 empresas, offline, app montado em jsdom)
+npm test             # 86 testes (regras, editor, banco em PGlite com 2 empresas, offline, todas as telas × 7 usuários e fluxos em jsdom)
 npm run build        # checagem de tipos + build + service worker (dist/sw.js)
 VITE_MODO_DEMO=1 npm run build && npm run preview   # build em demonstração, para testar o PWA
 npm run seed:gerar   # regenera supabase/seed/checklist_seed.sql a partir de src/data/seed-modelos.ts
 ```
+
+**Teste no Chrome de verdade** (sem janela): veja o passo a passo no topo de `scripts/teste-navegador.mjs`. Ele percorre os 7 usuários em todas as rotas e aponta erros de console; também testa o app abrindo sem internet e a tela de "Erro de configuração".
 
 ## Testar no celular
 
@@ -113,4 +115,4 @@ Depois:
 - **Envio em segundo plano no iPhone:** depende de app nativo (D5).
 - No computador, o seletor de câmera também deixa escolher um arquivo; só um app nativo impede isso.
 - As telas de cadastro (Empresas, Modelos, Equipe, Agendamentos, Dashboard, Relatórios) precisam de internet. O trabalho de campo funciona offline.
-- Testado automaticamente (PGlite, jsdom) e por roteiro. **Falta o teste num celular de verdade com HTTPS e contra o banco real**, depois do seu OK.
+- Testado automaticamente (PGlite, jsdom e Chrome sem janela) e por roteiro. **Falta o teste num celular de verdade com HTTPS e contra o banco real**, depois do seu OK.
