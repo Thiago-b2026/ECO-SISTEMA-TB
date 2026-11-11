@@ -10,7 +10,7 @@ const SUPERMIX = REDES_DEMO[0].id;
 const email = (n: string) => USUARIOS_DEMO.find((u) => u.email.startsWith(n))!.email;
 const hoje = dataSP();
 
-async function como(srv: DemoServidor, nome: string) {
+async function como(srv: DemoServidor, nome: string) { // entra como a pessoa de exemplo
   await srv.sair();
   await srv.entrar(email(nome), "demo");
 }
@@ -93,5 +93,43 @@ describe("servidor de demonstração (mesmas regras do banco)", () => {
     expect(pac.membros.every((m) => m.loja_id === FILIAL || (m.loja_id == null && m.perfil === "gestor"))).toBe(true);
     await expect(srv.dashboard(hoje, hoje, MATRIZ, null)).resolves.toMatchObject({ tarefas_total: 0 });
     await expect(srv.enviarArquivo(`${MATRIZ}/x/y.jpg`, new Blob(["x"]), "image/jpeg")).rejects.toThrow("Sem permissão");
+  });
+});
+
+describe("multiempresa no modo demonstração (igual ao banco)", () => {
+  it("admin cria empresa copiando checklists, loja e colaborador; gestor não; a cópia não altera a original", async () => {
+    const srv = new DemoServidor(`demo-${novoId()}`, null);
+    await como(srv, "gabriel"); // gestor da Empresa Exemplo 2
+    expect((await srv.minhasEmpresas()).map((e) => e.nome)).toEqual(["EMPRESA EXEMPLO 2"]);
+    expect(await srv.modelosDaEmpresa(SUPERMIX)).toEqual([]); // não vê os checklists da Supermix
+    await expect(srv.criarEmpresa("Nova")).rejects.toThrow("Só o admin");
+    await expect(srv.salvarUnidade({ rede_id: REDES_DEMO[1].id, nome: "X", cnpj: null, ativo: true, usaChecklist: true })).rejects.toThrow("Só o admin");
+    await expect(srv.criarColaborador({ nome: "X", email: "x@x.com", senha: "12345678", rede_id: REDES_DEMO[1].id, loja_id: null, perfil: "gestor" })).rejects.toThrow("Só o admin");
+
+    await como(srv, "admin");
+    expect((await srv.minhasEmpresas()).map((e) => e.nome)).toEqual(["SUPERMIX BRAZ", "EMPRESA EXEMPLO 2"]);
+    const origem = (await srv.modelosDaEmpresa(SUPERMIX)).find((m) => m.codigo === "fiscal_tarde")!;
+    const nova = await srv.criarEmpresa("Mercado Três");
+    expect(await srv.copiarModelos(SUPERMIX, nova, [origem.id])).toBe(1);
+    await expect(srv.salvarUnidade({ rede_id: nova, nome: "Três Matriz", cnpj: "123", ativo: true, usaChecklist: true })).rejects.toThrow("14 dígitos");
+    const lojaOk = await srv.salvarUnidade({ rede_id: nova, nome: "Três Matriz", cnpj: null, ativo: true, usaChecklist: true });
+    await srv.criarColaborador({ nome: "Gestor Três", email: "g3@demo.tb", senha: "12345678", rede_id: nova, loja_id: null, perfil: "gestor" });
+
+    await srv.sair();
+    await srv.entrar("g3@demo.tb", "12345678");
+    expect((await srv.minhasLojas()).map((l) => l.loja_id)).toEqual([lojaOk]);
+    const [copia] = await srv.modelosDaEmpresa(nova);
+    expect(copia.id).not.toBe(origem.id);
+    const [rasc] = await srv.versoesDoModelo(copia.id);
+    expect(rasc).toMatchObject({ status: "rascunho", numero: 1 });
+    rasc.conteudo.secoes[0].titulo = "Alterado na cópia";
+    await srv.salvarRascunho(rasc);
+    await srv.publicarVersao(rasc.id);
+    await expect(srv.criarRascunho(origem.id)).rejects.toThrow("Só o gestor da empresa");
+
+    await como(srv, "carla"); // gestora da Supermix: a original continua igual
+    const [orig] = (await srv.versoesDoModelo(origem.id)).filter((v) => v.status === "publicada");
+    expect(orig.conteudo.secoes[0].titulo).not.toBe("Alterado na cópia");
+    expect(await srv.modelosDaEmpresa(nova)).toEqual([]);
   });
 });

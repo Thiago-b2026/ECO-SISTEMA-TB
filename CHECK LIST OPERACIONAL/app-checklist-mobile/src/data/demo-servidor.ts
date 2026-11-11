@@ -76,8 +76,8 @@ const [SUPERMIX, EXEMPLO2] = REDES_DEMO.map((r) => r.id);
 export const LOJAS_DEMO: Loja[] = [
   { id: md5Uuid("demo-loja:matriz"), nome: "Supermix Braz – Matriz (demo)", cnpj: "17890178000158", rede_id: SUPERMIX, ativo: true, sistemas: ["checklist"] },
   { id: md5Uuid("demo-loja:filial"), nome: "Supermix Braz – Filial (demo)", cnpj: "17890178000239", rede_id: SUPERMIX, ativo: true, sistemas: ["checklist"] },
-  { id: md5Uuid("demo-loja:ex2-matriz"), nome: "Exemplo 2 – Matriz", cnpj: "22333444000110", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
-  { id: md5Uuid("demo-loja:ex2-filial"), nome: "Exemplo 2 – Filial", cnpj: "22333444000200", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
+  { id: md5Uuid("demo-loja:ex2-matriz"), nome: "Exemplo 2 – Matriz", cnpj: "22333444000181", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
+  { id: md5Uuid("demo-loja:ex2-filial"), nome: "Exemplo 2 – Filial", cnpj: "22333444000262", rede_id: EXEMPLO2, ativo: true, sistemas: ["checklist"] },
 ];
 const [MATRIZ, FILIAL] = LOJAS_DEMO.map((l) => l.id);
 

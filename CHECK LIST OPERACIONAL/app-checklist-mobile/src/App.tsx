@@ -6,6 +6,7 @@ import Concluir from "./pages/Concluir";
 import Execucao from "./pages/Execucao";
 import Hoje from "./pages/Hoje";
 import Agendamentos from "./pages/Agendamentos";
+import Empresas from "./pages/Empresas";
 import Equipe from "./pages/Equipe";
 import Login from "./pages/Login";
 import Modelos from "./pages/Modelos";
@@ -39,6 +40,7 @@ function Rotas() {
         <Route path="agendamentos" element={<Agendamentos />} />
         <Route path="modelos" element={<Modelos />} />
         <Route path="equipe" element={<Equipe />} />
+        <Route path="empresas" element={<Empresas />} />
         <Route path="*" element={<Vazio>Página não encontrada.</Vazio>} />
       </Route>
     </Routes>
