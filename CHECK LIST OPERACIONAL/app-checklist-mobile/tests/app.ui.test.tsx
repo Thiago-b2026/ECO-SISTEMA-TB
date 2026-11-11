@@ -70,11 +70,20 @@ describe("todas as telas abrem sem erro", () => {
       for (const [quem, telas] of [
         ["Bruno (Líder – Matriz)", ["Tarefas da loja", "Planos de ação", "Agendamentos", "Relatórios", "Dashboard"]],
         ["Carla (Gestora)", ["Modelos de checklist", "Equipe e perfis"]],
+        ["Admin (Ecossistema TB)", ["Empresas e lojas", "Modelos de checklist", "Equipe e perfis"]],
       ] as const) {
         localStorage.clear();
         render(<App />);
         fireEvent.click(await screen.findByText(quem));
         const menu = await screen.findByRole("navigation", { name: "Menu" }, { timeout: 8000 });
+        // empresa sempre no topo; o admin escolhe entre as duas empresas de exemplo
+        if (quem.startsWith("Admin")) {
+          const sel = screen.getByRole("combobox", { name: "Empresa" }) as HTMLSelectElement;
+          expect([...sel.options].map((o) => o.text)).toEqual(["SUPERMIX BRAZ", "EMPRESA EXEMPLO 2"]);
+        } else {
+          expect(screen.getAllByText("SUPERMIX BRAZ").length).toBeGreaterThan(0);
+          expect(within(menu).queryByText("Empresas e lojas")).toBeNull(); // só o admin
+        }
         for (const t of telas) {
           await act(async () => { fireEvent.click(within(menu).getByText(t)); });
           await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toMatch(new RegExp(t.split(" ")[0])), { timeout: 8000 });

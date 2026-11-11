@@ -1,16 +1,18 @@
 # Histórico – Check List Operacional (código `checklist`, schema `checklist`)
 
 ## 📍 ONDE PARAMOS
-- **Fase 5 concluída (etapas 0 a 11)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 55 testes do app e 127 do PDV passam; build ok.
-- **Nada foi aplicado no banco de produção, nenhum schema foi exposto e nada foi publicado na Vercel.**
-- **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`:
-  1. aplicar `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql`, depois `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`, depois `app-checklist-mobile/supabase/seed/checklist_seed.sql`;
-  2. incluir `checklist` em Supabase → Integrations → Data API → Exposed schemas;
-  3. no Portal, marcar o sistema checklist nas unidades e liberar as telas;
-  4. criar o projeto na Vercel (time grupotb, Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`, variáveis VITE_SUPABASE_*);
-  5. cadastrar a url em `public.sistemas` (prevista `https://checklist-grupotb.vercel.app`) e confirmar no Portal e no `sistemas.json`;
-  6. testar no celular pelo link HTTPS (roteiro manual no README).
-- Pendências de produto: editor completo de modelos (I2), notificações (I5), integrações CISS/IA/QR (D1–D3), Método Polar × meta do RH (D4), envio em segundo plano no iPhone (D5).
+- **Etapa 12 concluída (multiempresa e configurações completas)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 72 testes do app e 131 do PDV passam; build ok.
+- **Nada foi aplicado no banco de produção, nenhuma Edge Function foi publicada, nenhum schema foi exposto e nada foi para a Vercel.**
+- **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`, nesta ordem:
+  1. `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql` (versão multiempresa);
+  2. `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`;
+  3. `GESTAO SALVADOS/supabase/migrations/20261110000024_checklist_empresas.sql` (**nova**);
+  4. `app-checklist-mobile/supabase/seed/checklist_seed.sql` (checklists da planilha na SUPERMIX BRAZ);
+  5. Exposed schemas: `checklist`;
+  6. **nova versão** da Edge Function `admin-usuarios` (`supabase functions deploy admin-usuarios`, com `criar.ts`);
+  7. Vercel (Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`, variáveis VITE_SUPABASE_*, **sem** VITE_MODO_DEMO);
+  8. url em `public.sistemas`, conferir no Portal e no `sistemas.json`; só juntar ao `main` depois da Vercel no ar.
+- Pendências de produto: notificações (I5), integrações CISS/IA/QR (D1–D3), Método Polar × meta (D4), setores editáveis na tela, envio em segundo plano no iPhone (D5).
 
 ---
 
@@ -37,3 +39,11 @@
 - **Etapa 9:** Dashboard por período e unidade (só onde a pessoa é supervisor ou gestor): tarefas concluídas (e no prazo), atrasadas, tempo médio, conformidade, planos abertos e atrasados, taxa de conclusão; barras de conformidade por setor, por pessoa (com nº de execuções, tempo médio e concluídas com atraso) e por unidade, sempre com tabela junto.
 - **Etapa 10:** tela Relatórios (período e unidade): Excel `.xlsx` real com abas Resumo, Execuções (data/hora de SP, duração, situação, conformidade ou "Sem pontuação aplicável", não conformes, planos) e Planos de ação; PDF de cada execução (cabeçalho, nota, tabela por seção com não conformes marcados "(NC)", planos, fotos com data/hora, assinatura, rodapé com página). Botão "Baixar PDF" também na execução concluída. Dashboard e Relatórios carregam sob demanda, e o service worker guarda os pedaços. 51 testes passam.
 - **Etapa 11:** telas Modelos (versões imutáveis, rascunho, ajustar itens, duplicar item, publicar) e Equipe e perfis (incluir por e-mail quem já tem login, mudar perfil, inativar; `checklist.alterar_membro`). Teste do app montado em jsdom (login, menu por perfil, execução, conclusão bloqueada, todas as telas sem erro). O teste achou e corrigiu: assinatura sem canvas e menu vazio logo após o login. README com como rodar, testar no celular, publicar, tabela critério → teste, roteiro manual e pendências. **55 testes passam.**
+
+## Sessão 3 – 10/11/2026 (etapa 12: multiempresa e configurações completas)
+- **Banco (migration ajustada direto, porque nunca foi aplicada):** empresa = `public.redes`. `checklist.membros` passou a ser por empresa: gestor vale para a empresa toda (`loja_id` nulo); supervisor e operador valem para uma unidade. `modelos` e `setores` com `rede_id` (código único por empresa); `historico` com `rede_id`. Gatilhos garantem que a unidade de agendamento, tarefa, execução e plano é da mesma empresa do modelo. RLS por empresa (admin vê todas); `dashboard`/`relatorio` com filtro de empresa. Funções novas: `minhas_redes`, `criar_modelo`, `editar_modelo`, `duplicar_modelo`, `arquivar_modelo`, `copiar_modelos` (cópia em rascunho v1, independente), `preparar_empresa`, `liberar_acesso` (admin; grava `usuario_telas`/`usuario_permissoes`), `_incluir_colaborador` (só service_role). Seed ligado à rede SUPERMIX BRAZ.
+- **PDV:** migration **0024** (tela `checklist.empresas`, só admin), espelhada em `src/lib/telas.ts`. A Edge Function `admin-usuarios` ganhou o parâmetro `sistema: "checklist"`, que cria só o login e põe a pessoa na equipe, sem `user_roles`, `usuario_lojas` nem `pessoas`. A lógica foi para `criar.ts`, testada no `npm test` do PDV (131 ok). **Não publicada.**
+- **App:** seletor de empresa no topo (nome sempre visível; admin vê todas); todas as telas filtradas pela empresa. **Empresas e lojas** (admin): empresa → matriz → filiais, CNPJ com dígitos verificadores, "usa o Check List", inativar, nova empresa do zero ou copiando checklists escolhidos. **Editor completo:** checklist do zero, duplicar, arquivar, seções (setor, renomear, subir/descer, remover), itens de todos os tipos com todas as propriedades, opções editáveis, condicional só com pergunta anterior (sem ciclos), validação, pré-visualização interativa, publicar → "Criar agendamento". **Equipe:** incluir quem tem login, colaborador novo (admin, via `admin-usuarios`), perfil/unidade, inativar/reativar, liberar telas (admin).
+- **Segurança:** o modo demonstração só abre no `npm run dev` ou com `VITE_MODO_DEMO=1`; o build de produção sem variáveis mostra "Erro de configuração". A demonstração ganhou Admin e "Empresa Exemplo 2" (matriz, filial e gestor Gabriel).
+- `CLAUDE.md` da raiz: item 9 (quadro no Portal; só juntar ao main depois da Vercel). Quadro do Check List no Portal conferido.
+- Testes novos: multiempresa em PGlite (A não vê B, gestor da A não edita B, admin vê as duas, cópia não altera a original, checklist do zero com condicional, loja e colaborador só pelo admin), editor, fluxo do editor até a execução, modo de conexão, CNPJ e admin-usuarios. **72 testes no app e 131 no PDV.**

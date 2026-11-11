@@ -191,3 +191,16 @@ As migrations rodam em **PGlite** (Postgres embutido) dentro do Vitest, com um "
 6. A nota reproduz os 35% e o caso sem pontuação.
 7. Um não conforme gera o plano ligado ao item.
 8. O fluxo completo agendar → executar → não conforme → plano → solução → validação → dashboard funciona.
+
+---
+
+## 8. Etapa 12 – multiempresa e configurações completas (10/11/2026)
+
+- **Empresa = `public.redes`, unidade = `public.lojas`** (matriz /0001 e filiais; `lojas.sistemas` contém `checklist`). Não há tabela de empresa no schema `checklist`.
+- **Perfis:** gestor = empresa inteira; supervisor e operador = uma unidade; admin = todas. `checklist.membros(rede_id, loja_id nulo p/ gestor)`.
+- **Por empresa:** modelos (código único por empresa), setores, equipe e histórico. A unidade de agendamento, tarefa, execução e plano é sempre da mesma empresa do modelo (gatilho). RLS: ninguém lê nem grava dados de outra empresa; o admin vê todas.
+- **Empresa nova:** começar do zero ou copiar checklists escolhidos de outra empresa. A cópia vira modelos novos e independentes, em rascunho v1.
+- **Editor completo:** checklist do zero, duplicar, arquivar; seções e itens com todas as propriedades; condicional só com pergunta anterior (sem ciclos); pré-visualizar; publicar → agendar. A versão publicada continua imutável.
+- **Colaboradores:** o gestor inclui quem já tem login; o admin cria o login pela Edge Function `admin-usuarios` (`sistema: "checklist"`, sem efeitos do PDV) e libera as telas do perfil nas permissões centrais.
+- **Telas:** `checklist.empresas` (só admin) na migration 0024 do PDV.
+- **Modo demonstração:** só no dev ou com `VITE_MODO_DEMO=1`; build de produção sem variáveis = "Erro de configuração".
