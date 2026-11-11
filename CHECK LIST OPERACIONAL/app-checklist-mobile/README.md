@@ -31,7 +31,7 @@ npm run dev          # http://localhost:5191
 - **Segurança:** o **build de produção** sem `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` mostra **"Erro de configuração"**, e a demonstração nunca abre por engano. Para um build de teste em demonstração, use `VITE_MODO_DEMO=1`.
 
 ```bash
-npm test             # 86 testes (regras, editor, banco em PGlite com 2 empresas, offline, todas as telas × 7 usuários e fluxos em jsdom)
+npm test             # 108 testes (regras, editor, tempos, banco em PGlite com 2 empresas, offline, todas as telas × 7 usuários e fluxos em jsdom)
 npm run build        # checagem de tipos + build + service worker (dist/sw.js)
 VITE_MODO_DEMO=1 npm run build && npm run preview   # build em demonstração, para testar o PWA
 npm run seed:gerar   # regenera supabase/seed/checklist_seed.sql a partir de src/data/seed-modelos.ts
@@ -53,22 +53,36 @@ Para testar GPS, instalação e uso sem internet de verdade, é preciso **HTTPS*
 **Instalar como app:** abra o link HTTPS → Chrome: menu ⋮ → "Instalar app" / iPhone (Safari): Compartilhar → "Adicionar à Tela de Início".
 **No iPhone**, o envio acontece com o app aberto (ao abrir, quando a internet volta e a cada 2 min).
 
-## Publicar (precisa do OK do usuário. NADA disso foi feito)
+## Publicar (precisa do OK do usuário)
+
+**Situação em 11/11/2026:** segundo o usuário, só a `20261110000001_checklist_schema.sql` está em produção (ela **não pode mais ser alterada**). O restante abaixo **não foi feito pelo Claude**; o que já tiver sido feito por você, é só pular. Nada da etapa 13 foi aplicado, publicado ou enviado para a Vercel.
 
 **Ordem de aplicação no banco** (Supabase ECO-SISTEMA-TB → SQL Editor):
-1. `CHECK LIST OPERACIONAL/app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql`: schema multiempresa, RLS, funções, bucket `checklist-fotos`. Foi **ajustada** na etapa 12; como nunca foi aplicada, é aplicada uma vez só, já na versão nova.
-2. `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`: sistema ativo, grupos, 8 telas e ações.
-3. `GESTAO SALVADOS/supabase/migrations/20261110000024_checklist_empresas.sql`: **nova**, tela "Empresas e lojas" (`checklist.empresas`, só admin).
-4. `CHECK LIST OPERACIONAL/app-checklist-mobile/supabase/seed/checklist_seed.sql`: 8 checklists da planilha na empresa **SUPERMIX BRAZ** (versão 1 publicada) e setores dela.
+1. ✅ `CHECK LIST OPERACIONAL/app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql`: schema multiempresa, RLS, funções, bucket `checklist-fotos`. **Já aplicada.**
+2. **NOVA (etapa 13)** `CHECK LIST OPERACIONAL/app-checklist-mobile/supabase/migrations/20261111000002_checklist_tempos.sql`: início/fim de cada item, pausas e tempo ativo, limites por empresa (`checklist.config_tempos`), nova `sync_execucao` (nunca apaga o início do item) e `checklist.dados_tempos`. É **idempotente** e não apaga nada (só acrescenta colunas, uma tabela e troca funções). Testada em PGlite (`supabase/tests/tempos.db.test.ts`).
+3. `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`: sistema ativo, grupos, 8 telas e ações.
+4. `GESTAO SALVADOS/supabase/migrations/20261110000024_checklist_empresas.sql`: tela "Empresas e lojas" (`checklist.empresas`, só admin).
+5. **NOVA (etapa 13)** `GESTAO SALVADOS/supabase/migrations/20261111000025_checklist_tempos_tela.sql`: tela "Tempos de execução" (`checklist.tempos`, grupo Supervisão, ações ver/exportar). Ninguém recebe a tela sozinho: o admin libera em *Login de acesso → Permissões*.
+6. `CHECK LIST OPERACIONAL/app-checklist-mobile/supabase/seed/checklist_seed.sql`: 8 checklists da planilha na empresa **SUPERMIX BRAZ** (versão 1 publicada) e setores dela.
+
+> Se o app novo for publicado **antes** da 0002, o trabalho de campo continua funcionando (a `sync_execucao` antiga ignora os campos de tempo), mas a tela *Tempos de execução*, o bloco de tempos do Dashboard e a aba *Tempos* do Excel mostram um aviso de que os tempos não puderam ser carregados. O resto não é afetado.
 
 Depois:
-5. **Supabase → Integrations → Data API → Exposed schemas:** incluir `checklist`.
-6. **Edge Function `admin-usuarios` (nova versão):** `cd "GESTAO SALVADOS" && supabase functions deploy admin-usuarios`. Agora há o arquivo `criar.ts` junto do `index.ts`. Sem `sistema`, o PDV continua igual; com `sistema: "checklist"`, cria só o login e coloca a pessoa na equipe do Check List.
-7. **Vercel (time `grupotb`):** novo projeto do mesmo repositório, *Root Directory* = `CHECK LIST OPERACIONAL/app-checklist-mobile`, framework Vite, variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (**sem** `VITE_MODO_DEMO`). Nome sugerido: `checklist-grupotb`.
-8. **URL:** `update public.sistemas set url = 'https://checklist-grupotb.vercel.app' where codigo = 'checklist';` e confirmar a mesma URL em `PORTAL/src/pages/Inicio.tsx` e `MEU SUPERVISOR/sistemas.json`.
-9. **No app, como admin:** *Empresas e lojas* → marcar "usa o Check List" nas unidades da Supermix; *Equipe* → incluir as pessoas ou cadastrar colaboradores novos e "Liberar telas"; *Agendamentos* → "Aplicar a agenda sugerida".
-10. Só juntar ao `main` depois da Vercel no ar, para o quadro do Portal não abrir uma página de erro (item 9 do `CLAUDE.md` da raiz).
-11. (Opcional) ativar **pg_cron** para gerar as tarefas às 00:05. Sem ele, o app gera as do dia quando alguém abre.
+7. **Supabase → Integrations → Data API → Exposed schemas:** incluir `checklist`.
+8. **Edge Function `admin-usuarios` (nova versão):** `cd "GESTAO SALVADOS" && supabase functions deploy admin-usuarios`. Agora há o arquivo `criar.ts` junto do `index.ts`. Sem `sistema`, o PDV continua igual; com `sistema: "checklist"`, cria só o login e coloca a pessoa na equipe do Check List.
+9. **Vercel (time `grupotb`):** novo projeto do mesmo repositório, *Root Directory* = `CHECK LIST OPERACIONAL/app-checklist-mobile`, framework Vite, variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (**sem** `VITE_MODO_DEMO`). Nome sugerido: `checklist-grupotb`.
+10. **URL:** `update public.sistemas set url = 'https://checklist-grupotb.vercel.app' where codigo = 'checklist';` e confirmar a mesma URL em `PORTAL/src/pages/Inicio.tsx` e `MEU SUPERVISOR/sistemas.json`.
+11. **No app, como admin:** *Empresas e lojas* → marcar "usa o Check List" nas unidades da Supermix; *Equipe* → incluir as pessoas ou cadastrar colaboradores novos e "Liberar telas" (inclusive **Tempos de execução** para líderes e gestores); *Agendamentos* → "Aplicar a agenda sugerida".
+12. **Tempos (gestor):** em *Tempos de execução* → "Limites desta empresa" (padrão: acima +20%, muito acima +50%, rápido demais < 30%). Em *Cadastrar tarefas e checklists*, definir o tempo padrão de cada checklist, ou usar a sugestão depois de 5 execuções.
+13. Só juntar ao `main` depois da Vercel no ar, para o quadro do Portal não abrir uma página de erro (item 9 do `CLAUDE.md` da raiz).
+14. (Opcional) ativar **pg_cron** para gerar as tarefas às 00:05. Sem ele, o app gera as do dia quando alguém abre.
+
+## Tempo de execução (etapa 13)
+
+- **Item:** o início é gravado no **1º toque** no item (ou no foco pelo teclado) e nunca é apagado nem empurrado para frente, nem por reenvio de outro aparelho. O fim é gravado quando o item fica **completo** (resposta + foto + observação exigidas). A tela mostra "Início 13:01 · Fim 13:04 · 3min" em cada item.
+- **Pausas:** mandar o app para o 2º plano (outra tela, bloqueio) ou sair da execução **pausa**; voltar **retoma**. Trocas rápidas de tela (menos de 2 s) não contam. Se o app for fechado no meio, a pausa é fechada ao abrir a execução de novo ou ao concluir. **Tempo ativo = total − pausas**: é ele que vale nas comparações.
+- **Referência:** o tempo padrão do checklist (e de cada item), gravado na versão. Sem padrão, vale a média do período. Situações: *No tempo*, *Acima do padrão*, *Muito acima*, *Rápido demais* (possível check sem fazer: alerta ao líder) e *Sem referência*.
+- **Onde aparece:** tela *Tempos de execução* (filtros, tabela, comparativos entre pessoas e lojas, média e última execução, evolução, itens que mais demoram, linha do tempo de cada execução e limites do gestor); *Dashboard* (tempo médio × padrão, % no tempo, rápido demais); *Excel* (abas **Tempos** e **Tempos por item**); *PDF* da execução (tempo ativo, parado e o tempo de cada item).
 
 ## Critérios de aceite → testes automáticos
 
@@ -87,6 +101,12 @@ Depois:
 | Não conforme gera plano ligado ao item (mesmo id no celular e no banco) | `checklist.db.test.ts`, `tests/offline.test.ts` |
 | Fluxo completo agendar → executar → plano → solução → validação → dashboard | `tests/demo-servidor.test.ts` → "fluxo completo" |
 | Demonstração nunca abre no build de produção sem variáveis | `src/data/conexao.test.ts` |
+| **Tempo do item: início no 1º toque, fim quando completa; reenvio nunca apaga nem atrasa o início** | `supabase/tests/tempos.db.test.ts`; `tests/tempos.test.ts`; `tests/execucao-tempos.ui.test.tsx` → "início no toque…" |
+| **Pausa (2º plano / sair da tela) fica fora do tempo ativo; troca rápida de tela não conta** | `tempos.db.test.ts` → "pausa…"; `tests/tempos.test.ts`; `execucao-tempos.ui.test.tsx` |
+| **Tempo padrão no editor e sugestão "usar como padrão" depois de 5 execuções** | `src/domain/editor.test.ts`; `src/domain/tempos.test.ts`; `execucao-tempos.ui.test.tsx` → "editor…" |
+| **Tempos de execução: situações, comparativos, evolução, ranking, linha do tempo e limites só do gestor; empresa B não vê a A** | `src/domain/tempos.test.ts`; `tempos.db.test.ts`; `tests/tempos.test.ts`; `execucao-tempos.ui.test.tsx` → "tela Tempos…" |
+| **Dashboard com tempos; se os tempos falharem, o resto continua** | `execucao-tempos.ui.test.tsx` → "Dashboard…" |
+| **Excel com abas Tempos e Tempos por item; PDF com o tempo de cada item** | `src/lib/relatorios.test.ts` → "relatórios com tempos" |
 
 ## Roteiro de teste manual (modo demonstração)
 
@@ -107,6 +127,12 @@ Depois:
 12. Gabriel **não vê** nenhum checklist, tarefa ou dashboard da Supermix, e o menu dele não tem "Empresas e lojas".
 13. *Equipe* como gestor: incluir quem já tem login (e-mail), trocar perfil e unidade, inativar e reativar. "Colaborador novo" e "Liberar telas" só aparecem para o admin.
 
+**Tempo de execução:**
+14. **Ana** → iniciar a rotina da tarde → tocar num item: aparece "Início HH:MM · em andamento". Responder: aparece "Fim HH:MM". Ir para outro app por 1 minuto e voltar: o topo mostra "(parado 1min)".
+15. **Carla** → *Cadastrar tarefas e checklists* → "Fiscal de caixa – Rotina da manhã" → criar rascunho: aparece "Tempo médio real: 10 min em 6 execuções" → **Usar como padrão**. Abrir um item e digitar "1,5" no tempo padrão.
+16. **Carla** → *Tempos de execução*: filtrar a situação "Rápido demais" (execução de 3 min do Diego); tocar na data para ver a linha do tempo; conferir pessoas, lojas, evolução e itens que mais demoram. Em "Limites desta empresa", mudar o "rápido demais" e salvar.
+17. **Bruno** → *Tempos de execução*: só vê a Matriz e não vê os limites. *Dashboard*: bloco "Tempo de execução". *Relatórios* → Excel com as abas **Tempos** e **Tempos por item**; PDF de uma execução com a coluna **Tempo**.
+
 ## O que ficou pendente (próximas versões)
 
 - **Notificações (I5):** push e WhatsApp para prazo, atraso e plano.
@@ -115,4 +141,5 @@ Depois:
 - **Envio em segundo plano no iPhone:** depende de app nativo (D5).
 - No computador, o seletor de câmera também deixa escolher um arquivo; só um app nativo impede isso.
 - As telas de cadastro (Empresas, Modelos, Equipe, Agendamentos, Dashboard, Relatórios) precisam de internet. O trabalho de campo funciona offline.
-- Testado automaticamente (PGlite, jsdom e Chrome sem janela) e por roteiro. **Falta o teste num celular de verdade com HTTPS e contra o banco real**, depois do seu OK.
+- **Tempos:** as pausas não vão para a tela *Tempos de execução* (só o total parado); a linha do tempo mostra os itens. Os limites são por empresa, não por checklist.
+- Testado automaticamente (PGlite, jsdom e Chrome sem janela) e por roteiro. **Falta o teste num celular de verdade com HTTPS e contra o banco real**, depois do seu OK. A pausa por "2º plano" depende do evento `visibilitychange` do navegador do celular: testar no Android e no iPhone.

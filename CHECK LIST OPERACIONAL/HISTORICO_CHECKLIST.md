@@ -1,17 +1,14 @@
 # Histórico – Check List Operacional (código `checklist`, schema `checklist`)
 
 ## 📍 ONDE PARAMOS
-- **Etapa 12 concluída (multiempresa e configurações completas)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 86 testes do app e 131 do PDV passam; build ok (varredura de erros na sessão 5).
-- **Nada foi aplicado no banco de produção, nenhuma Edge Function foi publicada, nenhum schema foi exposto e nada foi para a Vercel.**
-- **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`, nesta ordem:
-  1. `app-checklist-mobile/supabase/migrations/20261110000001_checklist_schema.sql` (versão multiempresa);
-  2. `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`;
-  3. `GESTAO SALVADOS/supabase/migrations/20261110000024_checklist_empresas.sql` (**nova**);
-  4. `app-checklist-mobile/supabase/seed/checklist_seed.sql` (checklists da planilha na SUPERMIX BRAZ);
-  5. Exposed schemas: `checklist`;
-  6. **nova versão** da Edge Function `admin-usuarios` (`supabase functions deploy admin-usuarios`, com `criar.ts`);
-  7. Vercel (Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`, variáveis VITE_SUPABASE_*, **sem** VITE_MODO_DEMO);
-  8. url em `public.sistemas`, conferir no Portal e no `sistemas.json`; só juntar ao `main` depois da Vercel no ar.
+- **Etapa 13 concluída (tempo de execução)** na branch `feat/checklist-mobile` (commits locais, **sem push**). 108 testes do app e 131 do PDV passam; tsc e build ok.
+- **Produção:** segundo o usuário, só a `20261110000001_checklist_schema.sql` está aplicada (não pode mais ser alterada). **Nada da etapa 13 foi aplicado, publicado ou enviado para a Vercel.**
+- **Próximo passo (do usuário, com OK):** seguir "Publicar" no `app-checklist-mobile/README.md`. Novidades da etapa 13 nessa lista:
+  - `app-checklist-mobile/supabase/migrations/20261111000002_checklist_tempos.sql` (logo depois da 0001; idempotente, não apaga nada);
+  - `GESTAO SALVADOS/supabase/migrations/20261111000025_checklist_tempos_tela.sql` (tela `checklist.tempos`, depois da 0023/0024);
+  - depois, liberar a tela "Tempos de execução" para líderes e gestores e definir os limites e os tempos padrão.
+  - O restante da lista (0023, 0024, seed, Exposed schemas, Edge Function `admin-usuarios`, Vercel, url) segue igual: pular o que já tiver sido feito.
+- Testar num celular de verdade a pausa por 2º plano (Android e iPhone).
 - Pendências de produto: notificações (I5), integrações CISS/IA/QR (D1–D3), Método Polar × meta (D4), setores editáveis na tela, envio em segundo plano no iPhone (D5).
 
 ---
@@ -69,7 +66,19 @@
   6. Empresas e lojas no celular: o nome da unidade quebrava em 4 linhas. Agora os botões descem para a linha de baixo.
 - **Não testado:** câmera e GPS reais num celular, envio em segundo plano no iPhone, banco Supabase de produção e Edge Function publicada (dependem do OK do usuário).
 
-## Sessão 6 – 10/11/2026 (etapa 13: tempo de execução – EM ANDAMENTO)
+## Sessão 6 – 10/11/2026 (etapa 13: tempo de execução – parte 1)
 - **Pronto e testado (100 testes do app passam):** migration NOVA `supabase/migrations/20261111000002_checklist_tempos.sql` (idempotente; a 0001 já aplicada NÃO foi alterada): início/fim por item, pausas e tempo ativo, limites por empresa (`config_tempos`), `sync_execucao` que nunca apaga o início, `dados_tempos` com RLS. Cálculos em `src/domain/tempos.ts` (situações, média, última, pessoas, lojas, ranking, evolução, sugestão de padrão). Aparelho: `iniciarItem`, fim automático quando o item fica completo, `pausar`/`retomar`. Demonstração v3 com histórico de exemplo.
 - **Falta (próxima sessão):** (1) tela de execução chamar `iniciarItem` no toque e `pausar`/`retomar` (2º plano / sair da tela) e mostrar o tempo de cada item; (2) campos de tempo padrão no editor + sugestão; (3) tela "Tempos de execução" (checklist.tempos) + migration do PDV 0025 + espelho em telas.ts; (4) Dashboard (tempo médio × padrão, % no tempo, rápido demais); (5) Excel aba Tempos e PDF com tempo por item; (6) README, lista de publicação e este histórico.
 - **Publicação (quando autorizado):** aplicar `20261111000002_checklist_tempos.sql` no SQL Editor depois da 0001 (e da 0025 do PDV quando existir).
+
+## Sessão 7 – 11/11/2026 (etapa 13 concluída: itens a–f)
+- Antes de começar: tsc, testes (99) e build ok. A `20261110000001` (já em produção) não foi tocada. Do GESTAO SALVADOS, só foram alteradas a migration nova 0025 e o espelho em `src/lib/telas.ts` (e o teste dele).
+- **(a) Execução** (56a92ca): o item começa no 1º toque ou foco (`iniciarItem`) e mostra "Início · Fim · duração" (e o padrão). O app em 2º plano, sair da tela, `pagehide` e a tela Concluir pausam e retomam (`src/app/pausa-automatica.ts`). O topo mostra o tempo **ativo**, o tempo parado e "Pausado". `pausar`/`retomar` ficam em fila (trocar de tela disparava os dois juntos e a pausa podia ficar aberta), e pausa de menos de 2 s não conta.
+- **(b) Editor** (fefb9ab): tempo padrão do checklist (cartão "Tempo de execução") e de cada item (aceita "1,5"). A sugestão "Tempo médio real: X min em N execuções → Usar como padrão" aparece depois de 5 execuções (últimos 90 dias), para o checklist e para cada item (arredondada a meio minuto). A validação impede publicar um tempo inválido.
+- **(c) Tela Tempos de execução** (9ccafe6): `checklist.tempos`, supervisor ou acima. Filtros (período, unidade, checklist, pessoa, situação), blocos, tabela das execuções (ativo, parado, referência, média, última, diferença, situação), linha do tempo da execução (barra por item), comparativos da mesma tarefa entre pessoas e entre lojas, evolução (gráfico + tabela), itens que mais demoram e **limites da empresa** (só o gestor). PDV: migration **0025** + espelho nos dois `telas.ts`; o teste do app passou a comparar por código. `npm test` do PDV: 131 ok.
+- **(d) Dashboard** (0a66fdb): bloco "Tempo de execução" (tempo médio × padrão, % no tempo, rápido demais) com link para a tela. Se `dados_tempos` falhar (ex.: 0002 ainda não aplicada), aparece um aviso amarelo e o resto do dashboard continua.
+- **(e) Relatórios** (1f3a6de): Excel com as abas **Tempos** e **Tempos por item**; se os tempos não carregarem, o Excel sai sem elas e avisa. O PDF traz o tempo ativo, o tempo parado e o padrão no cabeçalho, e uma coluna **Tempo** em cada item.
+- **(f)** README (seção "Tempo de execução", lista de publicação atualizada, critérios → testes, roteiro 14–17) e este histórico.
+- **Testes novos:** `tests/execucao-tempos.ui.test.tsx` (toque/fim/pausa pela tela, editor com sugestão, tela Tempos, Dashboard com e sem tempos), fila de pausa em `tests/tempos.test.ts`, editor e sugestão por item em `src/domain/*.test.ts`, Excel e PDF em `src/lib/relatorios.test.ts`. **108 testes passam.**
+- **Observação:** a varredura `todas-telas` às vezes passa do tempo quando roda junto com outros testes pesados num computador ocupado; sozinha e na suíte normal, passa.
+- **Não testado:** pausa por 2º plano num celular de verdade, e nada contra o banco de produção (depende do seu OK).
