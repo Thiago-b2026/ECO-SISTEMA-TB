@@ -171,6 +171,31 @@ export function sugestaoPadrao(execs: ExecTempo[], modeloId: string, minimo = 5)
   return m == null ? null : { n: es.length, media_min: Math.max(1, Math.round(m / 60)) };
 }
 
+/** Mínimo de execuções concluídas para sugerir "usar como padrão". */
+export const MINIMO_SUGESTAO = 5;
+
+/**
+ * Sugestão por ITEM (mesmo checklist): depois de N execuções com o item medido, a média vira sugestão.
+ * Itens são curtos: arredonda para meio minuto (mínimo 0,5 min).
+ */
+export function sugestoesItens(itens: ItemTempo[], execs: ExecTempo[], modeloId: string, minimo = MINIMO_SUGESTAO): Map<string, { n: number; media_min: number }> {
+  const doModelo = new Set(execs.filter((e) => e.modelo_id === modeloId).map((e) => e.execucao_id));
+  const grupos = new Map<string, number[]>();
+  for (const i of itens) {
+    if (!doModelo.has(i.execucao_id) || i.duracao_seg == null) continue;
+    grupos.set(i.item_id, [...(grupos.get(i.item_id) ?? []), i.duracao_seg]);
+  }
+  const r = new Map<string, { n: number; media_min: number }>();
+  for (const [id, xs] of grupos) {
+    if (xs.length < minimo) continue;
+    r.set(id, { n: xs.length, media_min: Math.max(0.5, Math.round(media(xs)! / 30) / 2) });
+  }
+  return r;
+}
+
+/** "2,5 min" / "10 min" */
+export const minutosBR = (m: number) => `${String(m).replace(".", ",")} min`;
+
 /** Números do Dashboard. */
 export function resumoTempos(analisadas: ExecAnalisada[]) {
   const com = analisadas.filter((e) => e.situacao !== "sem_referencia");

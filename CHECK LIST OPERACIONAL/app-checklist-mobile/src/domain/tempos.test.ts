@@ -60,3 +60,20 @@ describe("comparativos", () => {
     expect(rankingItens(itens).map((r) => [r.item_id, r.media_seg])).toEqual([["b", 165], ["a", 90]]);
   });
 });
+
+describe("sugestão de padrão por item", () => {
+  it("só depois de 5 medições do item no mesmo checklist; arredonda para meio minuto", async () => {
+    const { sugestoesItens } = await import("./tempos");
+    const ex = (id: string, modelo = "m1") => ({ execucao_id: id, modelo_id: modelo, modelo: "M", loja_id: "l", loja: "L", usuario_id: "u", pessoa: "P", inicio_em: `2026-11-0${id.slice(1)}T10:00:00Z`, fim_em: `2026-11-0${id.slice(1)}T10:10:00Z`, total_seg: 600, pausado_seg: 0, ativo_seg: 600, padrao_seg: null });
+    const execs = ["e1", "e2", "e3", "e4", "e5"].map((x) => ex(x)).concat([ex("e6", "outro")]);
+    const it = (e: string, item: string, seg: number) => ({ execucao_id: e, item_id: item, texto: item, iniciado_em: null, concluido_em: null, duracao_seg: seg, padrao_seg: null });
+    const itens = [
+      ...["e1", "e2", "e3", "e4", "e5"].map((e) => it(e, "a", 140)), // média 140 s → 2,5 min
+      ...["e1", "e2", "e3", "e4"].map((e) => it(e, "b", 60)), // só 4 → sem sugestão
+      it("e6", "a", 9999), // outro checklist não entra
+    ];
+    const s = sugestoesItens(itens, execs, "m1");
+    expect(s.get("a")).toEqual({ n: 5, media_min: 2.5 });
+    expect(s.has("b")).toBe(false);
+  });
+});

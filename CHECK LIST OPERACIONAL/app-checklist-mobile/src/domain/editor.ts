@@ -150,12 +150,33 @@ export function definirCondicao(c: ConteudoModelo, itemId: string, cond: Condica
   return alterarItem(c, itemId, { condicao: cond ?? undefined });
 }
 
+/** Tempo padrão do checklist inteiro (minutos); vazio/0 = sem padrão. Vai na versão ao publicar. */
+export function definirTempoPadrao(c: ConteudoModelo, minutos: number | null | undefined): ConteudoModelo {
+  const n = clonar(c);
+  if (minutos == null || !Number.isFinite(minutos) || minutos <= 0) delete n.tempo_padrao_min;
+  else n.tempo_padrao_min = minutos;
+  return n;
+}
+
+/** Tempo padrão de um item (minutos; aceita meio minuto); vazio/0 = sem padrão. */
+export function definirTempoItem(c: ConteudoModelo, itemId: string, minutos: number | null | undefined): ConteudoModelo {
+  const n = clonar(c);
+  const it = todosItensRef(n).find((i) => i.id === itemId);
+  if (!it) return n;
+  if (minutos == null || !Number.isFinite(minutos) || minutos <= 0) delete it.tempo_padrao_min;
+  else it.tempo_padrao_min = minutos;
+  return n;
+}
+
+const TEMPO_MAX_MIN = 24 * 60;
+
 /** Problemas que impedem publicar. Vazio = pode publicar. */
 export function validarConteudo(c: ConteudoModelo): string[] {
   const erros: string[] = [];
   const itens = todosItens(c);
   if (!c.secoes.length) erros.push("Crie pelo menos uma seção.");
   if (!itens.length) erros.push("O checklist precisa de pelo menos um item.");
+  if (c.tempo_padrao_min != null && !(c.tempo_padrao_min > 0 && c.tempo_padrao_min <= TEMPO_MAX_MIN)) erros.push("Tempo padrão do checklist inválido (de 1 min a 24 h).");
   c.secoes.forEach((s, n) => { if (!s.titulo.trim()) erros.push(`A seção ${n + 1} está sem nome.`); if (!s.itens.length) erros.push(`A seção "${s.titulo || n + 1}" está vazia.`); });
   const ids = new Set<string>();
   const vistos = new Set<string>();
@@ -167,6 +188,7 @@ export function validarConteudo(c: ConteudoModelo): string[] {
     if (i.tipo === "multipla" && (i.opcoes ?? []).filter((o) => o.trim()).length < 2) erros.push(`${nome}: múltipla escolha precisa de pelo menos 2 opções.`);
     if (i.tipo === "multipla" && new Set(i.opcoes).size !== (i.opcoes ?? []).length) erros.push(`${nome}: há opções repetidas.`);
     if (i.prazo_hora && !/^([01]\d|2[0-3]):[0-5]\d$/.test(i.prazo_hora)) erros.push(`${nome}: prazo inválido.`);
+    if (i.tempo_padrao_min != null && !(i.tempo_padrao_min > 0 && i.tempo_padrao_min <= TEMPO_MAX_MIN)) erros.push(`${nome}: tempo padrão inválido.`);
     if (i.pontua && !(i.peso > 0)) erros.push(`${nome}: item que pontua precisa de peso maior que zero.`);
     if (i.condicao) {
       if (!vistos.has(i.condicao.item_id)) erros.push(`${nome}: a condição precisa ser de uma pergunta anterior.`);

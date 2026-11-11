@@ -1,12 +1,14 @@
 // Editor do RASCUNHO de um checklist: seções (setor, renomear, subir/descer, remover) e itens (tipo, obrigatório,
-// pontua/peso, foto, observação, prazo, dias da semana, plano, ajuda, opções, condicional).
-import { useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, Copy, GitBranch, Plus, Trash2 } from "lucide-react";
+// pontua/peso, foto, observação, prazo, dias da semana, plano, ajuda, opções, condicional) e TEMPO PADRÃO
+// (do checklist e de cada item), com a sugestão "usar como padrão" depois de 5 execuções.
+import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, Copy, GitBranch, Plus, Timer, Trash2, Wand2 } from "lucide-react";
 import {
-  ROTULO_TIPO, adicionarItem, adicionarSecao, alterarItem, alterarSecao, candidatasCondicao, definirCondicao, dependentes, duplicarItem,
+  ROTULO_TIPO, adicionarItem, adicionarSecao, alterarItem, alterarSecao, candidatasCondicao, definirCondicao, definirTempoItem, definirTempoPadrao, dependentes, duplicarItem,
   moverItem, moverSecao, removerItem, removerSecao, respostasPossiveis,
 } from "../domain/editor";
 import { NOMES_DIA } from "../domain/tempo";
+import { MINIMO_SUGESTAO, minutosBR } from "../domain/tempos";
 import type { ConteudoModelo, Item, RegraFoto, RegraObs, TipoItem } from "../domain/tipos";
 import { Botao, Campo, Cartao, Selo, classeEntrada, cx } from "./base";
 
@@ -14,17 +16,70 @@ interface Props {
   conteudo: ConteudoModelo;
   setores: { codigo: string; nome: string }[];
   onChange: (c: ConteudoModelo) => void;
+  /** médias reais (≥ 5 execuções) para sugerir como padrão; undefined = ainda carregando / sem acesso */
+  sugestoes?: SugestoesTempo;
+}
+
+export interface SugestoesTempo {
+  checklist: { n: number; media_min: number } | null;
+  itens: Map<string, { n: number; media_min: number }>;
+}
+
+const lerMinutos = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
+
+/** Campo de minutos + sugestão "usar como padrão". */
+function CampoTempo({ rotulo, valor, sugestao, onChange, passo = 1 }: {
+  rotulo: string; valor: number | undefined; sugestao?: { n: number; media_min: number } | null; onChange: (m: number | null) => void; passo?: number;
+}) {
+  const mostrar = sugestao && sugestao.media_min !== valor;
+  const comoTexto = (m: number | undefined) => (m == null ? "" : String(m).replace(".", ","));
+  // texto local: deixa digitar "1," sem perder a vírgula; vale o número quando ele é válido
+  const [texto, setTexto] = useState(comoTexto(valor));
+  useEffect(() => { setTexto((t) => (lerMinutos(t) === (valor ?? null) ? t : comoTexto(valor))); }, [valor]);
+  const invalido = texto.trim() !== "" && !(Number(texto.replace(",", ".")) > 0);
+  return (
+    <div className="space-y-2">
+      <Campo rotulo={rotulo}>
+        <input type="text" inputMode="decimal" className={cx(classeEntrada, invalido && "border-red-500")} value={texto} placeholder="sem padrão"
+          aria-invalid={invalido || undefined}
+          onChange={(e) => {
+            const t = e.target.value.replace(/[^\d.,]/g, "");
+            setTexto(t);
+            const m = lerMinutos(t);
+            if (m == null || (Number.isFinite(m) && m > 0)) onChange(m == null ? null : Math.round(m / passo) * passo);
+          }} />
+      </Campo>
+      {mostrar && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 p-2 text-sm text-sky-900" role="note">
+          <span>Tempo médio real: <b>{minutosBR(sugestao.media_min)}</b> em {sugestao.n} execuções.</span>
+          <Botao variante="secundario" className="min-h-10 px-3 text-sm" onClick={() => onChange(sugestao.media_min)}><Wand2 className="size-4" aria-hidden /> Usar como padrão</Botao>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const TIPOS = Object.keys(ROTULO_TIPO) as TipoItem[];
 
-export function EditorChecklist({ conteudo, setores, onChange }: Props) {
+export function EditorChecklist({ conteudo, setores, onChange, sugestoes }: Props) {
   const [aberto, setAberto] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const aplicar = (fn: () => ConteudoModelo) => { setErro(null); try { onChange(fn()); } catch (e) { setErro((e as Error).message); } };
 
   return (
     <div className="space-y-3">
+      <Cartao className="space-y-2">
+        <h3 className="flex items-center gap-2 font-semibold"><Timer className="size-5" aria-hidden /> Tempo de execução</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <CampoTempo rotulo="Tempo padrão do checklist (min)" valor={conteudo.tempo_padrao_min} sugestao={sugestoes?.checklist}
+            onChange={(m) => aplicar(() => definirTempoPadrao(conteudo, m))} />
+        </div>
+        <p className="text-xs text-gray-600">
+          Opcional. Serve de referência nos Tempos de execução e no Dashboard (no tempo, acima, muito acima, rápido demais). Sem padrão, a comparação é com a média do período.
+          {sugestoes && !sugestoes.checklist && ` A sugestão aparece depois de ${MINIMO_SUGESTAO} execuções concluídas.`}
+          {" "}O tempo padrão de cada item fica dentro do item.
+        </p>
+      </Cartao>
       {conteudo.secoes.map((s, si) => (
         <Cartao key={s.id} className="space-y-3">
           <div className="flex flex-wrap items-end gap-2">
@@ -52,6 +107,7 @@ export function EditorChecklist({ conteudo, setores, onChange }: Props) {
                   </button>
                   <Selo tom="neutro">{ROTULO_TIPO[i.tipo]}</Selo>
                   {i.condicao && <Selo tom="info" icone={GitBranch}>Condicional</Selo>}
+                  {i.tempo_padrao_min ? <Selo tom="neutro" icone={Timer}>{minutosBR(i.tempo_padrao_min)}</Selo> : null}
                   <Botao variante="fantasma" aria-label="Subir item" disabled={ii === 0} onClick={() => aplicar(() => moverItem(conteudo, i.id, -1))}><ArrowUp className="size-5" /></Botao>
                   <Botao variante="fantasma" aria-label="Descer item" disabled={ii === s.itens.length - 1} onClick={() => aplicar(() => moverItem(conteudo, i.id, 1))}><ArrowDown className="size-5" /></Botao>
                   <Botao variante="fantasma" aria-label="Duplicar item" onClick={() => aplicar(() => duplicarItem(conteudo, i.id))}><Copy className="size-5" /></Botao>
@@ -60,7 +116,7 @@ export function EditorChecklist({ conteudo, setores, onChange }: Props) {
                     if (confirm(dep.length ? `Remover? ${dep.length} pergunta(s) dependem desta e vão perder a condição.` : "Remover este item do rascunho?")) aplicar(() => removerItem(conteudo, i.id));
                   }}><Trash2 className="size-5 text-red-700" /></Botao>
                 </div>
-                {aberto === i.id && <ItemForm conteudo={conteudo} item={i} aplicar={aplicar} />}
+                {aberto === i.id && <ItemForm conteudo={conteudo} item={i} aplicar={aplicar} sugestao={sugestoes?.itens.get(i.id) ?? null} />}
               </li>
             ))}
           </ol>
@@ -80,7 +136,7 @@ export function EditorChecklist({ conteudo, setores, onChange }: Props) {
   );
 }
 
-function ItemForm({ conteudo, item: i, aplicar }: { conteudo: ConteudoModelo; item: Item; aplicar: (fn: () => ConteudoModelo) => void }) {
+function ItemForm({ conteudo, item: i, aplicar, sugestao }: { conteudo: ConteudoModelo; item: Item; aplicar: (fn: () => ConteudoModelo) => void; sugestao: { n: number; media_min: number } | null }) {
   const set = (p: Partial<Item>) => aplicar(() => alterarItem(conteudo, i.id, p));
   const candidatas = candidatasCondicao(conteudo, i.id);
   const mae = i.condicao ? candidatas.find((c) => c.id === i.condicao!.item_id) : undefined;
@@ -116,6 +172,10 @@ function ItemForm({ conteudo, item: i, aplicar }: { conteudo: ConteudoModelo; it
         <Campo rotulo="Peso"><input type="number" min={0} max={10} step={0.5} className={classeEntrada} value={i.peso} disabled={!i.pontua} onChange={(e) => set({ peso: Number(e.target.value) })} /></Campo>
         <Campo rotulo="Prazo no dia (opcional)"><input type="time" className={classeEntrada} value={i.prazo_hora ?? ""} onChange={(e) => set({ prazo_hora: e.target.value || undefined })} /></Campo>
         <Campo rotulo="Relatório do CISS (opcional)"><input className={classeEntrada} value={i.ref_ciss ?? ""} onChange={(e) => set({ ref_ciss: e.target.value || undefined })} /></Campo>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <CampoTempo rotulo="Tempo padrão do item (min, opcional)" valor={i.tempo_padrao_min} sugestao={sugestao} passo={0.5}
+          onChange={(m) => aplicar(() => definirTempoItem(conteudo, i.id, m))} />
       </div>
       {i.tipo === "numero" && (
         <div className="grid gap-3 sm:grid-cols-3">

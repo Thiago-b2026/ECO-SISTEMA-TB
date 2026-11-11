@@ -74,3 +74,19 @@ describe("editor de checklists", () => {
     expect(JSON.stringify(c)).toBe(antes); // funções puras
   });
 });
+
+describe("tempo padrão no editor", () => {
+  it("checklist e item: define, limpa com vazio/0 e valida o limite", async () => {
+    const { definirTempoItem, definirTempoPadrao } = await import("./editor");
+    const { c, a } = montar();
+    let n = definirTempoPadrao(c, 15);
+    n = definirTempoItem(n, a, 2.5);
+    expect(n.tempo_padrao_min).toBe(15);
+    expect(n.secoes[0].itens.find((i) => i.id === a)!.tempo_padrao_min).toBe(2.5);
+    expect(c.tempo_padrao_min).toBeUndefined(); // não muda o original
+    expect(validarConteudo(n)).toEqual([]);
+    expect("tempo_padrao_min" in definirTempoPadrao(n, 0)).toBe(false);
+    expect("tempo_padrao_min" in definirTempoItem(n, a, null).secoes[0].itens.find((i) => i.id === a)!).toBe(false);
+    expect(validarConteudo({ ...n, tempo_padrao_min: 2000 })).toContain("Tempo padrão do checklist inválido (de 1 min a 24 h).");
+  });
+});

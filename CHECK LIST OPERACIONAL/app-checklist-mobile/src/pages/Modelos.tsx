@@ -11,10 +11,11 @@ import { PERFIS } from "../data/servidor";
 import { SETORES } from "../data/seed-modelos";
 import { validarConteudo } from "../domain/editor";
 import { todosItens } from "../domain/regras";
-import { dataHoraSP } from "../domain/tempo";
+import { dataHoraSP, dataSP, somarDias } from "../domain/tempo";
+import { sugestaoPadrao, sugestoesItens } from "../domain/tempos";
 import type { Modelo, ModeloVersao, Perfil } from "../domain/tipos";
 import { Aviso, Botao, Campo, Cartao, Carregando, Selo, Titulo, Vazio, classeEntrada, cx } from "../ui/base";
-import { EditorChecklist } from "../ui/EditorChecklist";
+import { EditorChecklist, type SugestoesTempo } from "../ui/EditorChecklist";
 import { PreviaChecklist } from "../ui/PreviaChecklist";
 
 const CATEGORIAS: Record<string, string> = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal", avaliacao: "Avaliação (nota)" };
@@ -37,6 +38,7 @@ export default function Modelos() {
   const [ok, setOk] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [publicadoAgora, setPublicadoAgora] = useState(false);
+  const [sugestoes, setSugestoes] = useState<SugestoesTempo | undefined>(undefined);
   const setoresLocais = useLiveQuery(() => (rede ? db.setores.where("rede_id").equals(rede).toArray() : []), [rede]) ?? [];
   const setores = setoresLocais.length ? setoresLocais.filter((s) => s.ativo) : Object.entries(SETORES).map(([codigo, nome]) => ({ codigo, nome }));
   const nomeSetor = (s?: string) => (s ? setores.find((x) => x.codigo === s)?.nome ?? s : "Sem setor");
@@ -55,6 +57,17 @@ export default function Modelos() {
   }
   useEffect(() => { setSel(""); setModelos(null); void carregarLista(); }, [rede]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPublicadoAgora(false); setModo("editar"); if (sel) void carregar(sel); }, [sel]);
+  // médias reais dos últimos 90 dias (só execuções concluídas) → sugestão "usar como padrão"
+  useEffect(() => {
+    setSugestoes(undefined);
+    if (!sel || !rede) return;
+    let vivo = true;
+    const hoje = dataSP();
+    servidor.dadosTempos(somarDias(hoje, -90), hoje, rede, null)
+      .then((d) => { if (vivo) setSugestoes({ checklist: sugestaoPadrao(d.execucoes, sel), itens: sugestoesItens(d.itens, d.execucoes, sel) }); })
+      .catch(() => { /* sem sugestão: o editor funciona igual */ });
+    return () => { vivo = false; };
+  }, [sel, rede]);
 
   async function acao(fn: () => Promise<unknown>, msg: string) {
     setErro(null); setOk(null); setOcupado(true);
@@ -160,7 +173,7 @@ export default function Modelos() {
             ))}
           </div>
           {modo === "editar"
-            ? <EditorChecklist conteudo={rasc.conteudo} setores={setores} onChange={(c) => { setRasc({ ...rasc, conteudo: c }); setSujo(true); }} />
+            ? <EditorChecklist conteudo={rasc.conteudo} setores={setores} sugestoes={sugestoes} onChange={(c) => { setRasc({ ...rasc, conteudo: c }); setSujo(true); }} />
             : <PreviaChecklist conteudo={rasc.conteudo} nomeSetor={nomeSetor} />}
           {problemas.length > 0 && (
             <Aviso tom="alerta" titulo="Corrija antes de publicar">
