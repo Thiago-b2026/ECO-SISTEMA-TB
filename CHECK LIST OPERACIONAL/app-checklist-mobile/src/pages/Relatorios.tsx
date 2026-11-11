@@ -8,7 +8,8 @@ import type { LinhaRelatorio } from "../data/servidor";
 import { textoPontuacao } from "../domain/regras";
 import { dataBR, dataSP, duracao, horaSP, somarDias } from "../domain/tempo";
 import { baixarPdfExecucao } from "../lib/pdf-execucao";
-import { baixar, gerarExcel, hojeArquivo } from "../lib/relatorios";
+import { baixar, gerarExcel, hojeArquivo, type TemposExcel } from "../lib/relatorios";
+import { CONFIG_PADRAO, analisarExecucoes, analisarItens } from "../domain/tempos";
 import { Aviso, Botao, Campo, Cartao, Carregando, Titulo, Vazio, classeEntrada } from "../ui/base";
 import { SeloExecucao } from "../ui/estados";
 
@@ -22,6 +23,7 @@ export default function Relatorios() {
   const [linhas, setLinhas] = useState<LinhaRelatorio[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  const [avisoTempos, setAvisoTempos] = useState<string | null>(null);
 
   async function carregar() {
     setErro(null);
@@ -39,7 +41,15 @@ export default function Relatorios() {
       const planos = (await db.planos.where("loja_id").anyOf(ids).toArray()).filter((p) => p.criado_em.slice(0, 10) >= de && p.criado_em.slice(0, 10) <= somarDias(ate, 1));
       const membros = empresaAtual ? await db.membros.where("rede_id").equals(empresaAtual.rede_id).toArray() : [];
       const nomeLoja = loja ? minhas.find((l) => l.loja_id === loja)?.nome : "todas as unidades";
-      baixar(await gerarExcel(linhas, planos, membros, `Check List – ${empresaAtual?.nome ?? ""} – ${nomeLoja} – ${dataBR(de)} a ${dataBR(ate)}`), `checklist-${hojeArquivo()}.xlsx`);
+      // aba "Tempos": se não carregar (ex.: sem a migration de tempos), o Excel sai sem ela e avisa
+      let tempos: TemposExcel | null = null;
+      setAvisoTempos(null);
+      try {
+        const t = await servidor.dadosTempos(de, ate, empresaAtual?.rede_id ?? null, loja || null);
+        const cfg = (r: string | null | undefined) => t.config.find((c) => c.rede_id === r) ?? CONFIG_PADRAO;
+        tempos = { execucoes: analisarExecucoes(t.execucoes, cfg), itens: analisarItens(t.itens, t.execucoes, cfg) };
+      } catch (x) { setAvisoTempos(`O Excel saiu sem a aba Tempos: ${(x as Error).message}`); }
+      baixar(await gerarExcel(linhas, planos, membros, `Check List – ${empresaAtual?.nome ?? ""} – ${nomeLoja} – ${dataBR(de)} a ${dataBR(ate)}`, tempos), `checklist-${hojeArquivo()}.xlsx`);
     } catch (e) { setErro((e as Error).message); } finally { setOcupado(null); }
   }
 
@@ -63,6 +73,7 @@ export default function Relatorios() {
         </Campo>
       </div>
       {erro && <Aviso tom="erro">{erro}</Aviso>}
+      {avisoTempos && <Aviso tom="alerta">{avisoTempos}</Aviso>}
       <Botao onClick={excel} disabled={!linhas?.length} carregando={ocupado === "excel"}><FileSpreadsheet className="size-5" aria-hidden /> Baixar Excel do período</Botao>
       {!linhas ? (ocupado === "lista" && <Carregando />) : linhas.length === 0 ? <Vazio>Nenhuma execução no período.</Vazio> : (
         <ul className="space-y-2">

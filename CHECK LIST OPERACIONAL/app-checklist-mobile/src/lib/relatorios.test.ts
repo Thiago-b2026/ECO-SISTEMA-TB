@@ -37,3 +37,40 @@ describe("relatórios", () => {
     expect(bytes.length).toBeGreaterThan(2000);
   });
 });
+
+describe("relatórios com tempos (etapa 13)", () => {
+  const ex = {
+    execucao_id: "e1", modelo_id: "m", modelo: "Fiscal – Rotina da tarde", loja_id: "l", loja: "Matriz", usuario_id: "u", pessoa: "Ana",
+    inicio_em: "2026-11-10T16:00:00.000Z", fim_em: "2026-11-10T16:20:00.000Z", total_seg: 1200, pausado_seg: 300, ativo_seg: 900, padrao_seg: 900,
+  };
+  const item = { execucao_id: "e1", item_id: "ft_copos", texto: "Copos", iniciado_em: "2026-11-10T16:01:00.000Z", concluido_em: "2026-11-10T16:04:30.000Z", duracao_seg: 210, padrao_seg: 180 };
+
+  it("Excel com as abas Tempos e Tempos por item (minutos, situação, horário de SP)", async () => {
+    const { analisarExecucoes, analisarItens } = await import("../domain/tempos");
+    const es = analisarExecucoes([ex]);
+    const blob = await gerarExcel([linha], [], [], "Teste", { execucoes: es, itens: analisarItens([item], [ex]) });
+    const wb = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type: "array" });
+    expect(wb.SheetNames).toEqual(["Resumo", "Execuções", "Planos de ação", "Tempos", "Tempos por item"]);
+    const t = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets["Tempos"]);
+    expect(t[0]).toMatchObject({ Data: "10/11/2026", Início: "13:00", Fim: "13:20", "Total (min)": 20, "Parado (min)": 5, "Ativo (min)": 15, "Padrão (min)": 15, Referência: "Padrão", "Diferença (%)": 0, Situação: "No tempo" });
+    const ti = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets["Tempos por item"]);
+    expect(ti[0]).toMatchObject({ Item: "Copos", Início: "13:01", Fim: "13:04", "Duração (s)": 210, "Padrão (s)": 180, Situação: "No tempo" });
+  });
+
+  it("PDF traz o tempo ativo e o tempo de cada item", async () => {
+    const { textoTempoItem } = await import("./relatorios");
+    const r = { id: "r", execucao_id: "e1", item_id: "ft_copos", valor: { tipo: "sim_nao" as const, v: true }, respondido_em: item.concluido_em, iniciado_em: item.iniciado_em, concluido_em: item.concluido_em };
+    expect(textoTempoItem(r, 2.5)).toBe("13:01–13:04 · 3min (padrão 2,5 min)");
+    expect(textoTempoItem({ ...r, concluido_em: null })).toBe("13:01–? · incompleto");
+    expect(textoTempoItem(undefined)).toBe("—");
+    const m = MODELOS_SEED.find((x) => x.codigo === "fiscal_tarde")!;
+    const blob = await gerarPdfExecucao({
+      execucao: { id: "e1", tarefa_id: null, modelo_id: "m", versao_id: "v", loja_id: "l", usuario_id: "u", inicio_em: linha.inicio, fim_em: linha.fim, status: "concluida", pontuacao: 100, tempo_pausado_seg: 300 },
+      versao: { id: "v", modelo_id: "m", numero: 1, status: "publicada", conteudo: m.conteudo },
+      modelo: m.nome, loja: "Matriz", pessoa: "Ana", dataRef: "2026-11-10", respostas: [r], fotos: [], planos: [],
+    });
+    const txt = new TextDecoder("latin1").decode(new Uint8Array(await blob.arrayBuffer()));
+    expect(txt).toContain("Tempo ativo: 20min"); // 25 min − 5 parado
+    expect(txt).toContain("13:01");
+  });
+});
