@@ -87,3 +87,4 @@
 - Aplicado no Supabase ECO-SISTEMA-TB (SQL Editor), com OK do usuário: 20261110000001 (10/11), 0023, 0024, 20261111000002 (tempos), 0025 e o seed.
 - Conferência final: 10 telas do Check List em public.telas (inclui checklist.empresas e checklist.tempos), 8 checklists com 8 versões publicadas na SUPERMIX BRAZ, colunas de tempo presentes, acentos corretos.
 - Falta: Exposed schemas (checklist), deploy da Edge Function admin-usuarios, projeto na Vercel, merge no main e url em public.sistemas.
+- 11/11: schema `checklist` liberado em Exposed schemas (4 de 4) e Edge Function `admin-usuarios` publicada (versão 4, ACTIVE, exige login: chamada sem login devolve 401). Falta: Vercel, merge no main e url em public.sistemas.
