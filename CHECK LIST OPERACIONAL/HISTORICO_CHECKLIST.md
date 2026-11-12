@@ -82,3 +82,8 @@
 - **Testes novos:** `tests/execucao-tempos.ui.test.tsx` (toque/fim/pausa pela tela, editor com sugestão, tela Tempos, Dashboard com e sem tempos), fila de pausa em `tests/tempos.test.ts`, editor e sugestão por item em `src/domain/*.test.ts`, Excel e PDF em `src/lib/relatorios.test.ts`. **108 testes passam.**
 - **Observação:** a varredura `todas-telas` às vezes passa do tempo quando roda junto com outros testes pesados num computador ocupado; sozinha e na suíte normal, passa.
 - **Não testado:** pausa por 2º plano num celular de verdade, e nada contra o banco de produção (depende do seu OK).
+
+## Sessão 8 – 11/11/2026 (banco de produção aplicado)
+- Aplicado no Supabase ECO-SISTEMA-TB (SQL Editor), com OK do usuário: 20261110000001 (10/11), 0023, 0024, 20261111000002 (tempos), 0025 e o seed.
+- Conferência final: 10 telas do Check List em public.telas (inclui checklist.empresas e checklist.tempos), 8 checklists com 8 versões publicadas na SUPERMIX BRAZ, colunas de tempo presentes, acentos corretos.
+- Falta: Exposed schemas (checklist), deploy da Edge Function admin-usuarios, projeto na Vercel, merge no main e url em public.sistemas.
