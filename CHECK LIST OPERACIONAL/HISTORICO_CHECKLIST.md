@@ -88,3 +88,5 @@
 - Conferência final: 10 telas do Check List em public.telas (inclui checklist.empresas e checklist.tempos), 8 checklists com 8 versões publicadas na SUPERMIX BRAZ, colunas de tempo presentes, acentos corretos.
 - Falta: Exposed schemas (checklist), deploy da Edge Function admin-usuarios, projeto na Vercel, merge no main e url em public.sistemas.
 - 11/11: schema `checklist` liberado em Exposed schemas (4 de 4) e Edge Function `admin-usuarios` publicada (versão 4, ACTIVE, exige login: chamada sem login devolve 401). Falta: Vercel, merge no main e url em public.sistemas.
+- 12/11: branch feat/checklist-mobile enviada ao GitHub (main intocado). Projeto Vercel **checklist-grupotb** criado no time grupotb (Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`, preset Vite, variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY coladas pelo usuário). Deploy 07d7623 Ready: https://checklist-grupotb.vercel.app abre a tela de login real (sem modo demonstração).
+- Falta: teste no celular com login real; url em public.sistemas; trocar o Root Directory do projeto eco-sistema-tb (PDV) de "PDV SALVADOS" para "GESTAO SALVADOS" ANTES de juntar ao main; merge no main.
