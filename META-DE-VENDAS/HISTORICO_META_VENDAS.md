@@ -1,14 +1,13 @@
 # Histórico – Meta de Vendas e Premiação (código `metas`, schema `metas`)
 
 ## 📍 ONDE PARAMOS
-- **15/11/2026:** projeto aberto. Origem: app Lovable "Sales Champion" (código em `C:\GTB_ PROJETOS_CLAUDE\ARQUIVO-ECO-SISTEMA-TB\PROJETO LOVABLE\goal-spark-rewards-main`, banco Lovable `rbwttovhtcjazueagipp`). **Sem dados reais** (15/11: no Lovable só havia testes) → o app começa limpo, sem importação.
-- Código de referência: `metavendas-codigo.zip` (15/11, 106 arquivos), igual à cópia de 19/09 nas telas, regras e tabelas; só mudaram arquivos automáticos do Lovable.
-- **Etapa 1 pronta (15/11)** na branch `feat/meta-vendas`: migration `supabase/migrations/20261115000001_metas_schema.sql` + 21 testes de banco (PGlite) passando. **Nada aplicado no Supabase, nada publicado.**
-- **Etapa 3 pronta (15/11), commit `a384468` (0027 + testes);** o espelho em `telas.ts` e o quadro do Portal ficam para o commit do Quadro Geral. Arquivos: `GESTAO SALVADOS/supabase/migrations/20261115000027_metas_telas.sql` (sistema `metas`, 3 grupos, 7 telas, ação `fechar_mes`), espelho em `GESTAO SALVADOS/src/lib/telas.ts` + teste (131 ok, tsc ok) e quadro em `PORTAL/src/lib/quadros.tsx` (tsc ok). Testes do metas: 24 ok, já usando a 0027 real. Esses arquivos do PDV e do Portal estão misturados com o trabalho pendente do Quadro Geral (0026), então o commit depende dele.
-- **Etapa 4 pronta (15/11), commit `8773f47`:** app Vite com as 7 telas, login único, modo demonstração. 56 testes ok (27 banco, 9 cálculo, 9 apoio/telas, 5 demonstração, 6 de tela), tsc e build ok, conferido no navegador (desktop e celular).
-- **Etapa 4b (15/11), sem commit:** várias empresas — seletor de Empresa e Unidade no topo; telas do admin **Empresas e lojas** e **Usuários e acessos** (criar login, perfis vendedor/gerente/gestor); migration `20261115000002_metas_empresas_acessos.sql`; 0027 ganhou as 2 telas do admin; Edge Function `admin-usuarios` aceita `sistema: "metas"`. 68 testes do app e 132 do PDV ok, tsc e build ok.
-- **Próximo passo:** commit (com OK) e etapa 5, a publicação (0001 → 0026 → 0027 → 0002 → Exposed schemas → deploy da Edge Function → Vercel → main → url → acessos).
-
+- **15/11/2026 — publicação em andamento** (roteiro: `PUBLICAR.md`). Feito com OK do usuário:
+  - commit do Quadro Geral do Portal (`a5af49f`);
+  - **banco de produção:** aplicadas, nesta ordem, a 0001 do metas, a 0026 e a 0027 do PDV e a 0002 do metas. Conferido: 4 tabelas com RLS, 9 telas, 22 ações, `fechar_mes`, Portal (POP, Precificação, bucket); **nenhum dado criado**;
+  - **Edge Function `admin-usuarios` v5** publicada (sem login → 401);
+  - branch `feat/meta-vendas` enviada ao GitHub (main intocado).
+- **Falta (na ordem):** 👤 Exposed schemas `metas` → 👤 projeto Vercel `metas-grupotb` (Root `META-DE-VENDAS`, Vite, as 2 variáveis) → 🤖 merge no main → 🤖 url em `public.sistemas` e `sistemas.json` → 👤 marcar lojas, dar acessos e cadastrar a meta.
+- Origem: app Lovable "Sales Champion" (sem dados reais; começa limpo).
 ---
 
 ## 🧭 CONTEXTO
@@ -101,4 +100,11 @@
 - **Unidade nova:** CNPJ (válido) e endereço (rua, número, cidade, UF) obrigatórios. Unidade antiga de outro sistema sem CNPJ continua editável sem travar. A lista mostra CNPJ (matriz/filial) e o endereço, com aviso "Sem CNPJ" / "Endereço não cadastrado".
 - A empresa (rede) continua só com o nome, como no PDV e no Portal: o CNPJ fica em cada unidade (a matriz é a de final /0001).
 - Testes: 75 no app (inclui a pesquisa de CNPJ com a Receita simulada e as regras do cadastro), tsc e build ok; conferido no navegador.
+
+## Sessão 7 – 15/11/2026 (publicação: banco, Edge Function e GitHub)
+- Conferência do banco de produção (só leitura) antes: nada do metas nem da 0026; dependências presentes; regras de `public.lojas` deixam o admin ler/criar/editar/excluir.
+- Testes antes: metas 75, PDV 132, build do Portal ok.
+- Commit `a5af49f` (Portal: Quadro Geral, 0026, telas.ts, sistemas.json).
+- Aplicadas em produção: `20261115000001_metas_schema.sql` → `20261113000026_portal_quadros_pop_precificacao.sql` → `20261115000027_metas_telas.sql` → `20261115000002_metas_empresas_acessos.sql`. Conferido depois: tabelas, RLS, telas, ações, perfis (`telas_do_perfil`), núcleo `_definir_acesso_usuario` fechado para authenticated, `definir_acesso` fechado para anon.
+- `admin-usuarios` publicada (v5, ACTIVE, verify_jwt; chamada sem login → 401).
 
