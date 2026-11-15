@@ -7,10 +7,15 @@ import { resolve } from "node:path";
 const raiz = resolve(import.meta.dirname, "..");
 export const MIGRATIONS = readdirSync(resolve(raiz, "migrations")).filter((f) => f.endsWith(".sql")).sort();
 
+// migrations do PDV com o catálogo de telas do Meta de Vendas – na ordem da publicação: depois do schema metas
+const PDV = resolve(raiz, "../../GESTAO SALVADOS/supabase/migrations");
+export const MIGRATIONS_PDV = readdirSync(PDV).filter((f) => /metas/.test(f) && f.endsWith(".sql")).sort();
+
 export async function rodarMigrations(db: PGlite) {
-  for (const f of MIGRATIONS) {
+  const arquivos = [...MIGRATIONS.map((f) => resolve(raiz, "migrations", f)), ...MIGRATIONS_PDV.map((f) => resolve(PDV, f))];
+  for (const f of arquivos) {
     try {
-      await db.exec(readFileSync(resolve(raiz, "migrations", f), "utf8"));
+      await db.exec(readFileSync(f, "utf8"));
     } catch (e) {
       throw new Error(`Falha na migration ${f}: ${(e as Error).message}`);
     }

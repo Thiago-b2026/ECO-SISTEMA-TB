@@ -7,7 +7,8 @@ permissões por tela e unidade).
 
 ## Situação
 - **Etapa 1 (banco):** pronta no PC e testada. **Nada aplicado no Supabase.**
-- Próximas etapas: catálogo de telas no GESTAO SALVADOS, telas do app, publicação. Ver `HISTORICO_META_VENDAS.md`.
+- **Etapa 3 (telas e permissões):** migration 0027 no GESTAO SALVADOS, espelho em `telas.ts` e quadro no Portal. Nada aplicado.
+- Próximas etapas: telas do app e publicação. Ver `HISTORICO_META_VENDAS.md`.
 
 ## Banco (`supabase/migrations/20261115000001_metas_schema.sql`)
 | Tabela | O que guarda |
@@ -42,6 +43,6 @@ migration 0018 do GESTAO SALVADOS). Não tocam no banco de produção.
 
 ## Publicar (quando autorizado)
 1. Aplicar `20261115000001_metas_schema.sql` no Supabase ECO-SISTEMA-TB.
-2. Aplicar a migration de telas do GESTAO SALVADOS (etapa 3, ainda não escrita).
+2. Aplicar, no GESTAO SALVADOS, a `20261113000026_portal_quadros_pop_precificacao.sql` (se ainda não estiver aplicada) e depois a `20261115000027_metas_telas.sql`.
 3. Supabase → Integrations → Data API → Exposed schemas: incluir `metas`.
 4. Marcar as unidades que usam o sistema e liberar as telas para as pessoas.

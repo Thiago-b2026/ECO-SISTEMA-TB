@@ -59,19 +59,37 @@ beforeAll(async () => {
       ('${LOJA_A}', 'Loja A', '${REDE}', array['metas']),
       ('${LOJA_B}', 'Loja B', '${REDE}', array['metas']),
       ('${LOJA_SEM}', 'Loja sem metas', '${REDE}', array['pdv']);
-    insert into public.grupos (sistema, codigo, nome) values ('metas', 'metas', 'Meta de Vendas');
-    insert into public.telas (codigo, nome, app, grupo, rota) values
-      ${TELAS.map(([c]) => `('${c}', '${c}', 'metas', 'metas', '/${c.split(".")[1]}')`).join(", ")};
   `);
-  for (const [tela, acoes] of TELAS)
-    for (const acao of acoes) {
-      await db.query(`insert into public.acoes (codigo, nome) values ($1, $1) on conflict do nothing`, [acao]);
-      await db.query(`insert into public.tela_acoes (tela_codigo, acao) values ($1, $2)`, [tela, acao]);
-    }
+  // as telas e ações vêm da migration real do PDV (20261115000027_metas_telas.sql)
   await liberar(U.gerente, LOJA_A, TELAS);
   await liberar(U.vendA, LOJA_A, [["metas.meu_desempenho", ["ver", "editar"]], ["metas.ranking", ["ver"]]]);
   await liberar(U.vendA2, LOJA_A, [["metas.meu_desempenho", ["ver"]]]);
   await liberar(U.vendB, LOJA_B, [["metas.meu_desempenho", ["ver", "editar"]], ["metas.ranking", ["ver"]]]);
+});
+
+describe("catálogo de telas (migration 0027 do PDV)", () => {
+  it("tem exatamente as telas e ações que as regras do banco usam", async () => {
+    const r = await sql<{ tela_codigo: string; acoes: string[] }>(null,
+      `select tela_codigo, array_agg(acao order by acao) acoes from public.tela_acoes where tela_codigo like 'metas.%' group by 1 order by 1`);
+    const esperado = TELAS.map(([t, a]) => ({ tela_codigo: t, acoes: [...a].sort() })).sort((x, y) => x.tela_codigo.localeCompare(y.tela_codigo));
+    expect(r).toEqual(esperado);
+  });
+
+  it("toda ação usada por public.pode() no schema metas está no catálogo da tela", async () => {
+    const usadas = new Set<string>();
+    const src = await sql<{ def: string }>(null,
+      `select concat_ws(' ', pg_get_expr(polqual, polrelid), pg_get_expr(polwithcheck, polrelid)) def
+         from pg_policy p join pg_class c on c.oid = p.polrelid join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'metas'`);
+    for (const { def } of src) for (const m of def.matchAll(/pode\('(metas\.[a-z_]+)'::text, '([a-z_]+)'::text/g)) usadas.add(`${m[1]}/${m[2]}`);
+    expect(usadas.size).toBeGreaterThan(5);
+    const catalogo = new Set(TELAS.flatMap(([t, a]) => a.map((x) => `${t}/${x}`)));
+    for (const u of usadas) expect(catalogo.has(u), u).toBe(true);
+  });
+
+  it("sistema ativo, sem url até a publicação, e a ação 'fechar_mes' existe", async () => {
+    expect(await sql(null, `select ativo, url from public.sistemas where codigo = 'metas'`)).toEqual([{ ativo: true, url: null }]);
+    expect(await sql(null, `select especial from public.acoes where codigo = 'fechar_mes'`)).toEqual([{ especial: true }]);
+  });
 });
 
 describe("migration", () => {
