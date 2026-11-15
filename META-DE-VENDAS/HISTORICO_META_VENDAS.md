@@ -4,8 +4,9 @@
 - **15/11/2026:** projeto aberto. Origem: app Lovable "Sales Champion" (código em `C:\GTB_ PROJETOS_CLAUDE\ARQUIVO-ECO-SISTEMA-TB\PROJETO LOVABLE\goal-spark-rewards-main`, banco Lovable `rbwttovhtcjazueagipp`). **Sem dados reais** (15/11: no Lovable só havia testes) → o app começa limpo, sem importação.
 - Código de referência: `metavendas-codigo.zip` (15/11, 106 arquivos), igual à cópia de 19/09 nas telas, regras e tabelas; só mudaram arquivos automáticos do Lovable.
 - **Etapa 1 pronta (15/11)** na branch `feat/meta-vendas`: migration `supabase/migrations/20261115000001_metas_schema.sql` + 21 testes de banco (PGlite) passando. **Nada aplicado no Supabase, nada publicado.**
-- **Etapa 3 pronta (15/11), NÃO commitada:** `GESTAO SALVADOS/supabase/migrations/20261115000027_metas_telas.sql` (sistema `metas`, 3 grupos, 7 telas, ação `fechar_mes`), espelho em `GESTAO SALVADOS/src/lib/telas.ts` + teste (131 ok, tsc ok) e quadro em `PORTAL/src/lib/quadros.tsx` (tsc ok). Testes do metas: 24 ok, já usando a 0027 real. Esses arquivos do PDV e do Portal estão misturados com o trabalho pendente do Quadro Geral (0026), então o commit depende dele.
-- **Próximo passo:** decidir o commit da etapa 3 e começar a etapa 4 (telas do app).
+- **Etapa 3 pronta (15/11), commit `a384468` (0027 + testes);** o espelho em `telas.ts` e o quadro do Portal ficam para o commit do Quadro Geral. Arquivos: `GESTAO SALVADOS/supabase/migrations/20261115000027_metas_telas.sql` (sistema `metas`, 3 grupos, 7 telas, ação `fechar_mes`), espelho em `GESTAO SALVADOS/src/lib/telas.ts` + teste (131 ok, tsc ok) e quadro em `PORTAL/src/lib/quadros.tsx` (tsc ok). Testes do metas: 24 ok, já usando a 0027 real. Esses arquivos do PDV e do Portal estão misturados com o trabalho pendente do Quadro Geral (0026), então o commit depende dele.
+- **Etapa 4 pronta (15/11), sem commit:** app Vite com as 7 telas, login único, modo demonstração. 56 testes ok (27 banco, 9 cálculo, 9 apoio/telas, 5 demonstração, 6 de tela), tsc e build ok, conferido no navegador (desktop e celular).
+- **Próximo passo:** commit da etapa 4 (com OK) e etapa 5, a publicação (banco → Exposed schemas → Vercel → main → url → liberar acessos).
 
 ---
 
@@ -55,4 +56,14 @@
 - Portal: quadro "Meta de Vendas" (ícone de troféu) em `PORTAL/src/lib/quadros.tsx`; sem url aparece "Sem endereço" (só para o admin, até publicar). tsc ok.
 - Testes do metas passam a rodar a 0027 real e conferem que toda ação usada nas políticas está no catálogo (24 ok).
 - **Ordem de publicação:** schema `metas` (0001 do META-DE-VENDAS) → 0026 do PDV (Quadro Geral) → 0027 do PDV → Exposed schemas `metas`.
+
+## Sessão 3 – 15/11/2026 (etapa 4: telas do app)
+- App Vite + React + Tailwind + react-router (mesmo padrão do Check List), na raiz de `META-DE-VENDAS` (`npm run dev` → porta 5193; `.claude/launch.json` → `metas-demo`).
+- **Login único** (sem "Criar conta"), menu só com as telas liberadas (`minhas_telas('metas')`), "Acesso negado" em rota não liberada, aviso (sem bloquear) se a consulta de permissões falhar, botão "Eco Sistema TB" para o Portal. Unidade e mês sempre no topo; as ações dentro de cada tela seguem `minhas_permissoes('metas', unidade)`.
+- **Telas:** Dashboard (indicadores, barra com as marcas do mínimo e dos 100%, quanto falta, tabela, PDF/Excel com `historico → exportar`); Ranking (medalhas, "você" destacado); Meu desempenho (resultado e prêmio do vendedor, lançar o próprio resultado com `meu_desempenho → editar`, gráfico de 6 meses); Histórico (6/12/24 meses, Excel com abas Resumo e Vendedores); Lançamentos do mês (tabela editável, "Alterado, falta salvar", salvar tudo, excluir); Vendedores (cadastrar, editar, trocar de unidade, inativar/reativar, ligar ao login pelo e-mail); Meta e fechamento (meta do mês, copiar do mês anterior, fechar/reabrir com confirmação).
+- **Cálculo** em `src/domain/premiacao.ts`, mesmas contas do Lovable (a faixa mínima agora mostra o % configurado, em vez de "90%" fixo).
+- **Banco (0001 ajustada, ainda não aplicada):** `metas.ligar_login(vendedor, email)` liga o cadastro a um login que JÁ existe (quem cria login é o admin, no Portal) e `metas.emails_vendedores(loja)` (só para quem vê a tela Vendedores). +3 testes.
+- **Modo demonstração:** Admin, Gerente da Loja 1, Ana (lança o próprio resultado) e Bruno (só acompanha); 2 lojas, 3 meses de exemplo (o mais antigo fechado). Mesmas regras do banco. Build de produção sem as variáveis mostra "Erro de configuração".
+- **Correção durante os testes:** lista vazia criada a cada render fazia a tela de Lançamentos recarregar sem parar; virou constante.
+- Pendente para a publicação: criar login novo de vendedor continua com o admin (Portal/PDV); o app só liga ao login existente.
 

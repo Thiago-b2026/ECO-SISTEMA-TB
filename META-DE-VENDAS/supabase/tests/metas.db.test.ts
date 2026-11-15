@@ -190,6 +190,28 @@ describe("lançamentos", () => {
   });
 });
 
+describe("login do vendedor", () => {
+  it("o gerente liga o vendedor a um login que já existe, pelo e-mail", async () => {
+    await db.exec(`insert into auth.users (id, email) values ('00000000-0000-4000-8000-0000000000c1', 'Carla@Loja.com')`);
+    await sql(U.gerente, `select metas.ligar_login($1, ' carla@loja.com ')`, [V.semLogin]);
+    expect(await sql(null, `select user_id from metas.vendedores where id = $1`, [V.semLogin])).toEqual([{ user_id: "00000000-0000-4000-8000-0000000000c1" }]);
+    expect(await sql(U.gerente, `select email from metas.emails_vendedores($1) where vendedor_id = $2`, [LOJA_A, V.semLogin])).toEqual([{ email: "Carla@Loja.com" }]);
+  });
+
+  it("e-mail sem login, login já usado por outro vendedor e quem não pode editar são recusados", async () => {
+    await deve(U.gerente, `select metas.ligar_login($1, 'ninguem@x.com')`, [V.semLogin], "Não existe login");
+    await db.query(`update auth.users set email = 'ana@loja.com' where id = $1`, [U.vendA]);
+    await deve(U.gerente, `select metas.ligar_login($1, 'ana@loja.com')`, [V.semLogin], "já está ligado a outro vendedor");
+    await deve(U.vendA, `select metas.ligar_login($1, null)`, [V.semLogin], "não tem permissão");
+  });
+
+  it("e-mail vazio desliga o login; o vendedor não vê os e-mails dos colegas", async () => {
+    await sql(U.gerente, `select metas.ligar_login($1, '')`, [V.semLogin]);
+    expect(await sql(null, `select user_id from metas.vendedores where id = $1`, [V.semLogin])).toEqual([{ user_id: null }]);
+    expect(await sql(U.vendA, `select * from metas.emails_vendedores($1)`, [LOJA_A])).toHaveLength(0);
+  });
+});
+
 describe("fechamento do mês", () => {
   it("o vendedor não fecha o mês", async () => {
     await deve(U.vendA, `insert into metas.meses_fechados (loja_id, mes_referencia) values ($1, $2)`, [LOJA_A, NOV], /row-level security/);

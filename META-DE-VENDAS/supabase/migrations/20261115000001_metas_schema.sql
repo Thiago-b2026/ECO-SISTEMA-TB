@@ -264,6 +264,42 @@ drop policy if exists "fechados: reabrir" on metas.meses_fechados;
 create policy "fechados: reabrir" on metas.meses_fechados for delete to authenticated
   using (public.pode('metas.configuracao', 'fechar_mes', loja_id));
 
+-- ---------- login do vendedor ----------
+-- Liga (ou desliga, com e-mail vazio) o cadastro do vendedor a um login que JÁ existe no ecossistema.
+-- Quem cria login novo é só o admin (Portal / Edge Function admin-usuarios).
+create or replace function metas.ligar_login(_vendedor uuid, _email text)
+returns void language plpgsql security definer set search_path = metas, public, auth as $$
+declare _loja uuid; _uid uuid;
+begin
+  select v.loja_id into _loja from metas.vendedores v where v.id = _vendedor;
+  if _loja is null then raise exception 'Vendedor não encontrado.'; end if;
+  if auth.uid() is not null and not public.pode('metas.vendedores', 'editar', _loja) then
+    raise exception 'Você não tem permissão para fazer isso nesta unidade.';
+  end if;
+  if _email is null or btrim(_email) = '' then
+    update metas.vendedores set user_id = null where id = _vendedor;
+    return;
+  end if;
+  select u.id into _uid from auth.users u where lower(u.email) = lower(btrim(_email));
+  if _uid is null then
+    raise exception 'Não existe login com esse e-mail. Peça ao administrador para criar o login no Portal.';
+  end if;
+  if exists (select 1 from metas.vendedores v where v.user_id = _uid and v.id <> _vendedor) then
+    raise exception 'Esse login já está ligado a outro vendedor.';
+  end if;
+  update metas.vendedores set user_id = _uid where id = _vendedor;
+end;
+$$;
+
+-- E-mail do login de cada vendedor da unidade (só para quem pode ver a tela Vendedores)
+create or replace function metas.emails_vendedores(_loja uuid)
+returns table (vendedor_id uuid, email text)
+language sql stable security definer set search_path = metas, public, auth as $$
+  select v.id, u.email::text
+  from metas.vendedores v join auth.users u on u.id = v.user_id
+  where v.loja_id = _loja and public.pode('metas.vendedores', 'ver', _loja);
+$$;
+
 -- ---------- permissões (grants) ----------
 grant select, insert, update on metas.vendedores, metas.configuracao_meta to authenticated;
 grant select, insert, update, delete on metas.lancamentos to authenticated;
@@ -272,4 +308,4 @@ grant all on all tables in schema metas to service_role;
 
 revoke all on all functions in schema metas from public, anon;
 grant execute on function metas.ve_unidade(uuid), metas.mes_fechado(uuid, date), metas._eh_o_vendedor(uuid),
-  metas._primeiro_dia(date) to authenticated, service_role;
+  metas._primeiro_dia(date), metas.ligar_login(uuid, text), metas.emails_vendedores(uuid) to authenticated, service_role;

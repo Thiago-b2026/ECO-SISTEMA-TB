@@ -4,3 +4,4 @@ dados-lovable/
 node_modules/
 dist/
 *.zip
+!.env.example
