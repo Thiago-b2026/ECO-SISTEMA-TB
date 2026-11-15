@@ -57,9 +57,29 @@
       "nome": "Treinamentos com POP",
       "pasta": "TREINAMENTOS COM POP",
       "empresa": "",
-      "descricao": "Treinamentos com Procedimentos Operacionais Padrão",
-      "status": "planejado",
+      "descricao": "Treinamentos com Procedimentos Operacionais Padrão. Os arquivos (POPs, fluxos, workbook) abrem DENTRO do Portal, no bucket privado portal-arquivos/pop",
+      "status": "em-construcao",
       "schema": "pop",
+      "url": "https://portal-grupotb.vercel.app/pop"
+    },
+    {
+      "codigo": "precificacao",
+      "nome": "Precificação",
+      "pasta": null,
+      "empresa": "Supermix Braz",
+      "descricao": "Resultados do Cérebro de Precificação (o programa roda no PC em C:\\Users\\THIAGO\\cerebro-precificacao-ia). Plano, relatório e listas de preço abrem DENTRO do Portal, no bucket privado portal-arquivos/precificacao",
+      "status": "em-construcao",
+      "schema": null,
+      "url": "https://portal-grupotb.vercel.app/precificacao"
+    },
+    {
+      "codigo": "metas",
+      "nome": "Meta de Vendas e Premiação",
+      "pasta": "META-DE-VENDAS",
+      "empresa": "Supermix Braz",
+      "descricao": "Meta de faturamento por loja e mês, faixas de prêmio e bônus por cliente engajado (vindo do Lovable 'Sales Champion')",
+      "status": "em-construcao",
+      "schema": "metas",
       "url": null
     },
     {

@@ -1,16 +1,26 @@
-# Portal – ECO SISTEMA TB
+# Portal – ECO SISTEMA TB (QUADRO GERAL)
 
-Página de entrada dos sistemas do Grupo TB: https://portal-grupotb.vercel.app
+Entrada única dos sistemas do Grupo TB: https://portal-grupotb.vercel.app
 
-**Agora:** página aberta, **sem login**. Mostra sempre os quadros GESTÃO SALVADOS (PDV) e GESTÃO RH.
-Clicar abre o sistema na mesma aba; o próprio sistema pede a senha e mostra só o que a pessoa tem liberado.
+**Com login** (mesmo e-mail e senha do Gestão Salvados, RH e Check List; sem "Criar conta").
+Cada pessoa vê **só os quadros que tem liberados** (`public.meus_sistemas()`); o admin vê todos e os "Em breve".
+- Quadros que abrem **outro site**: Gestão Salvados, Gestão RH, Check List.
+- Quadros que abrem **dentro do Portal** (`/pop`, `/precificacao`): lista os arquivos do bucket PRIVADO
+  `portal-arquivos/<codigo>/`. HTML e Markdown abrem numa moldura isolada; PDF abre; planilha baixa.
+  Só o admin envia/troca/apaga (botão "+ Enviar arquivos").
+- Liberar para alguém: PDV → Cadastros → Login de acesso → Permissões (telas `pop.treinamentos`, `precificacao.resultados`).
 
-**Sistema novo:** incluir o quadro na lista `SISTEMAS` de `src/pages/Inicio.tsx` (e em `MEU SUPERVISOR/sistemas.json`).
+**Sistema novo:** migration em `GESTAO SALVADOS/supabase/migrations` (public.sistemas + grupos + telas),
+espelho em `GESTAO SALVADOS/src/lib/telas.ts`, `MEU SUPERVISOR/sistemas.json` e, se quiser ícone/descrição,
+`src/lib/quadros.tsx`. Quadro que abre dentro do Portal: `interno: true` + pasta no bucket + liberar a pasta
+em `public.portal_pode_ler_pasta`.
+
+`para-enviar/` (fora do git e da Vercel): cópias dos arquivos para subir pelo botão "+ Enviar arquivos".
 
 ## Rodar no computador
 ```
 npm install
-npm run dev      # http://localhost:5190
+npm run dev      # http://localhost:5190  (precisa do .env com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY)
 ```
 
 ## Publicar

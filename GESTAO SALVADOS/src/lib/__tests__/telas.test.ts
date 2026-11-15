@@ -14,7 +14,11 @@ const SQL18 = readFileSync(resolve(process.cwd(), "supabase/migrations/202611080
 const SQL23 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261110000023_checklist_telas.sql"), "utf8");
 const SQL24 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261110000024_checklist_empresas.sql"), "utf8");
 const SQL25 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261111000025_checklist_tempos_tela.sql"), "utf8");
-const SQL = `${SQL17}\n${SQL18}\n${SQL23}\n${SQL24}\n${SQL25}`;
+// quadros POP e Precificação dentro do Portal (0026)
+const SQL26 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261113000026_portal_quadros_pop_precificacao.sql"), "utf8");
+// Meta de Vendas e Premiação (0027)
+const SQL27 = readFileSync(resolve(process.cwd(), "supabase/migrations/20261115000027_metas_telas.sql"), "utf8");
+const SQL = `${SQL17}\n${SQL18}\n${SQL23}\n${SQL24}\n${SQL25}\n${SQL26}\n${SQL27}`;
 const CONF18 = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_portal_antes.sql"), "utf8");
 const CONFERIR = readFileSync(resolve(process.cwd(), "supabase/scripts/conferir_telas_antes.sql"), "utf8");
 const CATALOGO = JSON.parse(readFileSync(resolve(process.cwd(), "../MEU SUPERVISOR/sistemas.json"), "utf8")) as { sistemas: { codigo?: string; nome: string }[] };
@@ -40,7 +44,7 @@ describe("regra de tela", () => {
   });
 
   it("Login de acesso, Lojas, Usuários do RH e o Portal são só do Admin (sem checkbox); Pessoas é liberável", () => {
-    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios", "portal.usuarios", "portal.redes", "portal.permissoes", "checklist.empresas"];
+    const so = ["pdv.login_acesso", "pdv.lojas", "rh.usuarios", "portal.usuarios", "portal.redes", "portal.permissoes", "checklist.empresas", "metas.empresas", "metas.usuarios"];
     const liberadas = new Set([...so, "pdv.pessoas"]);
     for (const c of so) {
       expect(podeVerTela(c, { admin: false, liberadas })).toBe(false);
@@ -91,15 +95,17 @@ describe("3 níveis: sistema → grupo → tela", () => {
     }
   });
 
-  it("editor mostra só sistemas ativos com tela (PDV, RH e Check List; o Portal fica de fora até a fase 2)", () => {
-    expect(SISTEMAS_EDITAVEIS.map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist"]);
+  it("editor mostra só sistemas ativos com tela (PDV, RH, Check List, Meta de Vendas, POP e Precificação; o Portal fica de fora até a fase 2)", () => {
+    expect(SISTEMAS_EDITAVEIS.map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist", "metas", "pop", "precificacao"]);
   });
 
   it("menu Sistemas: só os sistemas em que ele tem pelo menos uma tela", () => {
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["pdv.pdv"]) }).map((s) => s.codigo)).toEqual(["pdv"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["rh.global"]) }).map((s) => s.codigo)).toEqual(["rh"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: nada })).toEqual([]);
-    expect(sistemasDoUsuario({ admin: true, liberadas: nada }).map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist"]);
+    expect(sistemasDoUsuario({ admin: true, liberadas: nada }).map((s) => s.codigo)).toEqual(["pdv", "rh", "checklist", "metas", "pop", "precificacao"]);
+    expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["metas.meu_desempenho"]) }).map((s) => s.codigo)).toEqual(["metas"]);
+    expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["precificacao.resultados"]) }).map((s) => s.codigo)).toEqual(["precificacao"]);
     expect(sistemasDoUsuario({ admin: false, liberadas: new Set(["checklist.hoje"]) }).map((s) => s.codigo)).toEqual(["checklist"]);
   });
 });
@@ -175,7 +181,9 @@ describe("catálogo", () => {
     const ta = `${bloco(SQL18)}
 ${bloco(SQL23)}
 ${bloco(SQL24)}
-${bloco(SQL25)}`;
+${bloco(SQL25)}
+${bloco(SQL26)}
+${bloco(SQL27)}`;
     const mapa = new Map([...ta.matchAll(/\('([a-z_]+\.[a-z_]+)',\s+array\[([^\]]+)\]\)/g)].map((m) => [m[1], m[2].replace(/'/g, "").split(",")]));
     expect([...mapa.keys()].sort()).toEqual(TELAS.map((t) => t.codigo).sort());
     for (const m of SQL18.matchAll(/\('((?:pdv|rh)\.[a-z_]+)',\s+'([a-z_]+)',\s+(?:array|true|false)/g)) {

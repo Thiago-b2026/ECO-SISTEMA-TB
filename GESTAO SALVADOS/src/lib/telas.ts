@@ -10,7 +10,7 @@
 import type { AppRole } from "@/lib/auth";
 import type { Modulo } from "@/lib/permissoes";
 
-export type CodigoSistema = "portal" | "pdv" | "rh" | "crm" | "checklist" | "pop" | "supervisor";
+export type CodigoSistema = "portal" | "pdv" | "rh" | "crm" | "checklist" | "metas" | "pop" | "precificacao" | "supervisor";
 
 export interface Sistema {
   codigo: CodigoSistema;
@@ -48,7 +48,11 @@ export const SISTEMAS: Sistema[] = [
   { codigo: "rh", nome: "Gestão RH", url: "https://gestao-rh-tau.vercel.app", ordem: 20, ativo: true },
   { codigo: "crm", nome: "CRM Super Mix Braz", url: null, ordem: 30, ativo: false },
   { codigo: "checklist", nome: "Check List Operacional", url: null, ordem: 40, ativo: true },
-  { codigo: "pop", nome: "Treinamentos com POP", url: null, ordem: 50, ativo: false },
+  // Meta de Vendas e Premiação (outro site, mesmo login) – migration 20261115000027_metas_telas.sql
+  { codigo: "metas", nome: "Meta de Vendas e Premiação", url: null, ordem: 45, ativo: true },
+  // POP e Precificação abrem DENTRO do Portal – migration 20261113000026_portal_quadros_pop_precificacao.sql
+  { codigo: "pop", nome: "Treinamentos com POP", url: "https://portal-grupotb.vercel.app/pop", ordem: 50, ativo: true },
+  { codigo: "precificacao", nome: "Precificação", url: "https://portal-grupotb.vercel.app/precificacao", ordem: 60, ativo: true },
   { codigo: "supervisor", nome: "Meu Supervisor", url: null, ordem: 90, ativo: false },
 ];
 
@@ -70,6 +74,13 @@ export const GRUPOS: Grupo[] = [
   { sistema: "checklist", codigo: "operacao", nome: "Operação", ordem: 10 },
   { sistema: "checklist", codigo: "supervisao", nome: "Supervisão", ordem: 20 },
   { sistema: "checklist", codigo: "cadastros", nome: "Cadastros", ordem: 30 },
+  // Meta de Vendas e Premiação – migration 20261115000027_metas_telas.sql
+  { sistema: "metas", codigo: "acompanhamento", nome: "Acompanhamento", ordem: 10 },
+  { sistema: "metas", codigo: "lancamentos", nome: "Lançamentos", ordem: 20 },
+  { sistema: "metas", codigo: "cadastros", nome: "Cadastros", ordem: 30 },
+  // Quadros dentro do Portal – migration 20261113000026
+  { sistema: "pop", codigo: "treinamentos", nome: "Treinamentos", ordem: 10 },
+  { sistema: "precificacao", codigo: "resultados", nome: "Resultados", ordem: 10 },
 ];
 
 const TODOS: AppRole[] = ["admin", "gerente", "vendedor", "estoquista"];
@@ -117,10 +128,23 @@ export const TELAS: Tela[] = [
   { codigo: "checklist.empresas", nome: "Empresas e lojas", sistema: "checklist", grupo: "cadastros", rota: "/empresas", somenteAdmin: true, perfis: [] },
   // migration 20261111000025_checklist_tempos_tela.sql (tempo de execução)
   { codigo: "checklist.tempos", nome: "Tempos de execução", sistema: "checklist", grupo: "supervisao", rota: "/tempos", perfis: [] },
+  // Meta de Vendas e Premiação (outro site, mesmo login). Sistema novo: ninguém tinha acesso antes (perfis vazios).
+  { codigo: "metas.dashboard", nome: "Dashboard", sistema: "metas", grupo: "acompanhamento", rota: "/dashboard", perfis: [] },
+  { codigo: "metas.ranking", nome: "Ranking", sistema: "metas", grupo: "acompanhamento", rota: "/ranking", perfis: [] },
+  { codigo: "metas.meu_desempenho", nome: "Meu desempenho", sistema: "metas", grupo: "acompanhamento", rota: "/meu-desempenho", perfis: [] },
+  { codigo: "metas.historico", nome: "Histórico", sistema: "metas", grupo: "acompanhamento", rota: "/historico", perfis: [] },
+  { codigo: "metas.lancamentos", nome: "Lançamentos do mês", sistema: "metas", grupo: "lancamentos", rota: "/lancamentos", perfis: [] },
+  { codigo: "metas.vendedores", nome: "Vendedores", sistema: "metas", grupo: "cadastros", rota: "/vendedores", perfis: [] },
+  { codigo: "metas.configuracao", nome: "Meta e fechamento do mês", sistema: "metas", grupo: "cadastros", rota: "/configuracao", perfis: [] },
+  { codigo: "metas.empresas", nome: "Empresas e lojas", sistema: "metas", grupo: "cadastros", rota: "/empresas", somenteAdmin: true, perfis: [] },
+  { codigo: "metas.usuarios", nome: "Usuários e acessos", sistema: "metas", grupo: "cadastros", rota: "/usuarios", somenteAdmin: true, perfis: [] },
   // Portal (fase 2): exclusivas do Admin
   { codigo: "portal.usuarios", nome: "Usuários", sistema: "portal", grupo: "acessos", rota: "/usuarios", somenteAdmin: true, perfis: [] },
   { codigo: "portal.redes", nome: "Redes e unidades", sistema: "portal", grupo: "acessos", rota: "/redes", somenteAdmin: true, perfis: [] },
   { codigo: "portal.permissoes", nome: "Permissões", sistema: "portal", grupo: "acessos", rota: "/permissoes", somenteAdmin: true, perfis: [] },
+  // Quadros dentro do Portal (migration 20261113000026_portal_quadros_pop_precificacao.sql)
+  { codigo: "pop.treinamentos", nome: "POPs, fluxos e workbooks", sistema: "pop", grupo: "treinamentos", rota: "/pop", perfis: [] },
+  { codigo: "precificacao.resultados", nome: "Plano, relatório e listas de preço", sistema: "precificacao", grupo: "resultados", rota: "/precificacao", perfis: [] },
 ];
 
 /** Telas que aparecem no editor (as "somente Admin" e as de sistemas inativos ficam de fora). */

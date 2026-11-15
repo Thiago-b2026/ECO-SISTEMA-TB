@@ -1,6 +1,8 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
+**13/11/2026 → código do QUADRO GERAL pronto (login + quadros por permissão + POP/Precificação). Ver a última sessão no fim do arquivo: faltam aplicar a 0026, publicar e enviar os arquivos. Retomar com `quadrogeral`.**
+
 **AGORA (08/11 noite):** Portal = página aberta, SEM login, com os quadros fixos GESTÃO SALVADOS e GESTÃO RH (Sessão 3). Sistema novo → incluir o quadro em `PORTAL/src/pages/Inicio.tsx`. O resto está pausado.
 
 **Fase 1 (banco): APLICADA e conferida em 08/11** (294 linhas convertidas, 140 liberadas; Natália só RH nas 3 lojas da Supermix; PDV com Monte Sinai e Eldorado). Antes disso: Em 08/11, o usuário achou que tinha aplicado a 0018, mas no banco não existe nada dela. Ela roda inteira de uma vez, então não ficou nada pela metade.
@@ -184,3 +186,56 @@ Regras:
 - A url é **prevista** (`https://checklist-grupotb.vercel.app`) e precisa ser confirmada quando o projeto for criado na Vercel (time grupotb, Root Directory `CHECK LIST OPERACIONAL/app-checklist-mobile`).
 - Sistema, grupos e telas: migration `GESTAO SALVADOS/supabase/migrations/20261110000023_checklist_telas.sql`, espelhada em `GESTAO SALVADOS/src/lib/telas.ts`. **Ainda não aplicada** (depende do OK do usuário).
 - Portal **não publicado** nesta sessão.
+
+## Sessão – 12/11/2026 (QUADRO GERAL: todos os apps dentro do Portal) — 📍 ONDE PARAMOS AGORA
+**Pedido do usuário:** o Portal é o "QUADRO GERAL" (print em `MODELO DO QUADO GERAL`): todo app criado deve virar um quadro lá; ele abre o Portal, escolhe o app e entra.
+**Para retomar:** o usuário digita `quadrogeral` no terminal (atalho em `%USERPROFILE%\.local\bin\quadrogeral.cmd`).
+
+**Análise feita (nada foi alterado no código nem publicado):**
+- No ar e no Portal (conferido 200): Gestão Salvados, Gestão RH, Check List Operacional.
+- TREINAMENTOS COM POP: só páginas HTML prontas (29 POPs, 6 fluxos, workbook, aula) → entra como quadro.
+- PRECIFICAÇÃO: o cérebro do curso fica em `C:\Users\THIAGO\cerebro-precificacao-ia` (Python local, painel 127.0.0.1:8780, dados confidenciais). Decisão sugerida e aceita na conversa: **NÃO recriar o app do zero** (sistema inteiro + conteúdo do curso trancado no cofre); o quadro mostra só os **resultados** (`dados/saida/`: relatorio_precificacao.html, implantacao_precos.xlsx, simulacao_price.xlsx, plano_de_acao.md).
+- CRM (fase 0) e MEU SUPERVISOR (sem tela): quadros "Em breve", sem clique.
+- PROJETO LOVABLE e PROMPTS: não são apps, ficam fora.
+
+**Plano proposto:**
+1. Portal volta a ter **login** (mesmo e-mail/senha do Supabase `blqgmueqsqqpflorusrm`, sem "Criar conta"). O login foi tirado na Sessão 3; volta porque o Portal vai guardar conteúdo próprio.
+2. POP e resultados da Precificação dentro do Portal, num **bucket privado** do Supabase Storage (link solto não abre sem login).
+3. Quadros "Em breve" para CRM e Meu Supervisor.
+4. Publicar o Portal só com OK do usuário.
+
+**FALTA O USUÁRIO RESPONDER antes de começar:**
+- (a) Quem vê o quê: **todos com login veem todos os quadros** OU **cada um vê só os liberados** (via permissões / `meus_sistemas()`; ex.: Precificação só para o Thiago)?
+- (b) Pode mandar os resultados da Precificação (custo/margem) para o banco (área privada)?
+
+**RESPOSTAS DO USUÁRIO (12/11/2026, fim do dia):**
+- (a) RESPONDIDA: **cada pessoa vê só os quadros que tem liberados**, por permissão, igual já funciona hoje nos sistemas (usar `meus_sistemas()` / permissões por unidade). Vale para TODOS os projetos que entrarem no Portal.
+- (b) Não respondida de forma explícita; o usuário disse que "todas as informações que vamos alimentar no Portal" fazem parte do ecossistema → confirmar em uma linha antes de subir os resultados da Precificação.
+- **Meu Supervisor** terá acesso a TODAS as informações e TODOS os usuários do ecossistema (ver decisão registrada em `MEU SUPERVISOR/HISTORICO_MEU_SUPERVISOR.md`). Por isso o nome ECO SISTEMA TB: tudo ligado num lugar só.
+**Próximo passo ao retomar:** confirmar (b) e começar pelo item 1 do plano (login + quadros por permissão).
+- (b) RESPONDIDA em 13/11/2026: **SIM** — os resultados da Precificação (`C:\Users\THIAGO\cerebro-precificacao-ia\dados\saida\`: plano_de_acao.md, relatorio_precificacao.html, implantacao_precos.xlsx, simulacao_price*.xlsx, arquivos_para_o_sistema\precos_semana_*.csv/xlsx) vão para o bucket privado do Supabase. Quadro PRECIFICAÇÃO liberado de início **só para o Thiago** (recomendado e aceito); o Meu Supervisor poderá ler. Ao refazer a precificação, reenviar os arquivos.
+**TODAS AS DECISÕES TOMADAS. Próximo passo ao retomar:** começar o item 1 do plano (login no Portal + quadros por permissão), depois POP e Precificação no bucket privado, depois "Em breve" para CRM e Meu Supervisor. Publicar só com OK do usuário.
+
+## Sessão – 13/11/2026 (madrugada) – QUADRO GERAL: login + quadros por permissão + POP e Precificação dentro do Portal
+**Feito (NADA aplicado no banco, NADA publicado, NADA commitado — esperando o usuário):**
+1. **Portal com login de novo** (mesmo login; sem "Criar conta"). Quadros vêm de `public.meus_sistemas()` → cada pessoa vê só o que tem liberado; admin vê tudo + quadros "EM BREVE" (CRM e Meu Supervisor, sem clique, só para o admin).
+   Arquivos: `src/App.tsx`, `src/pages/Login.tsx`, `src/pages/Inicio.tsx`, `src/pages/Arquivos.tsx`, `src/components/Topo.tsx`, `src/lib/{supabase,navegacao,quadros}.ts(x)`. Dependências: `@supabase/supabase-js@2.45.4`, `marked@12.0.2`. Build OK.
+2. **POP e Precificação abrem DENTRO do Portal** (`/pop`, `/precificacao`): lista os arquivos do bucket privado `portal-arquivos/<codigo>/`; HTML/MD em iframe sandbox (sem acesso à sessão), PDF abre, planilha baixa (URL assinada de 60 s). Admin: "+ Enviar arquivos" (substitui pelo nome; nome sem acento), "Apagar".
+3. **Migration `GESTAO SALVADOS/supabase/migrations/20261113000026_portal_quadros_pop_precificacao.sql`** (NÃO aplicada): POP ativo com url do Portal; sistema novo `precificacao`; grupos/telas `pop.treinamentos` e `precificacao.resultados` (ação ver); bucket privado `portal-arquivos` (50 MB/arquivo); função `portal_pode_ler_pasta` + políticas (lê quem tem tela do sistema; só admin grava).
+4. Espelho `GESTAO SALVADOS/src/lib/telas.ts` + teste atualizados (131 testes OK, tsc OK) e `MEU SUPERVISOR/sistemas.json` (pop com url; precificacao novo).
+5. `PORTAL/para-enviar/{pop,precificacao}` com as cópias para subir (fora do git e da Vercel). O **vídeo da aula (108 MB) ficou fora**: passa do limite de 50 MB do plano grátis.
+
+**Achado:** o `CLAUDE.md` da raiz (regras do Ecossistema) e a pasta `docs/` aparecem como apagados no git; o CLAUDE.md está igual dentro de `CRM SUPER MIX BRAZ/`. Não mexi; avisar o usuário.
+
+**PRÓXIMOS PASSOS (na ordem, todos do usuário ou com OK dele):**
+1. Aplicar a 0026 (na pasta GESTAO SALVADOS): `npx supabase db query --remote=blqgmueqsqqpflorusrm --yes -f "supabase/migrations/20261113000026_portal_quadros_pop_precificacao.sql"`.
+2. Publicar o Portal (pasta PORTAL): `npx --yes vercel@latest deploy --prod --yes`. Conferir que as variáveis VITE_SUPABASE_URL/ANON_KEY ainda estão na Vercel (ficaram da Sessão 2).
+3. Entrar no Portal como admin → TREINAMENTOS COM POP → "+ Enviar arquivos" (pasta `PORTAL/para-enviar/pop`); PRECIFICAÇÃO → idem (`para-enviar/precificacao`).
+4. Para liberar POP para a equipe: publicar o PDV com o telas.ts novo (só DEPOIS da 0026) e marcar em Login de acesso → Permissões. Precificação: só o Thiago (admin já vê).
+5. Commitar (branch própria do Portal, sem misturar com o Check List) quando o usuário pedir.
+
+## Sessão – 13/11/2026 (noite) – Limpeza das pastas sem uso
+- Movido para `C:\GTB_ PROJETOS_CLAUDE\ARQUIVO-ECO-SISTEMA-TB` (fora do repositório, nada apagado): `PROJETO LOVABLE/` (exports antigos do Lovable, com uma cópia velha do repo), `MODELO DO QUADO GERAL/` (print de referência do quadro), o zip da pasta `PRECIFICAÇAO/` (era um pacote de POP; a pasta vazia saiu), `GESTAO-RH/dados-lovable/` + 4 screenshots do RH, `GESTAO SALVADOS/prints/`, `planilha/` e 3 fotos .jpg. Nenhum desses arquivos estava no git.
+- O `CLAUDE.md` da raiz e a pasta `docs/` (que tinham ido parar em `CRM SUPER MIX BRAZ/`) voltaram para a raiz. Conteúdo idêntico ao do git; o achado da sessão anterior está resolvido.
+- Continua no lugar, por ainda estar em uso: `TREINAMENTOS COM POP/` (fonte e vídeo de 108 MB), `PORTAL/para-enviar/` (até subir os arquivos no bucket), a tela de permissões do PDV (sai na fase 4) e `GESTAO-RH/api/admin-users.ts`.
+- Para reimportar dados do Lovable no RH, copiar `dados-lovable/` de volta do arquivo.
