@@ -1,7 +1,7 @@
 // O modo demonstração repete as regras do banco (as mesmas testadas em supabase/tests/metas.db.test.ts).
 import { beforeEach, describe, expect, it } from "vitest";
 import { mesAtual, somarMeses } from "../lib/formato";
-import { DemoServidor, reiniciarDemo } from "./demo-servidor";
+import { DemoServidor, reiniciarDemo, semearExemplo } from "./demo-servidor";
 
 const memoria = new Map<string, string>();
 globalThis.localStorage = {
@@ -18,9 +18,34 @@ async function como(email: string) {
   await s.entrar(email, "demo");
 }
 
-beforeEach(() => reiniciarDemo());
+beforeEach(() => semearExemplo());
 
 describe("demonstração: mesmas regras do banco", () => {
+  it("começa vazia: nenhuma empresa, loja ou vendedor; só o admin entra", async () => {
+    reiniciarDemo();
+    await como("admin@demo.tb");
+    expect(await s.empresas()).toEqual([]);
+    expect((await s.acesso()).unidades).toEqual([]);
+    await expect(new DemoServidor().entrar("gerente@demo.tb", "demo")).rejects.toThrow("incorretos");
+  });
+
+  it("excluir: empresa só sem unidades, unidade só sem dados, vendedor só sem lançamento", async () => {
+    await como("admin@demo.tb");
+    await expect(s.excluirEmpresa("demo-rede-supermix")).rejects.toThrow("unidades antes");
+    await expect(s.excluirUnidade(L1)).rejects.toThrow("outro sistema");
+    await expect(s.excluirVendedor("v-ana")).rejects.toThrow("use Inativar");
+    const rede = await s.salvarEmpresa({ nome: "Apagar", ativo: true });
+    const loja = await s.salvarUnidade({ rede_id: rede, nome: "Loja Apagar", cnpj: null, ativo: true, usaMetas: true, dados: {} });
+    const v = await s.salvarVendedor({ loja_id: loja, nome: "Temp", ativo: true });
+    await expect(s.excluirUnidade(loja)).rejects.toThrow("use Inativar");
+    await s.excluirVendedor(v.id);
+    await s.excluirUnidade(loja);
+    await s.excluirEmpresa(rede);
+    expect((await s.empresas()).map((e) => e.nome)).toEqual(["SUPERMIX BRAZ"]);
+    await como("gerente@demo.tb");
+    await expect(s.excluirEmpresa("demo-rede-supermix")).rejects.toThrow("Só o admin");
+  });
+
   it("o gerente vê e mexe só na Loja 1", async () => {
     await como("gerente@demo.tb");
     expect((await s.acesso()).unidades.map((u) => u.id)).toEqual([L1]);
@@ -56,6 +81,34 @@ describe("demonstração: mesmas regras do banco", () => {
     await expect(s.salvarLancamento({ vendedor_id: v.id, mes_referencia: MES, faturamento_realizado: 1, clientes_engajados: 0 })).rejects.toThrow("inativo");
     await expect(s.ligarLogin(v.id, "ninguem@x.com")).rejects.toThrow("Não existe login");
     await expect(s.ligarLogin(v.id, "ana@demo.tb")).rejects.toThrow("outro vendedor");
+  });
+
+  it("o admin cadastra empresa, unidade e um login novo; a pessoa entra e vê só a loja dela", async () => {
+    await como("admin@demo.tb");
+    const rede = await s.salvarEmpresa({ nome: "rede nova", ativo: true });
+    expect((await s.empresas()).some((e) => e.nome === "REDE NOVA")).toBe(true);
+    const loja = await s.salvarUnidade({ rede_id: rede, nome: "Loja Centro", cnpj: "11.222.333/0001-81", ativo: true, usaMetas: true, dados: {} });
+    await expect(s.salvarUnidade({ rede_id: rede, nome: "loja centro", cnpj: null, ativo: true, usaMetas: true, dados: {} })).rejects.toThrow("com esse nome");
+    await s.criarLogin({ email: "Zeca@Centro.com", senha: "12345678", nome: "Zeca", rede_id: rede, loja_id: loja, perfil: "vendedor", lanca: true });
+    expect((await s.usuarios(rede)).map((u) => [u.email, u.perfil, u.lanca])).toEqual([["zeca@centro.com", "vendedor", true]]);
+    await expect(s.criarLogin({ email: "zeca@centro.com", senha: "12345678", nome: "Z", rede_id: rede, loja_id: loja, perfil: "vendedor", lanca: false })).rejects.toThrow("Já existe");
+
+    s = new DemoServidor();
+    await s.entrar("zeca@centro.com", "12345678");
+    expect((await s.acesso()).unidades.map((u) => u.nome)).toEqual(["Loja Centro"]);
+    const eu = await s.meuVendedor();
+    await s.salvarLancamento({ vendedor_id: eu!.id, mes_referencia: MES, faturamento_realizado: 5000, clientes_engajados: 2 });
+    await expect(s.salvarEmpresa({ nome: "X", ativo: true })).rejects.toThrow("Só o admin");
+  });
+
+  it("gestor vale para todas as lojas da empresa; tirar o acesso não apaga o login", async () => {
+    await como("admin@demo.tb");
+    await s.darAcesso({ email: "bruno@demo.tb", nome: "Bruno", rede_id: "demo-rede-supermix", loja_id: null, perfil: "gestor", lanca: false });
+    expect((await s.usuarios("demo-rede-supermix")).filter((u) => u.email === "bruno@demo.tb").map((u) => u.perfil)).toEqual(["gerente", "gerente"]);
+    await s.removerAcesso("demo-bruno", L2);
+    s = new DemoServidor();
+    await s.entrar("bruno@demo.tb", "demo");
+    expect((await s.acesso()).unidades.map((u) => u.id)).toEqual([L1]);
   });
 
   it("os dados ficam salvos no navegador entre uma visita e outra", async () => {

@@ -51,7 +51,7 @@ export default function Login() {
       {MODO_DEMO && (
         <Cartao className="border-amber-300 bg-amber-50">
           <div className="mb-2 font-semibold text-amber-900">Modo demonstração (sem banco de dados)</div>
-          <p className="mb-3 text-sm text-amber-900">Os dados ficam só neste navegador. Escolha quem você quer ser:</p>
+          <p className="mb-3 text-sm text-amber-900">Começa vazio: entre como administrador e cadastre a empresa, as lojas e os usuários. Quem você criar entra com o e-mail e a senha acima. Os dados ficam só neste navegador.</p>
           <div className="grid gap-2">
             {USUARIOS_DEMO.map((u) => (
               <Botao key={u.id} variante="secundario" disabled={enviando} onClick={() => void enviar(undefined, u.email, u.senha)} className="justify-start text-left">
@@ -62,8 +62,8 @@ export default function Login() {
               </Botao>
             ))}
           </div>
-          <Botao variante="fantasma" className="mt-2 w-full" onClick={() => { reiniciarDemo(); window.location.reload(); }}>
-            <RotateCcw className="size-4" aria-hidden /> Voltar os dados de exemplo ao início
+          <Botao variante="fantasma" className="mt-2 w-full" onClick={() => { if (window.confirm("Apagar todas as empresas, lojas, usuários e lançamentos da demonstração?")) { reiniciarDemo(); window.location.reload(); } }}>
+            <RotateCcw className="size-4" aria-hidden /> Apagar tudo o que foi cadastrado na demonstração
           </Botao>
         </Cartao>
       )}

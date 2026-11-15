@@ -3,9 +3,12 @@
 //  sistema = "checklist": cria só o login e coloca a pessoa na equipe do Check List
 //    (checklist._incluir_colaborador → checklist.membros + telas do perfil). NÃO grava user_roles,
 //    usuario_lojas nem pessoas (efeitos do PDV).
+//  sistema = "metas": cria só o login e dá o acesso do Meta de Vendas pelo perfil
+//    (metas._definir_acesso_usuario → telas/ações por unidade + cadastro de vendedor). Também sem efeitos do PDV.
 
 export const PAPEIS = ["admin", "gerente", "vendedor", "estoquista"];
 export const PERFIS_CHECKLIST = ["operador", "supervisor", "gestor"];
+export const PERFIS_METAS = ["vendedor", "gerente", "gestor"];
 
 type Erro = { message: string } | null;
 type Res<T = unknown> = Promise<{ data: T | null; error: Erro }>;
@@ -34,6 +37,8 @@ export interface CorpoCriar {
   rede_id?: unknown;
   loja_id?: unknown;
   perfil?: unknown;
+  // Meta de Vendas: o vendedor lança o próprio resultado
+  lanca?: unknown;
 }
 
 export type Resposta = { status: number; corpo: Record<string, unknown> };
@@ -46,7 +51,7 @@ export async function criarUsuario(db: ClienteAdmin, body: CorpoCriar): Promise<
   if (!/^\S+@\S+\.\S+$/.test(email)) return { status: 400, corpo: { erro: "E-mail inválido." } };
   if (senha.length < 8) return { status: 400, corpo: { erro: "A senha precisa ter pelo menos 8 caracteres." } };
   if (!nome) return { status: 400, corpo: { erro: "Informe o nome." } };
-  if (sistema !== "pdv" && sistema !== "checklist") return { status: 400, corpo: { erro: "Sistema inválido." } };
+  if (sistema !== "pdv" && sistema !== "checklist" && sistema !== "metas") return { status: 400, corpo: { erro: "Sistema inválido." } };
 
   if (sistema === "checklist") {
     const perfil = String(body.perfil ?? "");
@@ -55,6 +60,11 @@ export async function criarUsuario(db: ClienteAdmin, body: CorpoCriar): Promise<
     if (!PERFIS_CHECKLIST.includes(perfil)) return { status: 400, corpo: { erro: "Perfil do Check List inválido." } };
     if (!rede) return { status: 400, corpo: { erro: "Escolha a empresa." } };
     if (perfil !== "gestor" && !loja) return { status: 400, corpo: { erro: "Escolha a unidade." } };
+  } else if (sistema === "metas") {
+    const perfil = String(body.perfil ?? "");
+    if (!PERFIS_METAS.includes(perfil)) return { status: 400, corpo: { erro: "Perfil do Meta de Vendas inválido." } };
+    if (!body.rede_id) return { status: 400, corpo: { erro: "Escolha a empresa." } };
+    if (perfil !== "gestor" && !body.loja_id) return { status: 400, corpo: { erro: "Escolha a unidade." } };
   } else if (!PAPEIS.includes(String(body.papel))) {
     return { status: 400, corpo: { erro: "Perfil inválido." } };
   }
@@ -62,7 +72,7 @@ export async function criarUsuario(db: ClienteAdmin, body: CorpoCriar): Promise<
   const { data, error } = await db.auth.admin.createUser({ email, password: senha, email_confirm: true, user_metadata: { nome } });
   if (error || !data) {
     const msg = error?.message ?? "Não foi possível criar o login.";
-    return { status: 400, corpo: { erro: msg.includes("already") ? "Já existe usuário com esse e-mail." + (sistema === "checklist" ? " Use \"Incluir quem já tem login\"." : "") : msg } };
+    return { status: 400, corpo: { erro: msg.includes("already") ? "Já existe usuário com esse e-mail." + (sistema === "checklist" ? " Use \"Incluir quem já tem login\"." : sistema === "metas" ? " Use \"Dar acesso a quem já tem login\"." : "") : msg } };
   }
   const id = data.user.id;
 
@@ -72,6 +82,15 @@ export async function criarUsuario(db: ClienteAdmin, body: CorpoCriar): Promise<
     });
     if (r.error) return { status: 400, corpo: { erro: `Login criado, mas não entrou na equipe: ${r.error.message}`, id } };
     return { status: 200, corpo: { id, membro_id: r.data } };
+  }
+
+  if (sistema === "metas") {
+    const r = await db.schema("metas").rpc("_definir_acesso_usuario", {
+      _usuario: id, _nome: nome, _rede: String(body.rede_id), _loja: body.loja_id ? String(body.loja_id) : null,
+      _perfil: String(body.perfil), _lanca: body.lanca === true,
+    });
+    if (r.error) return { status: 400, corpo: { erro: `Login criado, mas o acesso ao Meta de Vendas não foi gravado: ${r.error.message}`, id } };
+    return { status: 200, corpo: { id } };
   }
 
   // PDV (comportamento de sempre)

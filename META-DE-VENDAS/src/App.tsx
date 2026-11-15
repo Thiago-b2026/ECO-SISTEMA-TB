@@ -15,6 +15,8 @@ const MeuDesempenho = lazy(() => import("./pages/MeuDesempenho"));
 const Historico = lazy(() => import("./pages/Historico"));
 const Vendedores = lazy(() => import("./pages/Vendedores"));
 const Configuracao = lazy(() => import("./pages/Configuracao"));
+const Empresas = lazy(() => import("./pages/Empresas"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
 const tardio = (el: ReactNode) => <Suspense fallback={<Carregando />}>{el}</Suspense>;
 
 function Inicio() {
@@ -38,6 +40,8 @@ function Rotas() {
         <Route path="lancamentos" element={<Lancamentos />} />
         <Route path="vendedores" element={tardio(<Vendedores />)} />
         <Route path="configuracao" element={tardio(<Configuracao />)} />
+        <Route path="empresas" element={tardio(<Empresas />)} />
+        <Route path="usuarios" element={tardio(<Usuarios />)} />
         <Route path="*" element={<Vazio>Página não encontrada.</Vazio>} />
       </Route>
     </Routes>

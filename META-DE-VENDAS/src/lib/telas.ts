@@ -13,6 +13,8 @@ export interface TelaApp {
   grupo: Grupo;
   /** ações da tela (catálogo public.tela_acoes) */
   acoes: string[];
+  /** só o admin do Ecossistema entra (sem checkbox nas Permissões) */
+  somenteAdmin?: boolean;
 }
 
 export const TELAS_APP: TelaApp[] = [
@@ -23,6 +25,8 @@ export const TELAS_APP: TelaApp[] = [
   { codigo: "metas.lancamentos", nome: "Lançamentos do mês", rota: "/lancamentos", grupo: "lancamentos", acoes: ["ver", "inserir", "editar", "excluir"] },
   { codigo: "metas.vendedores", nome: "Vendedores", rota: "/vendedores", grupo: "cadastros", acoes: ["ver", "inserir", "editar"] },
   { codigo: "metas.configuracao", nome: "Meta e fechamento do mês", rota: "/configuracao", grupo: "cadastros", acoes: ["ver", "editar", "fechar_mes"] },
+  { codigo: "metas.empresas", nome: "Empresas e lojas", rota: "/empresas", grupo: "cadastros", acoes: ["ver", "inserir", "editar"], somenteAdmin: true },
+  { codigo: "metas.usuarios", nome: "Usuários e acessos", rota: "/usuarios", grupo: "cadastros", acoes: ["ver", "inserir", "editar"], somenteAdmin: true },
 ];
 
 export const NOME_GRUPO: Record<Grupo, string> = { acompanhamento: "Acompanhamento", lancamentos: "Lançamentos", cadastros: "Cadastros" };
@@ -39,7 +43,9 @@ export interface CtxAcesso {
 
 /** Pode abrir a tela? */
 export function podeVerTela(codigo: string, ctx: CtxAcesso): boolean {
-  if (!TELAS_APP.some((t) => t.codigo === codigo)) return true;
+  const t = TELAS_APP.find((x) => x.codigo === codigo);
+  if (!t) return true;
+  if (t.somenteAdmin) return !!ctx.admin;
   if (ctx.admin || ctx.liberadas === null) return true;
   return ctx.liberadas.has(codigo);
 }

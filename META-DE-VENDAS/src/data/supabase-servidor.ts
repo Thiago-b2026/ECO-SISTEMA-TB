@@ -2,7 +2,10 @@
 // permissões no schema "public" (mesmo login de todos os sistemas). As regras de verdade são o RLS.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { chave, TELAS_APP } from "../lib/telas";
-import { ErroServidor, traduzir, type Acesso, type Lancamento, type Meta, type NovoLancamento, type Servidor, type Sessao, type Unidade, type Vendedor } from "./servidor";
+import {
+  CAMPOS_UNIDADE, ErroServidor, normalizarDados, traduzir, type Acesso, type DadosUnidade, type Empresa, type Lancamento, type Meta, type NovaUnidade,
+  type NovoAcesso, type NovoLancamento, type Servidor, type Sessao, type Unidade, type UnidadeCadastro, type UsuarioAcesso, type Vendedor,
+} from "./servidor";
 
 type Resp = { data: unknown; error: { message: string } | null };
 function ok<T>(r: Resp): T {
@@ -66,7 +69,8 @@ export class SupabaseServidor implements Servidor {
       this.pub.rpc("minhas_telas", { _app: "metas" }),
       this.pub.rpc("minhas_unidades", { _sistema: "metas" }),
     ]);
-    const unidades = ok<{ id: string; nome: string; rede: string | null }[]>(unid).map((u): Unidade => ({ id: u.id, nome: u.nome, rede: u.rede }));
+    const unidades = ok<{ id: string; nome: string; rede_id: string | null; rede: string | null }[]>(unid)
+      .map((u): Unidade => ({ id: u.id, nome: u.nome, rede_id: u.rede_id, rede: u.rede }));
     if (telas.error) return { liberadas: null, unidades };
     const linhas = (telas.data ?? []) as unknown[];
     const codigos = linhas.map((x) => (typeof x === "string" ? x : String((x as { codigo?: string }).codigo ?? Object.values(x as object)[0])));
@@ -158,5 +162,81 @@ export class SupabaseServidor implements Servidor {
   async reabrirMes(unidade: string, mes: string) {
     const r = ok<unknown[]>(await this.sb.from("meses_fechados").delete().eq("loja_id", unidade).eq("mes_referencia", mes).select("loja_id"));
     if (!r.length) throw new ErroServidor("Você não tem permissão para reabrir o mês.");
+  }
+
+  // ------------------------------------------------------------------ só o admin (as políticas do banco exigem is_admin)
+  async empresas(): Promise<Empresa[]> {
+    const [r, l] = await Promise.all([
+      this.pub.from("redes").select("id, nome, ativo, ordem").order("ordem").order("nome"),
+      this.pub.from("lojas").select(`id, nome, cnpj, rede_id, ativo, sistemas, ${CAMPOS_UNIDADE.join(", ")}`).order("nome"),
+    ]);
+    const unidades = ok<({ id: string; nome: string; cnpj: string | null; rede_id: string | null; ativo: boolean; sistemas: string[] } & DadosUnidade)[]>(l)
+      .map((u): UnidadeCadastro => ({
+        id: u.id, nome: u.nome, cnpj: u.cnpj, rede_id: u.rede_id, ativo: u.ativo, usaMetas: u.sistemas.includes("metas"), outros: u.sistemas.filter((s) => s !== "metas"),
+        dados: Object.fromEntries(CAMPOS_UNIDADE.map((k) => [k, u[k] ?? null])),
+      }));
+    return ok<{ id: string; nome: string; ativo: boolean }[]>(r).map((x) => ({ id: x.id, nome: x.nome, ativo: x.ativo, unidades: unidades.filter((u) => u.rede_id === x.id) }));
+  }
+
+  async salvarEmpresa(e: { id?: string; nome: string; ativo: boolean }) {
+    const dados = { nome: e.nome.trim().toUpperCase(), ativo: e.ativo };
+    if (e.id) {
+      const r = ok<unknown[]>(await this.pub.from("redes").update(dados).eq("id", e.id).select("id"));
+      if (!r.length) throw new ErroServidor("Só o admin altera empresas.");
+      return e.id;
+    }
+    return ok<{ id: string }>(await this.pub.from("redes").insert(dados).select("id").single()).id;
+  }
+
+  async salvarUnidade(u: NovaUnidade) {
+    const cnpj = u.cnpj ? u.cnpj.replace(/\D/g, "") || null : null;
+    const dados = normalizarDados(u.dados);
+    if (u.id) {
+      // só liga/desliga o "metas": os outros sistemas da unidade ficam como estão
+      const atual = ok<{ sistemas: string[] }>(await this.pub.from("lojas").select("sistemas").eq("id", u.id).single());
+      const sistemas = u.usaMetas ? [...new Set([...atual.sistemas, "metas"])] : atual.sistemas.filter((s) => s !== "metas");
+      const r = ok<unknown[]>(await this.pub.from("lojas").update({ ...dados, nome: u.nome.trim(), cnpj, ativo: u.ativo, rede_id: u.rede_id, sistemas }).eq("id", u.id).select("id"));
+      if (!r.length) throw new ErroServidor("Só o admin altera unidades.");
+      return u.id;
+    }
+    return ok<{ id: string }>(await this.pub.from("lojas").insert({ ...dados, nome: u.nome.trim(), cnpj, ativo: u.ativo, rede_id: u.rede_id, sistemas: u.usaMetas ? ["metas"] : [] })
+      .select("id").single()).id;
+  }
+
+  async usuarios(rede: string): Promise<UsuarioAcesso[]> {
+    return ok<UsuarioAcesso[]>(await this.sb.rpc("usuarios_da_empresa", { _rede: rede }));
+  }
+
+  async darAcesso(a: NovoAcesso) {
+    ok(await this.sb.rpc("definir_acesso", { _email: a.email, _nome: a.nome, _rede: a.rede_id, _loja: a.loja_id, _perfil: a.perfil, _lanca: a.lanca }));
+  }
+
+  async criarLogin(a: NovoAcesso & { senha: string }) {
+    // serviço central do Ecossistema (Edge Function admin-usuarios do GESTAO SALVADOS), modo Meta de Vendas
+    const { data, error } = await this.sb.functions.invoke("admin-usuarios", {
+      body: { acao: "criar", sistema: "metas", email: a.email, senha: a.senha, nome: a.nome, rede_id: a.rede_id, loja_id: a.loja_id, perfil: a.perfil, lanca: a.lanca },
+    });
+    const msg = (data as { erro?: string } | null)?.erro;
+    if (msg) throw new ErroServidor(msg);
+    if (error) {
+      const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+      throw new ErroServidor(corpo?.erro ?? traduzir(error.message));
+    }
+  }
+
+  async removerAcesso(usuario: string, unidade: string) {
+    ok(await this.sb.rpc("remover_acesso", { _usuario: usuario, _loja: unidade }));
+  }
+
+  async excluirVendedor(id: string) {
+    ok(await this.sb.rpc("excluir_vendedor", { _vendedor: id }));
+  }
+
+  async excluirUnidade(id: string) {
+    ok(await this.sb.rpc("excluir_unidade", { _loja: id }));
+  }
+
+  async excluirEmpresa(id: string) {
+    ok(await this.sb.rpc("excluir_empresa", { _rede: id }));
   }
 }

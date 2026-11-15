@@ -9,6 +9,7 @@
 --  - A url fica nula até a publicação na Vercel (cadastrar depois em public.sistemas).
 --  - Para a unidade aparecer no Meta de Vendas, o admin marca "metas" na unidade (lojas.sistemas).
 --  - Ação nova no catálogo: "fechar_mes" (fechar e reabrir o mês da unidade).
+--  - "Empresas e lojas" e "Usuários e acessos" são só do admin (sem checkbox): cadastro único do ecossistema.
 -- =====================================================================
 
 insert into public.sistemas (codigo, nome, url, ordem, ativo) values
@@ -32,7 +33,9 @@ insert into public.telas (codigo, nome, app, grupo, rota, ordem, somente_admin) 
   ('metas.historico',      'Histórico',               'metas', 'acompanhamento', '/historico',      40, false),
   ('metas.lancamentos',    'Lançamentos do mês',      'metas', 'lancamentos',    '/lancamentos',    50, false),
   ('metas.vendedores',     'Vendedores',              'metas', 'cadastros',      '/vendedores',     60, false),
-  ('metas.configuracao',   'Meta e fechamento do mês', 'metas', 'cadastros',     '/configuracao',   70, false)
+  ('metas.configuracao',   'Meta e fechamento do mês', 'metas', 'cadastros',     '/configuracao',   70, false),
+  ('metas.empresas',       'Empresas e lojas',        'metas', 'cadastros',      '/empresas',       80, true),
+  ('metas.usuarios',       'Usuários e acessos',      'metas', 'cadastros',      '/usuarios',       90, true)
 on conflict (codigo) do update set nome = excluded.nome, grupo = excluded.grupo, rota = excluded.rota,
   ordem = excluded.ordem, somente_admin = excluded.somente_admin, ativo = true;
 
@@ -44,6 +47,8 @@ select t, unnest(a) from (values
   ('metas.historico',      array['ver','exportar']),
   ('metas.lancamentos',    array['ver','inserir','editar','excluir']),
   ('metas.vendedores',     array['ver','inserir','editar']),
-  ('metas.configuracao',   array['ver','editar','fechar_mes'])
+  ('metas.configuracao',   array['ver','editar','fechar_mes']),
+  ('metas.empresas',       array['ver','inserir','editar']),
+  ('metas.usuarios',       array['ver','inserir','editar'])
 ) as x(t, a)
 on conflict do nothing;

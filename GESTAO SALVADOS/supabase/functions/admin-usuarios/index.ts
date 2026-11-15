@@ -3,6 +3,8 @@
 //  { acao: "criar", email, senha, nome, papel, lojas: string[], pessoa_id?: uuid }
 //  { acao: "criar", sistema: "checklist", email, senha, nome, rede_id, loja_id?, perfil }  (Check List:
 //     só o login + checklist.membros + telas do perfil; NÃO grava user_roles, usuario_lojas nem pessoas)
+//  { acao: "criar", sistema: "metas", email, senha, nome, rede_id, loja_id?, perfil, lanca? }  (Meta de Vendas:
+//     só o login + acesso do perfil por unidade + cadastro de vendedor; sem efeitos do PDV)
 //  { acao: "papel", user_id, papel }
 //  { acao: "ativo", user_id, ativo: boolean }
 //  { acao: "senha", user_id, senha }

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { decidirModo } from "../data/conexao";
+import { normalizarDados } from "../data/servidor";
+import { validarUnidade } from "../ui/FormUnidade";
 import { lerNumero, mesAtual, mesCurto, mesLongo, nomeFaixa, somarMeses, ultimosMeses } from "./formato";
 import { podeVerTela, TELAS_APP, telaDaRota, telaInicial } from "./telas";
 
@@ -45,6 +47,10 @@ describe("telas", () => {
     expect(podeVerTela("metas.meu_desempenho", { liberadas: so })).toBe(true);
     expect(podeVerTela("metas.dashboard", { admin: true, liberadas: new Set() })).toBe(true);
     expect(podeVerTela("metas.dashboard", { liberadas: null })).toBe(true);
+    // telas do admin: nem com a consulta falhando, nem com a tela "liberada"
+    expect(podeVerTela("metas.empresas", { liberadas: null })).toBe(false);
+    expect(podeVerTela("metas.usuarios", { liberadas: new Set(["metas.usuarios"]) })).toBe(false);
+    expect(podeVerTela("metas.usuarios", { admin: true, liberadas: new Set() })).toBe(true);
   });
   it("tela de entrada: gestão cai no Dashboard, vendedor no Meu desempenho", () => {
     expect(telaInicial({ admin: true, liberadas: new Set() })?.codigo).toBe("metas.dashboard");
@@ -65,3 +71,23 @@ describe("modo de conexão", () => {
     expect(decidirModo({ prod: true, demo: "1" })).toBe("demo");
   });
 });
+
+describe("cadastro da unidade (padrão de todos os sistemas)", () => {
+  const base = { rede_id: "r", nome: "Loja", cnpj: "11.222.333/0001-81", ativo: true, usaMetas: true,
+    dados: { logradouro: "Rua A", numero: "10", cidade: "São Paulo", uf: "sp" } };
+  it("unidade nova pede CNPJ válido e endereço", () => {
+    expect(validarUnidade(base)).toBeNull();
+    expect(validarUnidade({ ...base, cnpj: "" })).toMatch("Informe o CNPJ");
+    expect(validarUnidade({ ...base, cnpj: "11.222.333/0001-80" })).toMatch("CNPJ inválido");
+    expect(validarUnidade({ ...base, dados: { logradouro: "Rua A" } })).toMatch("número, cidade, UF");
+    expect(validarUnidade({ ...base, dados: { ...base.dados, uf: "São" } })).toMatch("UF com 2 letras");
+  });
+  it("unidade antiga (de outro sistema, sem CNPJ) pode ser editada sem travar", () => {
+    expect(validarUnidade({ ...base, id: "x", cnpj: "", dados: {} })).toBeNull();
+  });
+  it("antes de gravar: vazio vira null, CEP e telefone só dígitos, UF maiúscula", () => {
+    expect(normalizarDados({ cep: "01001-000", uf: "sp", telefone: "(11) 9999-0000", bairro: "  ", cidade: " SP " }))
+      .toMatchObject({ cep: "01001000", uf: "SP", telefone: "1199990000", bairro: null, cidade: "SP", razao_social: null });
+  });
+});
+

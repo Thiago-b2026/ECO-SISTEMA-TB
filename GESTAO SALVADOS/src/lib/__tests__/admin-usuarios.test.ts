@@ -61,6 +61,24 @@ describe("admin-usuarios: criar login", () => {
     expect((await criarUsuario(falso().db, { ...base, sistema: "rh", papel: "vendedor" })).corpo.erro).toMatch("Sistema");
   });
 
+  it("Meta de Vendas: só o login + acesso do perfil; nada do PDV; valida perfil, empresa e unidade", async () => {
+    const { db, log } = falso();
+    const r = await criarUsuario(db, { ...base, sistema: "metas", rede_id: "r1", loja_id: "l1", perfil: "vendedor", lanca: true });
+    expect(r).toEqual({ status: 200, corpo: { id: "u1" } });
+    expect(log).toEqual([
+      "createUser:ana@braz.com",
+      'rpc:metas._definir_acesso_usuario:{"_usuario":"u1","_nome":"Ana","_rede":"r1","_loja":"l1","_perfil":"vendedor","_lanca":true}',
+    ]);
+    expect((await criarUsuario(falso().db, { ...base, sistema: "metas", rede_id: "r1", loja_id: "l1", perfil: "operador" })).corpo.erro).toMatch("Perfil");
+    expect((await criarUsuario(falso().db, { ...base, sistema: "metas", loja_id: "l1", perfil: "gerente" })).corpo.erro).toMatch("empresa");
+    expect((await criarUsuario(falso().db, { ...base, sistema: "metas", rede_id: "r1", perfil: "gerente" })).corpo.erro).toMatch("unidade");
+    expect((await criarUsuario(falso().db, { ...base, sistema: "metas", rede_id: "r1", perfil: "gestor" })).status).toBe(200);
+    const existe = await criarUsuario(falso({ existe: true }).db, { ...base, sistema: "metas", rede_id: "r1", perfil: "gestor" });
+    expect(existe.corpo.erro).toMatch("Dar acesso a quem já tem login");
+    const semAcesso = await criarUsuario(falso({ erroRpc: "x" }).db, { ...base, sistema: "metas", rede_id: "r1", perfil: "gestor" });
+    expect(semAcesso).toMatchObject({ status: 400, corpo: { id: "u1" } });
+  });
+
   it("e-mail já existente e erro ao entrar na equipe aparecem como erro", async () => {
     const r1 = await criarUsuario(falso({ existe: true }).db, { ...base, sistema: "checklist", rede_id: "r1", perfil: "gestor" });
     expect(r1.status).toBe(400);

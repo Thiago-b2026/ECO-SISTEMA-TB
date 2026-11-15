@@ -23,6 +23,8 @@ interface Ctx {
   /** aumenta a cada gravação: as telas recarregam */
   versao: number;
   recarregar: () => void;
+  /** relê as telas e unidades (depois de cadastrar empresa, unidade ou acesso) */
+  recarregarAcesso: () => Promise<void>;
 }
 
 const Contexto = createContext<Ctx | null>(null);
@@ -113,6 +115,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     versao,
     recarregar: () => setVersao((v) => v + 1),
+    recarregarAcesso: async () => {
+      await carregarAcesso(sessao);
+      setVersao((v) => v + 1);
+    },
   };
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

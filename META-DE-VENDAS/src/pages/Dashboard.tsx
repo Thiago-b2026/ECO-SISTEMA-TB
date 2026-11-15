@@ -10,7 +10,7 @@ import { BarraMeta, Indicador, SeloFaixa, SeloFechado, TabelaResultado } from ".
 
 export default function Dashboard() {
   const { unidade, mes, pode } = useApp();
-  const { dadosMes: d, erro, carregando } = useMesAtual();
+  const { dadosMes: d, vendedores, erro, carregando } = useMesAtual();
   const [exportando, setExportando] = useState(false);
   const exporta = pode("metas.historico", "exportar");
 
@@ -27,6 +27,8 @@ export default function Dashboard() {
   if (erro) return <Aviso tom="erro">{erro}</Aviso>;
   if (carregando || !d) return <Carregando />;
   const r = d.resultado;
+  const comLancamento = new Set(d.lancamentos.map((l) => l.vendedor_id));
+  const semLancamento = vendedores.filter((v) => v.ativo && !comLancamento.has(v.id));
   return (
     <>
       <Titulo acao={exporta ? (
@@ -50,6 +52,12 @@ export default function Dashboard() {
         <Indicador rotulo="Prêmio total a pagar" valor={fmtBRL(r.total_premio)} detalhe={`Faturamento ${fmtBRL(r.total_premio_faturamento)} + engajamento ${fmtBRL(r.total_premio_engajamento)}`} />
       </div>
       <BarraMeta d={d} />
+      {semLancamento.length > 0 && !d.fechado && (
+        <Aviso tom="alerta" titulo="Vendedores ativos sem lançamento no mês">
+          {semLancamento.map((v) => v.nome).join(", ")}.{" "}
+          {pode("metas.lancamentos", "inserir") && <Link className="font-semibold underline" to="/lancamentos">Lançar agora</Link>}
+        </Aviso>
+      )}
       <Cartao>
         <h2 className="mb-2 font-bold text-gray-900">Vendedores</h2>
         <TabelaResultado d={d} />

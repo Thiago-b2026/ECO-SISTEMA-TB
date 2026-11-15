@@ -9,6 +9,7 @@ permissões por tela e unidade).
 - **Etapa 1 (banco):** pronta no PC e testada. **Nada aplicado no Supabase.**
 - **Etapa 3 (telas e permissões):** migration 0027 no GESTAO SALVADOS, espelho em `telas.ts` e quadro no Portal. Nada aplicado.
 - **Etapa 4 (telas do app):** pronta e testada, com modo demonstração.
+- **Várias empresas:** telas do admin Empresas e lojas e Usuários e acessos (perfis vendedor, gerente e gestor).
 - Próxima etapa: publicação. Ver `HISTORICO_META_VENDAS.md`.
 
 ## Banco (`supabase/migrations/20261115000001_metas_schema.sql`)
@@ -51,6 +52,7 @@ migration 0018 do GESTAO SALVADOS). Não tocam no banco de produção.
 ## Publicar (quando autorizado)
 1. Aplicar `20261115000001_metas_schema.sql` no Supabase ECO-SISTEMA-TB.
 2. Aplicar, no GESTAO SALVADOS, a `20261113000026_portal_quadros_pop_precificacao.sql` (se ainda não estiver aplicada) e depois a `20261115000027_metas_telas.sql`.
+2b. Aplicar `20261115000002_metas_empresas_acessos.sql` (precisa das telas da 0027) e publicar de novo a Edge Function `admin-usuarios` (GESTAO SALVADOS).
 3. Supabase → Integrations → Data API → Exposed schemas: incluir `metas`.
 4. Vercel (time grupotb): projeto novo, Root Directory `META-DE-VENDAS`, preset Vite, variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
 5. Juntar ao main só com o site no ar; cadastrar a url em `public.sistemas` (código `metas`).

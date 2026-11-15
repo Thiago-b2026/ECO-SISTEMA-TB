@@ -1,4 +1,4 @@
-import { Link2, Plus, UserCheck, UserX } from "lucide-react";
+import { Link2, Plus, Trash2, UserCheck, UserX } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useApp, useDados } from "../app/contexto";
 import { servidor } from "../data/conexao";
@@ -76,8 +76,8 @@ export default function Vendedores() {
         </Cartao>
       )}
       <Aviso tom="info">
-        Para o vendedor ver o próprio desempenho, ligue o cadastro ao login dele (o mesmo e-mail do Ecossistema TB). Quem não tem login
-        pede ao administrador para criar no Portal. Vendedor não é apagado: é inativado, e o histórico continua.
+        Para o vendedor ver o próprio desempenho, ligue o cadastro ao login dele (o mesmo e-mail do Ecossistema TB). Quem não tem login:
+        o administrador cria em <b>Usuários e acessos</b> (perfil Vendedor). Vendedor com lançamento não é excluído: é inativado, e o histórico continua.
       </Aviso>
       {!vendedores.length ? <Vazio>Nenhum vendedor cadastrado nesta unidade.</Vazio> : (
         <ul className="space-y-2">
@@ -89,7 +89,7 @@ export default function Vendedores() {
                     <Campo rotulo="Nome"><input className={classeEntrada} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} maxLength={80} /></Campo>
                     <Campo rotulo="Unidade" ajuda="Os lançamentos antigos continuam na unidade de antes.">
                       <select className={classeEntrada} value={form.loja_id} onChange={(e) => setForm({ ...form, loja_id: e.target.value })}>
-                        {(acesso?.unidades ?? []).map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
+                        {(acesso?.unidades ?? []).filter((u) => u.rede_id === unidade.rede_id).map((u) => <option key={u.id} value={u.id}>{u.nome}</option>)}
                       </select>
                     </Campo>
                     <Campo rotulo="E-mail do login" ajuda="Vazio = sem login ligado.">
@@ -111,6 +111,10 @@ export default function Vendedores() {
                         <Botao variante={v.ativo ? "fantasma" : "secundario"} carregando={ocupado}
                           onClick={() => void rodar(() => servidor.salvarVendedor({ id: v.id, loja_id: v.loja_id, nome: v.nome, ativo: !v.ativo }).then(() => undefined), v.ativo ? `${v.nome} inativado(a).` : `${v.nome} reativado(a).`)}>
                           {v.ativo ? "Inativar" : "Reativar"}
+                        </Botao>
+                        <Botao variante="fantasma" className="text-red-800" aria-label={`Excluir ${v.nome}`} carregando={ocupado}
+                          onClick={() => window.confirm(`Excluir ${v.nome}? Só é possível se ainda não tem lançamento.`) && void rodar(() => servidor.excluirVendedor(v.id), `${v.nome} excluído(a).`)}>
+                          <Trash2 className="size-4" aria-hidden /> Excluir
                         </Botao>
                       </span>
                     )}

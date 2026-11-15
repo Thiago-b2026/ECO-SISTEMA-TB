@@ -31,6 +31,8 @@ const TELAS: [string, string[]][] = [
   ["metas.historico", ["ver", "exportar"]],
   ["metas.vendedores", ["ver", "inserir", "editar"]],
   ["metas.configuracao", ["ver", "editar", "fechar_mes"]],
+  ["metas.empresas", ["ver", "inserir", "editar"]],
+  ["metas.usuarios", ["ver", "inserir", "editar"]],
 ];
 
 let db: Banco;
@@ -61,7 +63,7 @@ beforeAll(async () => {
       ('${LOJA_SEM}', 'Loja sem metas', '${REDE}', array['pdv']);
   `);
   // as telas e ações vêm da migration real do PDV (20261115000027_metas_telas.sql)
-  await liberar(U.gerente, LOJA_A, TELAS);
+  await liberar(U.gerente, LOJA_A, TELAS.filter(([t]) => !["metas.empresas", "metas.usuarios"].includes(t)));
   await liberar(U.vendA, LOJA_A, [["metas.meu_desempenho", ["ver", "editar"]], ["metas.ranking", ["ver"]]]);
   await liberar(U.vendA2, LOJA_A, [["metas.meu_desempenho", ["ver"]]]);
   await liberar(U.vendB, LOJA_B, [["metas.meu_desempenho", ["ver", "editar"]], ["metas.ranking", ["ver"]]]);
@@ -236,6 +238,111 @@ describe("fechamento do mês", () => {
     await sql(U.gerente, `delete from metas.meses_fechados where loja_id = $1 and mes_referencia = $2`, [LOJA_A, NOV]);
     const r = await sql(U.gerente, `update metas.lancamentos set faturamento_realizado = 83000 where vendedor_id = $1 returning id`, [V.a]);
     expect(r).toHaveLength(1);
+  });
+});
+
+describe("empresas, unidades e acessos (só o admin)", () => {
+  const NOVO = "00000000-0000-4000-8000-0000000000d1";
+  const GESTOR = "00000000-0000-4000-8000-0000000000d2";
+  const perms = (u: string) => sql<{ unidade_id: string; tela_codigo: string; acao: string }>(null,
+    `select unidade_id, tela_codigo, acao from public.usuario_permissoes where user_id = $1 order by 1, 2, 3`, [u]);
+
+  beforeAll(async () => {
+    await db.exec(`insert into auth.users (id, email) values ('${NOVO}', 'novo@loja.com'), ('${GESTOR}', 'gestor@loja.com')`);
+  });
+
+  it("o admin cadastra empresa e unidade; o gerente não", async () => {
+    const [r] = await sql<{ id: string }>(U.admin, `insert into public.redes (nome) values ('NOVA REDE') returning id`);
+    await sql(U.admin, `insert into public.lojas (nome, rede_id, sistemas) values ('Nova Loja', $1, array['metas'])`, [r.id]);
+    await deve(U.gerente, `insert into public.redes (nome) values ('OUTRA')`, [], /row-level security/);
+    expect(await sql(U.gerente, `update public.lojas set nome = 'X' where id = $1 returning id`, [LOJA_A])).toHaveLength(0);
+  });
+
+  it("vendedor: Ranking e Meu desempenho; 'lança' libera o editar; o cadastro de vendedor nasce ligado ao login", async () => {
+    await sql(U.admin, `select metas.definir_acesso('NOVO@loja.com', 'Nívea', $1, $2, 'vendedor', false)`, [REDE, LOJA_A]);
+    expect((await perms(NOVO)).map((p) => `${p.tela_codigo}:${p.acao}`)).toEqual(["metas.meu_desempenho:ver", "metas.ranking:ver"]);
+    expect(await sql(null, `select nome, loja_id from metas.vendedores where user_id = $1`, [NOVO])).toEqual([{ nome: "Nívea", loja_id: LOJA_A }]);
+    await sql(U.admin, `select metas.definir_acesso('novo@loja.com', 'Nívea', $1, $2, 'vendedor', true)`, [REDE, LOJA_A]);
+    expect((await perms(NOVO)).map((p) => `${p.tela_codigo}:${p.acao}`)).toContain("metas.meu_desempenho:editar");
+    expect(await sql(null, `select count(*)::int n from metas.vendedores where user_id = $1`, [NOVO])).toEqual([{ n: 1 }]);
+    // e o vendedor novo já lança o próprio resultado
+    const [v] = await sql<{ id: string }>(null, `select id from metas.vendedores where user_id = $1`, [NOVO]);
+    await lancar(NOVO, v.id, OUT, 1000, 1);
+  });
+
+  it("gestor: o perfil de gerente em todas as unidades da empresa que usam o Meta de Vendas", async () => {
+    await sql(U.admin, `select metas.definir_acesso('gestor@loja.com', 'Gil', $1, null, 'gestor')`, [REDE]);
+    const unidades = new Set((await perms(GESTOR)).map((p) => p.unidade_id));
+    expect(unidades.has(LOJA_A) && unidades.has(LOJA_B)).toBe(true);
+    expect(unidades.has(LOJA_SEM)).toBe(false);
+    expect((await perms(GESTOR)).some((p) => p.tela_codigo === "metas.configuracao" && p.acao === "fechar_mes")).toBe(true);
+    expect((await perms(GESTOR)).some((p) => p.tela_codigo === "metas.empresas")).toBe(false); // telas do admin nunca
+    expect(await sql(GESTOR, `select id from metas.lancamentos where loja_id = $1`, [LOJA_B])).not.toHaveLength(0);
+  });
+
+  it("trocar o perfil substitui o acesso do Meta de Vendas, sem mexer em outro sistema", async () => {
+    await db.query(`insert into public.telas (codigo, nome, app, grupo, rota) values ('pdv.pdv', 'PDV', 'pdv', 'frente', '/pdv') on conflict do nothing`);
+    await db.query(`insert into public.usuario_permissoes values ($1, $2, 'pdv.pdv', 'ver', true)`, [NOVO, LOJA_A]);
+    await sql(U.admin, `select metas.definir_acesso('novo@loja.com', 'Nívea', $1, $2, 'gerente')`, [REDE, LOJA_A]);
+    const p = await perms(NOVO);
+    expect(p.some((x) => x.tela_codigo === "pdv.pdv")).toBe(true);
+    expect(p.some((x) => x.tela_codigo === "metas.configuracao" && x.acao === "editar")).toBe(true);
+  });
+
+  it("só o admin dá ou tira acesso; e-mail sem login e unidade de outra empresa são recusados", async () => {
+    await deve(U.gerente, `select metas.definir_acesso('novo@loja.com', 'x', $1, $2, 'vendedor')`, [REDE, LOJA_A], "Só o admin");
+    await deve(U.gerente, `select metas.remover_acesso($1, $2)`, [NOVO, LOJA_A], "Só o admin");
+    await deve(U.admin, `select metas.definir_acesso('ninguem@x.com', 'x', $1, $2, 'vendedor')`, [REDE, LOJA_A], "Não existe login");
+    const [outra] = await sql<{ id: string }>(null, `select id from public.redes where nome = 'NOVA REDE'`);
+    await deve(U.admin, `select metas.definir_acesso('novo@loja.com', 'x', $1, $2, 'vendedor')`, [outra.id, LOJA_A], "não é desta empresa");
+    await deve(U.admin, `select metas.definir_acesso('novo@loja.com', 'x', $1, $2, 'vendedor')`, [REDE, LOJA_SEM], /não é desta empresa|não usa/);
+    await deve(U.admin, `select metas._definir_acesso_usuario($1, 'x', $2, $3, 'vendedor')`, [NOVO, REDE, LOJA_A], /permission denied/);
+  });
+
+  it("lista de usuários da empresa com o perfil reconhecido (só o admin vê)", async () => {
+    const r = await sql<{ email: string; loja: string; perfil: string }>(U.admin, `select email, loja, perfil from metas.usuarios_da_empresa($1)`, [REDE]);
+    expect(r).toEqual(expect.arrayContaining([
+      { email: "gestor@loja.com", loja: "Loja B", perfil: "gerente" },
+      { email: "novo@loja.com", loja: "Loja A", perfil: "gerente" },
+    ]));
+    expect(await sql(U.gerente, `select * from metas.usuarios_da_empresa($1)`, [REDE])).toHaveLength(0);
+  });
+
+  it("tirar o acesso: some do Meta de Vendas, o login e o histórico continuam", async () => {
+    await sql(U.admin, `select metas.remover_acesso($1, $2)`, [NOVO, LOJA_A]);
+    expect((await perms(NOVO)).filter((p) => p.tela_codigo.startsWith("metas."))).toHaveLength(0);
+    expect((await perms(NOVO)).some((p) => p.tela_codigo === "pdv.pdv")).toBe(true);
+    expect(await sql(null, `select bool_or(permitido) p from public.usuario_telas where user_id = $1 and tela_codigo like 'metas.%'`, [NOVO])).toEqual([{ p: false }]);
+    expect(await sql(null, `select count(*)::int n from auth.users where id = $1`, [NOVO])).toEqual([{ n: 1 }]);
+    expect(await sql(null, `select count(*)::int n from metas.lancamentos l join metas.vendedores v on v.id = l.vendedor_id where v.user_id = $1`, [NOVO])).toEqual([{ n: 1 }]);
+  });
+
+  it("excluir: só o que nunca foi usado; com histórico, a mensagem manda inativar", async () => {
+    // vendedor com lançamento não sai; sem lançamento, o gerente exclui; o vendedor não exclui ninguém
+    await deve(U.gerente, `select metas.excluir_vendedor($1)`, [V.a], "use Inativar");
+    const [novo] = await sql<{ id: string }>(U.gerente, `insert into metas.vendedores (loja_id, nome) values ($1, 'Teste') returning id`, [LOJA_A]);
+    await deve(U.vendA, `select metas.excluir_vendedor($1)`, [novo.id], "não tem permissão");
+    await sql(U.gerente, `select metas.excluir_vendedor($1)`, [novo.id]);
+    expect(await sql(null, `select id from metas.vendedores where id = $1`, [novo.id])).toHaveLength(0);
+
+    // unidade com dados não sai; unidade de outro sistema não sai; empresa com unidade não sai
+    await deve(U.admin, `select metas.excluir_unidade($1)`, [LOJA_A], "use Inativar");
+    await deve(U.admin, `select metas.excluir_unidade($1)`, [LOJA_SEM], "outro sistema (pdv)");
+    await deve(U.gerente, `select metas.excluir_unidade($1)`, [LOJA_A], "Só o admin");
+    const [r] = await sql<{ id: string }>(U.admin, `insert into public.redes (nome) values ('REDE TESTE APAGAR') returning id`);
+    const [l] = await sql<{ id: string }>(U.admin, `insert into public.lojas (nome, rede_id, sistemas) values ('Loja Teste Apagar', $1, array['metas']) returning id`, [r.id]);
+    await sql(U.admin, `select metas.definir_acesso('novo@loja.com', 'x', $1, $2, 'gerente')`, [r.id, l.id]);
+    await deve(U.admin, `select metas.excluir_empresa($1)`, [r.id], "unidades antes");
+    // unidade nova, sem dados: sai (com os acessos dela); depois a empresa vazia sai
+    await sql(U.admin, `select metas.excluir_unidade($1)`, [l.id]);
+    expect(await sql(null, `select count(*)::int n from public.usuario_permissoes where unidade_id = $1`, [l.id])).toEqual([{ n: 0 }]);
+    await deve(U.gerente, `select metas.excluir_empresa($1)`, [r.id], "Só o admin");
+    await sql(U.admin, `select metas.excluir_empresa($1)`, [r.id]);
+    expect(await sql(null, `select id from public.redes where id = $1`, [r.id])).toHaveLength(0);
+  });
+
+  it("o prêmio da meta mínima não passa o da meta 100%", async () => {
+    await deve(U.admin, `insert into metas.configuracao_meta (loja_id, mes_referencia, premio_meta_100, premio_meta_90) values ($1, '2027-01-01', 100, 200)`, [LOJA_A], /check constraint/);
   });
 });
 
