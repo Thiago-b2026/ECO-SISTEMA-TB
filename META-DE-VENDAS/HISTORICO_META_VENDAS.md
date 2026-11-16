@@ -2,7 +2,8 @@
 
 ## 📍 ONDE PARAMOS
 - **15/11/2026 — PUBLICADO.** App no ar em **https://metas-grupotb.vercel.app** (projeto Vercel `metas-grupotb`, Root `META-DE-VENDAS`, Vite). `main` = `6fc487a` (fast-forward de `feat/meta-vendas`). Portal novo (Quadro Geral, com login e o quadro Meta de Vendas) e PDV (Permissões com Meta de Vendas, POP e Precificação) também publicados. Link cadastrado em `public.sistemas` e no `sistemas.json`.
-- **Próximo passo (👤 o administrador, dentro do Meta de Vendas):** Empresas e lojas → marcar "Usa o Meta de Vendas" nas lojas (ou cadastrar pelo CNPJ) → Usuários e acessos → Meta e fechamento do mês → teste no celular com um vendedor.
+- **16/11:** Monte Sinai e Eldorado (rede SALVADOS LP) marcadas como "usa o Meta de Vendas" (escolha do usuário). O app parecia diferente da demonstração porque em produção nenhuma loja estava marcada e não há dados (a demonstração tinha exemplos).
+- **Próximo passo (👤 admin):** Vendedores (cadastrar), Usuários e acessos (perfis), Meta e fechamento do mês (meta de novembro), teste no celular.
 - Conferir no Supabase (Data API → Settings) que `metas` está em **Exposed schemas** (o usuário disse que liberou; não deu para conferir de fora sem login).
 - Origem: app Lovable "Sales Champion" (sem dados reais; começa limpo).
 ---

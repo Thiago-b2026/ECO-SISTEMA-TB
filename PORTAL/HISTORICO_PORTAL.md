@@ -1,7 +1,7 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
-**15/11/2026 → QUADRO GERAL PUBLICADO** (0026 aplicada, Portal no ar com login e quadros por permissão, incluindo Meta de Vendas). **Falta:** entrar como admin e enviar os arquivos de `PORTAL/para-enviar/pop` e `para-enviar/precificacao`; liberar o POP para a equipe nas Permissões.
+**15/11/2026 → QUADRO GERAL PUBLICADO** (0026 aplicada, Portal no ar com login e quadros por permissão, incluindo Meta de Vendas). **16/11:** arquivos do POP (4) e da Precificação (8) enviados ao bucket; o quadro abre direto no conteúdo principal. **Falta:** liberar o POP para a equipe nas Permissões; conferir/apagar o CSV `categorias-export-2026-11-05_19-35-00.csv` enviado à Precificação.
 
 **AGORA (08/11 noite):** Portal = página aberta, SEM login, com os quadros fixos GESTÃO SALVADOS e GESTÃO RH (Sessão 3). Sistema novo → incluir o quadro em `PORTAL/src/pages/Inicio.tsx`. O resto está pausado.
 
@@ -244,4 +244,10 @@ Regras:
 - Commit `a5af49f`; 0026 aplicada no banco de produção (POP ativo com url, sistema `precificacao`, bucket privado `portal-arquivos` e políticas).
 - Merge no `main` (`6fc487a`): Portal no ar com login (mesmo login do ecossistema) e quadros por `meus_sistemas()`; novo quadro **Meta de Vendas** (https://metas-grupotb.vercel.app).
 - Falta: enviar os arquivos do POP e da Precificação pelo Portal (admin) e liberar o POP para a equipe.
+
+## Sessão – 16/11/2026 – POP e Precificação com conteúdo, abrindo direto
+- **Problema relatado:** Treinamento e Precificação abriam vazios; a Precificação tinha só um arquivo enviado pelo usuário (`categorias-export-2026-11-05_19-35-00.csv`, que é planilha: só baixa, não abre tela).
+- **Causa:** os arquivos preparados em `PORTAL/para-enviar` nunca tinham subido ao bucket; e o quadro abria uma LISTA de arquivos, não o conteúdo.
+- **Feito:** enviados pelo Supabase CLI (`storage cp --remote`) os 4 do POP e os 8 da Precificação para `portal-arquivos/pop/` e `portal-arquivos/precificacao/` (HTML como text/html). `Arquivos.tsx`: ao entrar, abre o primeiro HTML da pasta (POP → "POPs e fluxos - Operador de Caixa"; Precificação → "2 - Relatorio de precificacao"); botões "Outros arquivos" e "Portal". Publicado (`main` e860076).
+- Para trocar o conteúdo principal no futuro: o primeiro HTML em ordem de nome é o que abre.
 
