@@ -78,9 +78,9 @@
       "pasta": "META-DE-VENDAS",
       "empresa": "Supermix Braz",
       "descricao": "Meta de faturamento por loja e mês, faixas de prêmio e bônus por cliente engajado (vindo do Lovable 'Sales Champion')",
-      "status": "em-construcao",
+      "status": "publicado",
       "schema": "metas",
-      "url": null
+      "url": "https://metas-grupotb.vercel.app"
     },
     {
       "codigo": "supervisor",

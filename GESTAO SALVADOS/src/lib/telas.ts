@@ -49,7 +49,7 @@ export const SISTEMAS: Sistema[] = [
   { codigo: "crm", nome: "CRM Super Mix Braz", url: null, ordem: 30, ativo: false },
   { codigo: "checklist", nome: "Check List Operacional", url: null, ordem: 40, ativo: true },
   // Meta de Vendas e Premiação (outro site, mesmo login) – migration 20261115000027_metas_telas.sql
-  { codigo: "metas", nome: "Meta de Vendas e Premiação", url: null, ordem: 45, ativo: true },
+  { codigo: "metas", nome: "Meta de Vendas e Premiação", url: "https://metas-grupotb.vercel.app", ordem: 45, ativo: true },
   // POP e Precificação abrem DENTRO do Portal – migration 20261113000026_portal_quadros_pop_precificacao.sql
   { codigo: "pop", nome: "Treinamentos com POP", url: "https://portal-grupotb.vercel.app/pop", ordem: 50, ativo: true },
   { codigo: "precificacao", nome: "Precificação", url: "https://portal-grupotb.vercel.app/precificacao", ordem: 60, ativo: true },
