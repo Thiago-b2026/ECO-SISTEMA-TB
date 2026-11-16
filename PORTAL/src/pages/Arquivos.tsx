@@ -3,10 +3,14 @@
 // ao sistema); só o admin envia, troca ou apaga.
 // - HTML e Markdown abrem aqui mesmo, numa moldura isolada (sandbox, sem acesso ao login do Portal).
 // - PDF abre aqui ou em nova aba. Planilhas, CSV e o resto: baixar.
+// - Ao entrar no quadro, abre DIRETO o conteúdo principal (o primeiro HTML da pasta, em ordem de nome:
+//   POP → "POPs e fluxos - Operador de Caixa"; Precificação → "2 - Relatorio de precificacao"), como os
+//   outros sistemas. "Outros arquivos" volta para a lista; "Portal" volta ao início.
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { marked } from "marked";
 import { BUCKET, supabase } from "../lib/supabase";
 import { QUADROS } from "../lib/quadros";
+import { irPara } from "../lib/navegacao";
 
 interface Arquivo {
   nome: string;
@@ -58,6 +62,8 @@ export default function Arquivos({ codigo, admin }: { codigo: string; admin: boo
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [ver, setVer] = useState<Visualizacao | null>(null);
   const entrada = useRef<HTMLInputElement>(null);
+  // abre o principal só na entrada (depois de fechar, a pessoa fica na lista)
+  const abriuPrincipal = useRef(false);
 
   const carregar = useCallback(async () => {
     setErro(null);
@@ -77,6 +83,14 @@ export default function Arquivos({ codigo, admin }: { codigo: string; admin: boo
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    if (abriuPrincipal.current || !arquivos?.length) return;
+    const principal = arquivos.find((a) => ["html", "htm"].includes(extensao(a.nome)));
+    abriuPrincipal.current = true;
+    if (principal) void abrir(principal);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arquivos]);
 
   // libera a memória do PDF ao fechar
   useEffect(() => () => { if (ver?.url) URL.revokeObjectURL(ver.url); }, [ver]);
@@ -162,7 +176,10 @@ export default function Arquivos({ codigo, admin }: { codigo: string; admin: boo
             {ver.url && (
               <a className="botao-secundario px-3 py-2" href={ver.url} target="_blank" rel="noopener noreferrer">Nova aba</a>
             )}
-            <button className="botao-primario px-3 py-2" onClick={() => setVer(null)}>Fechar</button>
+            {(arquivos?.length ?? 0) > 1 || admin ? (
+              <button className="botao-secundario px-3 py-2" onClick={() => setVer(null)}>Outros arquivos</button>
+            ) : null}
+            <button className="botao-primario px-3 py-2" onClick={() => { setVer(null); irPara("/"); }}>Portal</button>
           </div>
         </div>
         {ver.url ? (
