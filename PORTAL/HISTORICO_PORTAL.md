@@ -1,7 +1,7 @@
 # 📒 HISTÓRICO – PORTAL GRUPO TB (cadastro único de acessos do Ecossistema TB)
 
 ## 📍 ONDE PARAMOS
-**13/11/2026 → código do QUADRO GERAL pronto (login + quadros por permissão + POP/Precificação). Ver a última sessão no fim do arquivo: faltam aplicar a 0026, publicar e enviar os arquivos. Retomar com `quadrogeral`.**
+**15/11/2026 → QUADRO GERAL PUBLICADO** (0026 aplicada, Portal no ar com login e quadros por permissão, incluindo Meta de Vendas). **Falta:** entrar como admin e enviar os arquivos de `PORTAL/para-enviar/pop` e `para-enviar/precificacao`; liberar o POP para a equipe nas Permissões.
 
 **AGORA (08/11 noite):** Portal = página aberta, SEM login, com os quadros fixos GESTÃO SALVADOS e GESTÃO RH (Sessão 3). Sistema novo → incluir o quadro em `PORTAL/src/pages/Inicio.tsx`. O resto está pausado.
 
@@ -239,3 +239,9 @@ Regras:
 - O `CLAUDE.md` da raiz e a pasta `docs/` (que tinham ido parar em `CRM SUPER MIX BRAZ/`) voltaram para a raiz. Conteúdo idêntico ao do git; o achado da sessão anterior está resolvido.
 - Continua no lugar, por ainda estar em uso: `TREINAMENTOS COM POP/` (fonte e vídeo de 108 MB), `PORTAL/para-enviar/` (até subir os arquivos no bucket), a tela de permissões do PDV (sai na fase 4) e `GESTAO-RH/api/admin-users.ts`.
 - Para reimportar dados do Lovable no RH, copiar `dados-lovable/` de volta do arquivo.
+
+## Sessão – 15/11/2026 – Quadro Geral publicado (junto com o Meta de Vendas)
+- Commit `a5af49f`; 0026 aplicada no banco de produção (POP ativo com url, sistema `precificacao`, bucket privado `portal-arquivos` e políticas).
+- Merge no `main` (`6fc487a`): Portal no ar com login (mesmo login do ecossistema) e quadros por `meus_sistemas()`; novo quadro **Meta de Vendas** (https://metas-grupotb.vercel.app).
+- Falta: enviar os arquivos do POP e da Precificação pelo Portal (admin) e liberar o POP para a equipe.
+

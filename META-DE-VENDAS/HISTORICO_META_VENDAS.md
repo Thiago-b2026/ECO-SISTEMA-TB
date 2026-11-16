@@ -1,12 +1,9 @@
 # Histórico – Meta de Vendas e Premiação (código `metas`, schema `metas`)
 
 ## 📍 ONDE PARAMOS
-- **15/11/2026 — publicação em andamento** (roteiro: `PUBLICAR.md`). Feito com OK do usuário:
-  - commit do Quadro Geral do Portal (`a5af49f`);
-  - **banco de produção:** aplicadas, nesta ordem, a 0001 do metas, a 0026 e a 0027 do PDV e a 0002 do metas. Conferido: 4 tabelas com RLS, 9 telas, 22 ações, `fechar_mes`, Portal (POP, Precificação, bucket); **nenhum dado criado**;
-  - **Edge Function `admin-usuarios` v5** publicada (sem login → 401);
-  - branch `feat/meta-vendas` enviada ao GitHub (main intocado).
-- **Falta (na ordem):** 👤 Exposed schemas `metas` → 👤 projeto Vercel `metas-grupotb` (Root `META-DE-VENDAS`, Vite, as 2 variáveis) → 🤖 merge no main → 🤖 url em `public.sistemas` e `sistemas.json` → 👤 marcar lojas, dar acessos e cadastrar a meta.
+- **15/11/2026 — PUBLICADO.** App no ar em **https://metas-grupotb.vercel.app** (projeto Vercel `metas-grupotb`, Root `META-DE-VENDAS`, Vite). `main` = `6fc487a` (fast-forward de `feat/meta-vendas`). Portal novo (Quadro Geral, com login e o quadro Meta de Vendas) e PDV (Permissões com Meta de Vendas, POP e Precificação) também publicados. Link cadastrado em `public.sistemas` e no `sistemas.json`.
+- **Próximo passo (👤 o administrador, dentro do Meta de Vendas):** Empresas e lojas → marcar "Usa o Meta de Vendas" nas lojas (ou cadastrar pelo CNPJ) → Usuários e acessos → Meta e fechamento do mês → teste no celular com um vendedor.
+- Conferir no Supabase (Data API → Settings) que `metas` está em **Exposed schemas** (o usuário disse que liberou; não deu para conferir de fora sem login).
 - Origem: app Lovable "Sales Champion" (sem dados reais; começa limpo).
 ---
 
@@ -107,4 +104,11 @@
 - Commit `a5af49f` (Portal: Quadro Geral, 0026, telas.ts, sistemas.json).
 - Aplicadas em produção: `20261115000001_metas_schema.sql` → `20261113000026_portal_quadros_pop_precificacao.sql` → `20261115000027_metas_telas.sql` → `20261115000002_metas_empresas_acessos.sql`. Conferido depois: tabelas, RLS, telas, ações, perfis (`telas_do_perfil`), núcleo `_definir_acesso_usuario` fechado para authenticated, `definir_acesso` fechado para anon.
 - `admin-usuarios` publicada (v5, ACTIVE, verify_jwt; chamada sem login → 401).
+
+## Sessão 8 – 15/11/2026 (Vercel, merge no main e link)
+- Vercel: o projeto não tinha sido criado. Criado no painel `metas-grupotb` (time GRUPOTB, Vite); variáveis `VITE_SUPABASE_URL` (preenchida pelo Claude) e `VITE_SUPABASE_ANON_KEY` (colada pelo usuário: **publishable key** `sb_publishable_…`, que funciona igual à anon). Root Directory `META-DE-VENDAS` ajustado nas configurações (o assistente de criação só enxerga o `main`). Deploy da branch: Ready em 14 s; tela de login real, sem demonstração, console sem erro.
+- O Portal publica pelo `main` (o aviso "No Production Deployment" do painel engana).
+- `public.sistemas.url` do `metas` = `https://metas-grupotb.vercel.app`; espelho em `telas.ts` e `sistemas.json` (status publicado). Commit `6fc487a`.
+- Merge fast-forward de `feat/meta-vendas` no `main` (0d0d480 → 6fc487a) e push. Conferido no ar: Portal novo (login + quadro Meta de Vendas), PDV com as telas do metas, Meta de Vendas, Check List e RH (todos 200).
+- Achado para a limpeza: projeto Vercel **`grupotbapp`** ligado à raiz do repositório (404, faz build a cada push) — pode ser excluído.
 
