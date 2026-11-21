@@ -197,10 +197,15 @@ function DetalheLote() {
   async function lancarEstoque() {
     const aprovados = itens.filter((i) => i.status === "aprovado" && (i.ocorrencia == null || i.ocorrencia === "avaria_parcial") && (i.preco_venda ?? 0) > 0).length;
     if (aprovados === 0) return toast.info("Nenhum item aprovado com preço para lançar. Aprove os itens primeiro.");
-    if (!window.confirm(`Lançar os itens APROVADOS deste lote no estoque da loja? (até ${aprovados} produtos; os que já foram lançados são ignorados)`)) return;
+    if (!window.confirm(`Lançar os itens APROVADOS deste lote no estoque da loja? (até ${aprovados} produtos; os que já foram lançados são ignorados. Produto que já existe na loja — mesmo código de barras ou nome — recebe a quantidade em vez de virar outro cadastro.)`)) return;
     const { data, error } = await supabase.rpc("lancar_lote_estoque", { _lote_id: lote!.id });
     if (error) return toast.error(error.message);
-    toast.success(data ? `${data} produtos lançados no estoque.` : "Nada novo para lançar (já estavam no estoque).");
+    // retorno novo: { novos, somados } (o antigo era só um número)
+    const r = typeof data === "number" ? { novos: data, somados: 0 } : ((data ?? {}) as { novos?: number; somados?: number });
+    const novos = r.novos ?? 0;
+    const somados = r.somados ?? 0;
+    if (novos + somados === 0) toast.info("Nada novo para lançar (já estavam no estoque).");
+    else toast.success([novos ? `${novos} produto(s) novo(s) no estoque` : "", somados ? `${somados} somado(s) a produtos que já existiam` : ""].filter(Boolean).join(" · ") + ".");
     recarregar(true);
   }
 

@@ -132,9 +132,14 @@ export async function listarLotes(filtroLoja: string | null): Promise<LoteResumo
  * Pede confirmação; devolve true se excluiu.
  */
 export async function excluirLoteConfirmando(lote: { id: string; nome: string }, totalItens: number): Promise<boolean> {
-  const { count, error: e1 } = await supabase.from("produtos").select("id", { count: "exact", head: true }).eq("lote_id", lote.id);
+  const [{ count, error: e1 }, { count: somados }] = await Promise.all([
+    supabase.from("produtos").select("id", { count: "exact", head: true }).eq("lote_id", lote.id),
+    // itens somados a produtos que já existiam (não criam produto com lote_id, mas já mexeram no estoque)
+    supabase.from("lote_itens").select("id", { count: "exact", head: true }).eq("lote_id", lote.id).not("lancado_produto_id", "is", null),
+  ]);
   if (e1) throw new Error(e1.message);
-  if (count) throw new Error(`O lote "${lote.nome}" já tem ${count} produtos lançados no estoque e não pode ser excluído.`);
+  const lancados = Math.max(count ?? 0, somados ?? 0);
+  if (lancados) throw new Error(`O lote "${lote.nome}" já tem ${lancados} produtos lançados no estoque e não pode ser excluído.`);
   if (!window.confirm(`EXCLUIR o lote "${lote.nome}" e seus ${totalItens} itens? Não dá para desfazer.`)) return false;
   const { error, count: apagados } = await supabase.from("lotes").delete({ count: "exact" }).eq("id", lote.id);
   if (error) throw new Error(error.message);

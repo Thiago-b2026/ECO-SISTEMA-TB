@@ -53,8 +53,11 @@
   "Somar N un. no existente" (ou mudar o nome/código); mesmo anúncio do ML com nome diferente = só aviso (variação); já existe no
   estoque da loja = só aviso. Produto avulso: duplicado na loja bloqueia "Cadastrar" e oferece "Dar entrada no existente"
   (`movimentar_estoque` entrada). Editar produto do lote: não deixa renomear para nome/código de outro item. Só na tela (sem
-  restrição no banco; produtos antigos duplicados continuam). Pendente: "Lançar no estoque" ainda cria produto novo por item do
-  lote mesmo se já existir igual no estoque da loja.
+  restrição no banco; produtos antigos duplicados continuam). "Lançar no estoque" também não duplica: migration
+  **`20261121000030_lancar_lote_soma_existente.sql` (APLICADA 21/11, ensaiada com rollback)** — `lancar_lote_estoque` procura na
+  mesma loja produto ativo com mesmo código (8+ dígitos) ou `normalizar_nome()` igual; achou → entrada nele, custo médio ponderado,
+  preço de venda mantido; senão cria. `lote_itens.lancado_produto_id` evita relançar e trava excluir lote. Retorno agora jsonb
+  `{novos, somados}` (tela mostra os dois). Ensaio: 3 itens → 2 novos + 1 somado (estoque 4→5, custo 10,03, preço mantido); 2ª vez 0/0.
 - **Ajuste de estoque que só aumentava (21/11)**: a tela pedia "use − para tirar" e quem digitava 2 somava (e o "−" do celular não era
   entendido). Agora, em Produtos → Movimentar estoque, o **Ajuste** (aba padrão) pede o **estoque correto (contado)** e manda a diferença
   com sinal para `movimentar_estoque` (banco igual), com prévia "28 → 25 (tira 3)". Entrada/Perda/Devolução: quantidade positiva.
