@@ -48,6 +48,10 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Exclusão dos 5 produtos inativos (21/11, pedido e confirmado pelo usuário, exceção à regra "não apagar histórico")**: A100002,
+  A100027, A100058, A100064 (Eldorado, cadastros repetidos sem venda) e A100000 "TESTE PDV - apagar" (Monte Sinai) com as 2 vendas de
+  teste canceladas nº 10001 e 10002. Apagados direto no banco numa transação: 2 vendas (itens/pagamentos/lançamentos em cascata),
+  8 registros de etiqueta, 10 movimentos de estoque, 5 produtos. Conferido: 0 inativos, 73 produtos.
 - **Trocar de loja sem sair (21/11)**: quem tem mais de uma loja liberada (não-admin) agora tem o seletor "Loja atual" no menu e na
   frente de loja (`setLojaAtual` → `escolherEmpresa`, vale para a sessão; sem "Todas as lojas", que segue só do admin). A tela de
   escolha no login continua.
