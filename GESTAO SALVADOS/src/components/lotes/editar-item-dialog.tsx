@@ -11,11 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
 
 const txt = (v: number | null | undefined) => (v != null ? String(v) : "");
 
-export function EditarItemDialog({ item, lote, pallets, onClose, onSalvo }: {
-  item: Item; lote: Lote; pallets: Pallet[]; onClose: () => void; onSalvo: () => void;
+export function EditarItemDialog({ item, lote, pallets, itens = [], onClose, onSalvo }: {
+  item: Item; lote: Lote; pallets: Pallet[]; itens?: Item[]; onClose: () => void; onSalvo: () => void;
 }) {
   const [titulo, setTitulo] = useState(item.titulo);
   const [precoML, setPrecoML] = useState(txt(item.preco_ml));
@@ -34,6 +35,7 @@ export function EditarItemDialog({ item, lote, pallets, onClose, onSalvo }: {
   const base = item.valor_planilha ?? pML ?? pVenda; // mesma base do custo % do lote
   const percAtual = pCusto != null && base ? Math.round((pCusto / base) * 1000) / 10 : null;
   const m = margem(pVenda, pCusto);
+  const achado = acharDuplicado(itens, { titulo, codigo_barras: ean }, (x) => x.id === item.id);
 
   function aplicarPerc(v: string) {
     setPerc(v);
@@ -43,6 +45,7 @@ export function EditarItemDialog({ item, lote, pallets, onClose, onSalvo }: {
 
   async function salvar() {
     if (!titulo.trim()) return toast.error("Informe o título.");
+    if (achado) return toast.error(`Já existe no lote (${achado.item.sku}) com ${TEXTO_MOTIVO[achado.motivo]}. Mude o nome ou o código de barras.`);
     const q = Math.max(1, Math.round(lerNumero(quantidade) ?? 1));
     setSalvando(true);
     const { error } = await supabase.from("lote_itens").update({
@@ -78,6 +81,11 @@ export function EditarItemDialog({ item, lote, pallets, onClose, onSalvo }: {
             </div>
           </div>
 
+          {achado && (
+            <div className="rounded-md border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
+              ⛔ Já existe no lote com {TEXTO_MOTIVO[achado.motivo]}: {achado.item.sku} · {achado.item.titulo}. Mude o nome ou o código de barras.
+            </div>
+          )}
           <div className="rounded-lg border p-3 space-y-2">
             <div className="text-xs font-semibold uppercase text-muted-foreground">Custo</div>
             <div className="grid grid-cols-3 gap-2">
@@ -125,7 +133,7 @@ export function EditarItemDialog({ item, lote, pallets, onClose, onSalvo }: {
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={salvar} disabled={salvando}>{salvando ? <Loader2 className="animate-spin" /> : <Save />} Salvar</Button>
+            <Button onClick={salvar} disabled={salvando || !!achado}>{salvando ? <Loader2 className="animate-spin" /> : <Save />} Salvar</Button>
           </div>
         </div>
       </DialogContent>

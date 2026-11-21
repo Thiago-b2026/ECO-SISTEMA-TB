@@ -48,6 +48,13 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Trava de produto duplicado (21/11)**: `src/lib/duplicados.ts` (`acharDuplicado`: código de barras igual > nome igual,
+  ignorando maiúsculas/acentos/pontuação/espaços). Inserir produto do lote: duplicado no lote BLOQUEIA o "Inserir" e oferece
+  "Somar N un. no existente" (ou mudar o nome/código); mesmo anúncio do ML com nome diferente = só aviso (variação); já existe no
+  estoque da loja = só aviso. Produto avulso: duplicado na loja bloqueia "Cadastrar" e oferece "Dar entrada no existente"
+  (`movimentar_estoque` entrada). Editar produto do lote: não deixa renomear para nome/código de outro item. Só na tela (sem
+  restrição no banco; produtos antigos duplicados continuam). Pendente: "Lançar no estoque" ainda cria produto novo por item do
+  lote mesmo se já existir igual no estoque da loja.
 - **Ajuste de estoque que só aumentava (21/11)**: a tela pedia "use − para tirar" e quem digitava 2 somava (e o "−" do celular não era
   entendido). Agora, em Produtos → Movimentar estoque, o **Ajuste** (aba padrão) pede o **estoque correto (contado)** e manda a diferença
   com sinal para `movimentar_estoque` (banco igual), com prévia "28 → 25 (tira 3)". Entrada/Perda/Devolução: quantidade positiva.

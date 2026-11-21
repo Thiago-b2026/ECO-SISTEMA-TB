@@ -8,6 +8,7 @@ import { useLoja } from "@/lib/loja";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { fmtBRL, fmtDate } from "@/lib/format";
 import { lerNumero } from "@/lib/precificacao";
+import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -426,8 +427,32 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
   const [ean, setEan] = useState("");
   const [custo, setCusto] = useState("");
   const [salvando, setSalvando] = useState(false);
+  // Trava de duplicado: produtos ativos desta loja
+  const [existentes, setExistentes] = useState<{ id: string; sku: string; titulo: string; codigo_barras: string | null; estoque_atual: number }[]>([]);
+  useEffect(() => {
+    if (!lojaId) return;
+    fetchAllRows<{ id: string; sku: string; titulo: string; codigo_barras: string | null; estoque_atual: number }>(() =>
+      supabase.from("produtos").select("id, sku, titulo, codigo_barras, estoque_atual").eq("loja_id", lojaId).eq("ativo", true).order("id"),
+    ).then(setExistentes).catch(() => setExistentes([]));
+  }, [lojaId]);
+  const achado = titulo.trim() || ean ? acharDuplicado(existentes, { titulo, codigo_barras: ean }) : null;
+
+  async function entradaNoExistente() {
+    if (!achado) return;
+    const q = lerNumero(qtd) ?? 0;
+    if (!(q > 0)) return toast.error("Informe a quantidade para dar entrada.");
+    setSalvando(true);
+    const { data, error } = await supabase.rpc("movimentar_estoque", { _produto_id: achado.item.id, _tipo: "entrada", _quantidade: q, _motivo: "Entrada no produto já cadastrado (evitado duplicado)" });
+    setSalvando(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Entrada feita em ${achado.item.sku}. Estoque agora: ${data}`);
+    onFeito();
+    onClose();
+  }
+
   async function salvar() {
     if (!lojaId) return toast.error("Escolha uma loja no menu.");
+    if (achado) return toast.error(`Produto já cadastrado (${achado.item.sku}). Dê entrada no existente ou mude o nome.`);
     setSalvando(true);
     const { error } = await supabase.rpc("criar_produto", {
       _loja_id: lojaId, _titulo: titulo, _preco: lerNumero(preco), _quantidade: lerNumero(qtd) ?? 0,
@@ -453,6 +478,16 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
             <div><Label>Quantidade</Label><Input value={qtd} onChange={(e) => setQtd(e.target.value)} /></div>
             <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="opcional" /></div>
           </div>
+          {achado && (
+            <div className="space-y-2 rounded-md border border-destructive bg-destructive/10 p-2 text-sm">
+              <div className="font-semibold text-destructive">⛔ Produto já cadastrado nesta loja ({TEXTO_MOTIVO[achado.motivo]})</div>
+              <div className="text-xs">{achado.item.sku} · {achado.item.titulo} · estoque {Number(achado.item.estoque_atual)}</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" onClick={entradaNoExistente} disabled={salvando}>Dar entrada de {lerNumero(qtd) ?? 0} no existente</Button>
+                <span className="text-xs text-muted-foreground">{achado.motivo === "nome" ? "ou mude o nome, se for outro produto." : "ou confira o código de barras."}</span>
+              </div>
+            </div>
+          )}
           <div>
             <Label>Código de barras (opcional)</Label>
             <div className="flex gap-2">
@@ -460,7 +495,7 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
               <BotaoCamera rotulo="Câmera" onLido={(c) => setEan(c.replace(/\D/g, ""))} />
             </div>
           </div>
-          <Button onClick={salvar} disabled={salvando} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Cadastrar"}</Button>
+          <Button onClick={salvar} disabled={salvando || !!achado} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Cadastrar"}</Button>
         </div>
       </DialogContent>
     </Dialog>

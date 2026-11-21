@@ -16,6 +16,8 @@ import { candidatoDaCaptura, capturarPeloNavegador, extensaoInstalada, ouvirCapt
 import { CapturasRecentes, InstalarExtensao } from "@/components/lotes/captura-ml";
 import { carregarModelos, imprimirEtiquetasNaPagina, type DadosEtiqueta } from "@/lib/etiquetas";
 import { useLoja } from "@/lib/loja";
+import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
+import { fetchAllRows } from "@/lib/fetch-all";
 
 type Aba = TipoBusca | "manual";
 const ABAS: { id: Aba; label: string; placeholder: string }[] = [
@@ -52,6 +54,15 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   const [precoVenda, setPrecoVenda] = useState("");
   /** % de custo deste produto (começa no % do lote) e custo digitado à mão (null = calculado pelo %). */
   const [percCusto, setPercCusto] = useState(String(lote.perc_custo));
+  /** Produtos do estoque da loja do lote (para avisar que já existe). */
+  const [estoqueLoja, setEstoqueLoja] = useState<{ id: string; sku: string; titulo: string; codigo_barras: string | null; estoque_atual: number }[]>([]);
+  const mostrarEstoque = estoqueLoja.length > 0;
+  useEffect(() => {
+    if (!open) return;
+    fetchAllRows<{ id: string; sku: string; titulo: string; codigo_barras: string | null; estoque_atual: number }>(() =>
+      supabase.from("produtos").select("id, sku, titulo, codigo_barras, estoque_atual").eq("loja_id", lote.loja_id).eq("ativo", true).order("id"),
+    ).then(setEstoqueLoja).catch(() => setEstoqueLoja([]));
+  }, [open, lote.loja_id]);
   const [custoManual, setCustoManual] = useState<string | null>(null);
   const [quantidade, setQuantidade] = useState(1);
   const [grade, setGrade] = useState("A");
@@ -166,10 +177,17 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   // Custo: digitado à mão > % (do lote ou o deste produto) sobre o preço ML > recálculo pelo valor pago no fim
   const custoAuto = lote.rateio === "percentual" || percMudou ? custoPercentual(pML ?? pVenda, percNum) : null;
   const custo = custoManual != null ? lerNumero(custoManual) : custoAuto;
-  const duplicado = escolhido ? itens.find((i) => (i.ml_id && i.ml_id === escolhido.id) || (ean && i.codigo_barras === ean)) : null;
+  // Trava de duplicado no lote: mesmo código de barras ou mesmo nome → não insere como novo (soma no existente ou muda o nome)
+  const achado = titulo.trim() || ean ? acharDuplicado(itens, { titulo, codigo_barras: ean }) : null;
+  const duplicado = achado?.item ?? null;
+  // Mesmo anúncio do ML com nome diferente: pode ser variação (cor/tamanho) → só avisa
+  const mesmoAnuncio = !duplicado && escolhido ? itens.find((i) => i.ml_id && i.ml_id === escolhido.id) ?? null : null;
+  // Já existe no estoque da loja (produto lançado antes): só avisa
+  const noEstoque = mostrarEstoque && (titulo.trim() || ean) ? acharDuplicado(estoqueLoja, { titulo, codigo_barras: ean }) : null;
 
   async function inserir(somarNoExistente = false) {
     if (!titulo.trim()) return toast.error("Informe o título do produto.");
+    if (duplicado && !somarNoExistente) return toast.error(`Produto já cadastrado neste lote (${duplicado.sku}). Some no existente ou mude o nome.`);
     if (!(quantidade >= 1)) return toast.error("Quantidade deve ser 1 ou mais.");
     setSalvando(true);
     if (somarNoExistente && duplicado) {
@@ -319,12 +337,28 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
                 </div>
               </div>
             )}
-            {duplicado && (
-              <div className="rounded-md bg-warning/15 p-2 text-sm">
-                Este produto já está no lote ({duplicado.sku}, {duplicado.quantidade} un.).{" "}
-                <Button type="button" size="sm" variant="outline" onClick={() => inserir(true)} disabled={salvando}>
-                  Somar {quantidade} un. no existente
-                </Button>
+            {duplicado && achado && (
+              <div className="space-y-2 rounded-md border border-destructive bg-destructive/10 p-2 text-sm">
+                <div className="font-semibold text-destructive">⛔ Produto já cadastrado neste lote ({TEXTO_MOTIVO[achado.motivo]})</div>
+                <div className="text-xs">{duplicado.sku} · {duplicado.titulo} · {duplicado.quantidade} un.</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" onClick={() => inserir(true)} disabled={salvando}>
+                    Somar {quantidade} un. no existente
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {achado.motivo === "nome" ? "ou mude o nome abaixo, se for outro produto (outra cor, voltagem, tamanho…)." : "ou confira o código de barras, se for outro produto."}
+                  </span>
+                </div>
+              </div>
+            )}
+            {mesmoAnuncio && (
+              <div className="rounded-md bg-warning/15 p-2 text-xs">
+                Este anúncio do ML já está no lote como <b>{mesmoAnuncio.titulo}</b> ({mesmoAnuncio.sku}). Se for outra variação, deixe o nome diferente.
+              </div>
+            )}
+            {noEstoque && !duplicado && (
+              <div className="rounded-md bg-muted p-2 text-xs">
+                Já existe no estoque da loja: <b>{noEstoque.item.titulo}</b> ({noEstoque.item.sku}, estoque {Number(noEstoque.item.estoque_atual)}) — {TEXTO_MOTIVO[noEstoque.motivo]}.
               </div>
             )}
             <div>
@@ -400,7 +434,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
             </label>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
-              <Button type="button" onClick={() => inserir(false)} disabled={salvando}>
+              <Button type="button" onClick={() => inserir(false)} disabled={salvando || !!duplicado} title={duplicado ? "Já cadastrado: some no existente ou mude o nome" : undefined}>
                 {salvando ? <Loader2 className="animate-spin" /> : "Inserir e continuar"}
               </Button>
             </div>

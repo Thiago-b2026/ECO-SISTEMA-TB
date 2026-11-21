@@ -431,7 +431,7 @@ function DetalheLote() {
       </Card>
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
-      {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
+      {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} itens={itens} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
       <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? []} loja={nomeLoja} />
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
