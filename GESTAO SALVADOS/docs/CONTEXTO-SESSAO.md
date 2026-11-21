@@ -48,6 +48,13 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Produto avulso: duplicado parecido, grade e Editar produto (21/11)** — migration **`20261121000032_avulso_trava_grade.sql`
+  (APLICADA, ensaiada)**. O que passou (ELMORANE): "CHALEIRA ELETRICA ZENTRA" × "…1,8L" × "…1,8LT" e "BLUSA FEMININA" × "…BASICA SEM
+  MANGA" (nomes parecidos, não iguais). Agora: `normalizar_nome` (banco e `duplicados.ts`) iguala unidades ("1,8LT" = "1,8 L" =
+  "1,8 litros"); `criar_produto` (novo parâmetro `_grade`) recusa igual (nome/código) entre ativos da loja; tela do avulso lista
+  PARECIDOS (`nomesParecidos`: um contém o outro com 2+ palavras, ou 80% das palavras) com "Dar entrada neste" e só cadastra com
+  "É outro produto" marcado; campo Grade. Cadastro de produtos: botão Editar (nome, código, grade, preço com permissão
+  "alterar preço", custo com "ver custo"); gatilho `trg_trava_produto_duplicado` recusa renomear/reativar para igual a outro ativo.
 - **Venda retroativa + trava de duplicado no banco + aviso de versão (21/11)** — migration
   **`20261121000031_trava_duplicado_venda_retroativa.sql` (APLICADA, ensaiada com rollback)**:
   - Duplicado que passou (ELMORANE, NOVO TESTE P3658 às 18:23) veio de aba aberta antes da trava (publicada 15:57). Agora o gatilho

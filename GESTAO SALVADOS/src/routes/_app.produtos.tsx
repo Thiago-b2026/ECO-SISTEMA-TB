@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { History, Loader2, PackagePlus, Printer, Search, SlidersHorizontal } from "lucide-react";
+import { History, Loader2, PackagePlus, Pencil, Printer, Search, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
@@ -8,7 +8,7 @@ import { useLoja } from "@/lib/loja";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { fmtBRL, fmtDate } from "@/lib/format";
 import { lerNumero } from "@/lib/precificacao";
-import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
+import { acharDuplicado, acharParecidos, TEXTO_MOTIVO } from "@/lib/duplicados";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,6 +125,7 @@ function CadastroProdutos() {
   const [historico, setHistorico] = useState<{ p: Produto; movs: Movimento[] } | null>(null);
   const [novo, setNovo] = useState(false);
   const [fiscal, setFiscal] = useState<Produto | null>(null);
+  const [editando, setEditando] = useState<Produto | null>(null);
   const gestor = role === "admin" || role === "gerente";
   // excluir produto: admin, ou gerente com a área Produtos → Excluir (o banco confere de novo)
   const podeExcluir = role === "admin" || (role === "gerente" && pode("produtos", "excluir"));
@@ -271,6 +272,7 @@ function CadastroProdutos() {
                     {verCusto && <td className="py-2 pr-2 text-right whitespace-nowrap text-muted-foreground">{p.custo_unit != null ? fmtBRL(Number(p.custo_unit)) : "—"}</td>}
                     <td className="py-2 whitespace-nowrap">
                       <Button size="icon" variant="ghost" title="Histórico" onClick={() => verHistorico(p)}><History /></Button>
+                      {podeEstoque && <Button size="icon" variant="ghost" title="Editar produto (nome, código, grade, preço, custo)" onClick={() => setEditando(p)}><Pencil /></Button>}
                       {ajustar && <Button size="icon" variant="ghost" title="Movimentar estoque" onClick={() => setMov(p)}><SlidersHorizontal /></Button>}
                       {podeEstoque && <Button size="icon" variant="ghost" title={p.ncm ? `NCM ${p.ncm}` : "Dados fiscais (sem NCM)"} onClick={() => setFiscal(p)}><FileText className={p.ncm ? "" : "text-warning"} /></Button>}
                       {gestor && (p.ativo
@@ -307,6 +309,16 @@ function CadastroProdutos() {
       <EtiquetasDialog open={etiquetas} onOpenChange={setEtiquetas} itens={paraEtiqueta}
         onImpresso={(ids) => setExcluiveis((s) => { const n = new Set(s); ids.forEach((id) => n.delete(id)); return n; })} loja={filtroLoja ? nomeLoja(filtroLoja) : undefined} />
       {fiscal && <FiscalDialog produto={fiscal} podeEmMassa={gestor} onClose={() => setFiscal(null)} onFeito={carregar} />}
+      {editando && (
+        <EditarProdutoDialog
+          produto={editando}
+          outros={(produtos ?? []).filter((x) => x.loja_id === editando.loja_id && x.ativo)}
+          podePreco={role === "admin" || podeAcao("produtos.alterar_preco")}
+          verCusto={verCusto}
+          onClose={() => setEditando(null)}
+          onFeito={carregar}
+        />
+      )}
       {mov && <MovimentarDialog produto={mov} onClose={() => setMov(null)} onFeito={carregar} />}
       {novo && filtroLoja !== undefined && <NovoProdutoDialog lojaId={filtroLoja ?? lojas[0]?.id} onClose={() => setNovo(false)} onFeito={carregar} />}
       <Dialog open={!!historico} onOpenChange={(v) => !v && setHistorico(null)}>
@@ -426,6 +438,9 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
   const [qtd, setQtd] = useState("1");
   const [ean, setEan] = useState("");
   const [custo, setCusto] = useState("");
+  const [grade, setGrade] = useState("A");
+  /** Nome parecido com outro produto: só cadastra se a pessoa confirmar que é outro produto. */
+  const [confirmoOutro, setConfirmoOutro] = useState(false);
   const [salvando, setSalvando] = useState(false);
   // Trava de duplicado: produtos ativos desta loja
   const [existentes, setExistentes] = useState<{ id: string; sku: string; titulo: string; codigo_barras: string | null; estoque_atual: number }[]>([]);
@@ -436,16 +451,19 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
     ).then(setExistentes).catch(() => setExistentes([]));
   }, [lojaId]);
   const achado = titulo.trim() || ean ? acharDuplicado(existentes, { titulo, codigo_barras: ean }) : null;
+  const parecidos = !achado ? acharParecidos(existentes, { titulo }) : [];
+  useEffect(() => setConfirmoOutro(false), [titulo]);
 
-  async function entradaNoExistente() {
-    if (!achado) return;
+  async function entradaNoExistente(alvo?: { id: string; sku: string }) {
+    const item = alvo ?? achado?.item;
+    if (!item) return;
     const q = lerNumero(qtd) ?? 0;
     if (!(q > 0)) return toast.error("Informe a quantidade para dar entrada.");
     setSalvando(true);
-    const { data, error } = await supabase.rpc("movimentar_estoque", { _produto_id: achado.item.id, _tipo: "entrada", _quantidade: q, _motivo: "Entrada no produto já cadastrado (evitado duplicado)" });
+    const { data, error } = await supabase.rpc("movimentar_estoque", { _produto_id: item.id, _tipo: "entrada", _quantidade: q, _motivo: "Entrada no produto já cadastrado (evitado duplicado)" });
     setSalvando(false);
     if (error) return toast.error(error.message);
-    toast.success(`Entrada feita em ${achado.item.sku}. Estoque agora: ${data}`);
+    toast.success(`Entrada feita em ${item.sku}. Estoque agora: ${data}`);
     onFeito();
     onClose();
   }
@@ -453,10 +471,11 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
   async function salvar() {
     if (!lojaId) return toast.error("Escolha uma loja no menu.");
     if (achado) return toast.error(`Produto já cadastrado (${achado.item.sku}). Dê entrada no existente ou mude o nome.`);
+    if (parecidos.length && !confirmoOutro) return toast.error("Existe produto parecido. Dê entrada nele ou marque \"É outro produto\".");
     setSalvando(true);
     const { error } = await supabase.rpc("criar_produto", {
       _loja_id: lojaId, _titulo: titulo, _preco: lerNumero(preco), _quantidade: lerNumero(qtd) ?? 0,
-      _codigo_barras: ean || null, _categoria: null, _custo: custo ? lerNumero(custo) : null,
+      _codigo_barras: ean || null, _categoria: null, _custo: custo ? lerNumero(custo) : null, _grade: grade,
     });
     setSalvando(false);
     if (error) return toast.error(error.message);
@@ -473,17 +492,40 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
         </DialogHeader>
         <div className="space-y-3">
           <div><Label>Nome</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} /></div>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div><Label>Preço (R$)</Label><Input value={preco} onChange={(e) => setPreco(e.target.value)} /></div>
             <div><Label>Quantidade</Label><Input value={qtd} onChange={(e) => setQtd(e.target.value)} /></div>
             <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => setCusto(e.target.value)} placeholder="opcional" /></div>
+            <div>
+              <Label>Grade</Label>
+              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                {["A", "B", "C", "D"].map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
           </div>
+          {parecidos.length > 0 && (
+            <div className="space-y-2 rounded-md border border-warning bg-warning/15 p-2 text-sm">
+              <div className="font-semibold">⚠️ Já existe produto parecido nesta loja. Não é o mesmo?</div>
+              <ul className="space-y-1">
+                {parecidos.map((x) => (
+                  <li key={x.id} className="flex items-center justify-between gap-2 text-xs">
+                    <span><b>{x.titulo}</b> · {x.sku} · estoque {Number(x.estoque_atual)}</span>
+                    <Button type="button" size="sm" variant="outline" className="h-7" onClick={() => entradaNoExistente(x)} disabled={salvando}>Dar entrada neste</Button>
+                  </li>
+                ))}
+              </ul>
+              <label className="flex items-center gap-2 text-xs font-medium">
+                <input type="checkbox" checked={confirmoOutro} onChange={(e) => setConfirmoOutro(e.target.checked)} className="size-4 accent-primary" />
+                É outro produto (outra cor, tamanho, modelo…), cadastrar mesmo assim
+              </label>
+            </div>
+          )}
           {achado && (
             <div className="space-y-2 rounded-md border border-destructive bg-destructive/10 p-2 text-sm">
               <div className="font-semibold text-destructive">⛔ Produto já cadastrado nesta loja ({TEXTO_MOTIVO[achado.motivo]})</div>
               <div className="text-xs">{achado.item.sku} · {achado.item.titulo} · estoque {Number(achado.item.estoque_atual)}</div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button type="button" size="sm" onClick={entradaNoExistente} disabled={salvando}>Dar entrada de {lerNumero(qtd) ?? 0} no existente</Button>
+                <Button type="button" size="sm" onClick={() => entradaNoExistente()} disabled={salvando}>Dar entrada de {lerNumero(qtd) ?? 0} no existente</Button>
                 <span className="text-xs text-muted-foreground">{achado.motivo === "nome" ? "ou mude o nome, se for outro produto." : "ou confira o código de barras."}</span>
               </div>
             </div>
@@ -495,7 +537,91 @@ function NovoProdutoDialog({ lojaId, onClose, onFeito }: { lojaId?: string; onCl
               <BotaoCamera rotulo="Câmera" onLido={(c) => setEan(c.replace(/\D/g, ""))} />
             </div>
           </div>
-          <Button onClick={salvar} disabled={salvando || !!achado} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Cadastrar"}</Button>
+          <Button onClick={salvar} disabled={salvando || !!achado || (parecidos.length > 0 && !confirmoOutro)} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Cadastrar"}</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Editar produto do cadastro: nome, código de barras, grade, preço (com permissão) e custo. Estoque só por "Movimentar estoque". */
+function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, onFeito }: {
+  produto: Produto; outros: Produto[]; podePreco: boolean; verCusto: boolean; onClose: () => void; onFeito: () => void;
+}) {
+  const [titulo, setTitulo] = useState(produto.titulo);
+  const [ean, setEan] = useState(produto.codigo_barras ?? "");
+  const [grade, setGrade] = useState(produto.grade || "A");
+  const [preco, setPreco] = useState(String(Number(produto.preco_venda)));
+  const [custo, setCusto] = useState(produto.custo_unit != null ? String(Number(produto.custo_unit)) : "");
+  const [salvando, setSalvando] = useState(false);
+  const achado = acharDuplicado(outros, { titulo, codigo_barras: ean }, (x) => x.id === produto.id);
+  const parecidos = !achado && titulo.trim() !== produto.titulo ? acharParecidos(outros, { titulo }, (x) => x.id === produto.id) : [];
+
+  async function salvar() {
+    if (!titulo.trim()) return toast.error("Informe o nome.");
+    if (achado) return toast.error(`Já existe outro produto com ${TEXTO_MOTIVO[achado.motivo]} (${achado.item.sku}).`);
+    const p = lerNumero(preco);
+    if (p == null || p < 0) return toast.error("Preço inválido.");
+    const patch: Record<string, unknown> = {
+      titulo: titulo.trim(),
+      codigo_barras: ean.replace(/\D/g, "") || null,
+      grade,
+    };
+    if (podePreco && p !== Number(produto.preco_venda)) patch.preco_venda = p;
+    if (verCusto) patch.custo_unit = custo.trim() ? lerNumero(custo) : null;
+    setSalvando(true);
+    const { error } = await supabase.from("produtos").update(patch).eq("id", produto.id);
+    setSalvando(false);
+    if (error) return toast.error("Não foi possível salvar: " + error.message);
+    toast.success("Produto atualizado.");
+    onFeito();
+    onClose();
+  }
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar produto</DialogTitle>
+          <DialogDescription>{produto.sku} · estoque {Number(produto.estoque_atual)} (estoque se corrige em "Movimentar estoque")</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div><Label>Nome</Label><Input value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus /></div>
+          {achado && (
+            <div className="rounded-md border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
+              ⛔ Já existe outro produto com {TEXTO_MOTIVO[achado.motivo]}: {achado.item.sku} · {achado.item.titulo}.
+            </div>
+          )}
+          {parecidos.length > 0 && (
+            <div className="rounded-md bg-warning/15 p-2 text-xs">
+              ⚠️ Parecido com: {parecidos.map((x) => `${x.titulo} (${x.sku})`).join(" · ")}. Confira se não é o mesmo produto.
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>Código de barras</Label>
+              <div className="flex gap-1">
+                <Input value={ean} onChange={(e) => setEan(e.target.value.replace(/\D/g, ""))} inputMode="numeric" />
+                <BotaoCamera rotulo="" onLido={(c) => setEan(c.replace(/\D/g, ""))} />
+              </div>
+            </div>
+            <div>
+              <Label>Grade</Label>
+              <select value={grade} onChange={(e) => setGrade(e.target.value)} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+                {Array.from(new Set(["A", "B", "C", "D", produto.grade || "A"])).map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Preço de venda (R$)</Label>
+              <Input value={preco} onChange={(e) => setPreco(e.target.value)} inputMode="decimal" disabled={!podePreco} title={podePreco ? undefined : "Sem permissão para alterar preço"} />
+            </div>
+            {verCusto && <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => setCusto(e.target.value)} inputMode="decimal" placeholder="opcional" /></div>}
+          </div>
+          {!podePreco && <p className="text-xs text-muted-foreground">Preço travado: seu usuário não tem a permissão "Alterar preço de venda".</p>}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button onClick={salvar} disabled={salvando || !!achado}>{salvando ? <Loader2 className="animate-spin" /> : "Salvar"}</Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
