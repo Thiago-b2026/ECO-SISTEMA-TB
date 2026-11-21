@@ -42,6 +42,12 @@
   `anuncio.js` (regex da origem), gerar o zip de novo e recarregar a extensão. Só computador (Chrome/Edge).
   Quando cai no jeito antigo, o aviso amarelo mostra o motivo ("extensão não detectada nesta aba: aperte F5" ou o erro da leitura).
   Aba do PDV aberta ANTES de instalar a extensão não a enxerga até o F5 (caso do print 21/11 01:26).
+- **Lote: etiqueta e compartilhar visíveis** (21/11): em cada produto, botões "Etiqueta" e "Compartilhar" logo abaixo do nome (antes o
+  compartilhar ficava na última coluna, escondido pela rolagem; etiqueta no lote não existia). "Imprimir todos/filtrados" no topo.
+  Usa o `EtiquetasDialog` e os modelos da tela Etiquetas (De = preço ML, Por = preço de venda, código de barras = SKU, 1 por unidade).
+  Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
+  imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
+  registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
 - **0028 só foi aplicada de fato em 21/11 ~01:30** (a conferência anterior com `head: true` deu "ok" falso); salvar layout de post voltou.
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),

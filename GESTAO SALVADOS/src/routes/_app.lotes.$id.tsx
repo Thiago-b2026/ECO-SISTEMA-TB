@@ -21,7 +21,10 @@ import { InserirProdutoDialog } from "@/components/lotes/inserir-produto-dialog"
 import { AvariaDialog, DesmembrarDialog } from "@/components/lotes/acoes-item";
 import { TransferirLoteDialog } from "@/components/lotes/transferir-lote-dialog";
 import { GraficosLote } from "@/components/lotes/graficos-lote";
-import { ArrowRightLeft, BarChart3, ImagePlus, Scissors, Share2, ShieldAlert } from "lucide-react";
+import { ArrowRightLeft, BarChart3, ImagePlus, Printer, Scissors, Share2, ShieldAlert } from "lucide-react";
+import { EtiquetasDialog } from "@/components/etiquetas-dialog";
+import { useLoja } from "@/lib/loja";
+import type { DadosEtiqueta } from "@/lib/etiquetas";
 import { CompartilharPostDialog, dadosDoItem, EditorPostDialog } from "@/components/lotes/editor-post-dialog";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +62,8 @@ function DetalheLote() {
   const [verGraficos, setVerGraficos] = useState(false);
   const [editorPost, setEditorPost] = useState(false);
   const [compartilhar, setCompartilhar] = useState<Item | null>(null);
+  const [etiquetas, setEtiquetas] = useState<DadosEtiqueta[] | null>(null);
+  const { lojas } = useLoja();
   // robô
   const [rodando, setRodando] = useState(false);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
@@ -110,6 +115,17 @@ function DetalheLote() {
   const custoTotal = itens.reduce((s, i) => s + (i.custo_unit ?? 0) * i.quantidade, 0);
   const lucro = venda - custoTotal;
   const palletNome = (pid: string | null) => pallets.find((p) => p.id === pid)?.codigo ?? "—";
+  const nomeLoja = lojas.find((l) => l.id === lote.loja_id)?.nome;
+  /** Item do lote → etiqueta "De (preço ML) / Por (preço de venda)". Sem preço de venda ou riscado: fica de fora. */
+  const etiquetaDe = (i: Item): DadosEtiqueta | null =>
+    i.preco_venda == null || !contaNoTotal(i) ? null
+      : { titulo: i.titulo, sku: i.sku, preco: i.preco_venda, precoDe: i.preco_ml, grade: i.grade, copias: Math.max(1, i.quantidade) };
+  function imprimirItens(lista: Item[]) {
+    const ets = lista.map(etiquetaDe).filter((x): x is DadosEtiqueta => x != null);
+    if (ets.length === 0) return toast.info("Nenhum produto com preço de venda para imprimir.");
+    if (ets.length < lista.length) toast.info(`${lista.length - ets.length} produto(s) sem preço de venda ou com ocorrência ficaram de fora.`);
+    setEtiquetas(ets);
+  }
 
   // ---------------------------------------------------------- ações de item
   async function atualizarItem(item: Item, patch: Partial<Item>) {
@@ -235,6 +251,7 @@ function DetalheLote() {
           >
             {Object.entries(STATUS_LOTE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          <Button variant="outline" onClick={() => imprimirItens(visiveis)} disabled={visiveis.length === 0}><Printer /> Imprimir {visiveis.length === itens.length ? "todos" : `${visiveis.length} filtrados`}</Button>
           <Button variant="outline" onClick={() => setEditorPost(true)}><ImagePlus /> Editor de post</Button>
           <Button variant="outline" onClick={lancarEstoque} disabled={rodando}><PackageCheck /> Lançar no estoque</Button>
           {lote.tipo === "manual" && (
@@ -383,6 +400,7 @@ function DetalheLote() {
                   onDesmembrar={() => setDesmembrar(i)}
                   onAvaria={() => setAvaria(i)}
                   onCompartilhar={() => setCompartilhar(i)}
+                  onImprimir={() => imprimirItens([i])}
                   onEscolher={(c) => escolherCandidato(i, c)}
                   palletNome={palletNome}
                 />
@@ -395,6 +413,7 @@ function DetalheLote() {
       </Card>
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
+      <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? []} loja={nomeLoja} />
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
       {avaria && <AvariaDialog item={avaria} onClose={() => setAvaria(null)} onFeito={() => recarregar(true)} />}
@@ -419,11 +438,12 @@ interface LinhaProps {
   onDesmembrar: () => void;
   onAvaria: () => void;
   onCompartilhar: () => void;
+  onImprimir: () => void;
   onEscolher: (c: Candidato) => void;
   palletNome: (id: string | null) => string;
 }
 
-function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar }: LinhaProps) {
+function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar, onImprimir }: LinhaProps) {
   const [venda, setVenda] = useState(i.preco_venda != null ? String(i.preco_venda) : "");
   useEffect(() => setVenda(i.preco_venda != null ? String(i.preco_venda) : ""), [i.preco_venda]);
   const m = margem(i.preco_venda, i.custo_unit);
@@ -442,6 +462,10 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
               {i.tipo_derivado && <span className="text-[11px] rounded bg-warning/20 px-1">{i.tipo_derivado === "desmembrado" ? "Desmembrado" : "Avaria parcial"}</span>}
               <div className="text-xs text-muted-foreground">
                 {i.sku}{i.codigo_barras ? ` · ${i.codigo_barras}` : ""}{i.marca ? ` · ${i.marca}` : ""}
+              </div>
+              <div className="mt-1 flex gap-1">
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" title="Imprimir etiqueta" onClick={onImprimir}><Printer className="size-3.5" /> Etiqueta</Button>
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs text-success" title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="size-3.5" /> Compartilhar</Button>
               </div>
             </div>
           </div>
@@ -500,7 +524,6 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
           )}
           {i.quantidade > 0 && i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Desmembrar (caixa/kit → unidades)" onClick={onDesmembrar}><Scissors /></Button>}
           {i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Avaria parcial (separar com preço menor)" onClick={onAvaria}><ShieldAlert /></Button>}
-          <Button size="icon" variant="ghost" title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="text-success" /></Button>
           <Button size="icon" variant="ghost" title="Excluir" onClick={onExcluir}><Trash2 className="text-destructive" /></Button>
         </td>
       </tr>

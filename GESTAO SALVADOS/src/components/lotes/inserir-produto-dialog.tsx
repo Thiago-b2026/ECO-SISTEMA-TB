@@ -14,6 +14,8 @@ import { BotaoCamera } from "@/components/leitor-camera";
 import { cn } from "@/lib/utils";
 import { candidatoDaCaptura, capturarPeloNavegador, extensaoInstalada, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
 import { CapturasRecentes, InstalarExtensao } from "@/components/lotes/captura-ml";
+import { carregarModelos, imprimirEtiquetasNaPagina, type DadosEtiqueta } from "@/lib/etiquetas";
+import { useLoja } from "@/lib/loja";
 
 type Aba = TipoBusca | "manual";
 const ABAS: { id: Aba; label: string; placeholder: string }[] = [
@@ -35,6 +37,7 @@ interface Props {
 }
 
 export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, itens, onInserido }: Props) {
+  const { lojas } = useLoja();
   const [aba, setAba] = useState<Aba>("ean");
   const [busca, setBusca] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -167,7 +170,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
       toast.success(`+${quantidade} un. em ${duplicado.sku}`);
     } else {
       const base: Partial<ReturnType<typeof camposDoCandidato>> = escolhido ? camposDoCandidato(escolhido, lote, cfg) : {};
-      const { error } = await supabase.from("lote_itens").insert(
+      const { data: inserido, error } = await supabase.from("lote_itens").insert(
         limpar({
           ...base,
           lote_id: lote.id,
@@ -184,11 +187,14 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
           pallet_id: palletId || null,
           candidatos: candidatos ?? null,
         }),
-      );
+      ).select("sku").single();
       setSalvando(false);
       if (error) return toast.error("Não foi possível inserir: " + error.message);
       toast.success(`${titulo.trim().slice(0, 40)} inserido (${quantidade} un.)`);
-      if (imprimir) toast.info("Impressão de etiqueta entra na próxima etapa.");
+      if (imprimir) {
+        if (pVenda == null) toast.warning("Etiqueta não impressa: o produto está sem preço de venda.");
+        else void imprimirAoSalvar({ titulo: titulo.trim(), sku: (inserido as { sku: string } | null)?.sku ?? "", preco: pVenda, precoDe: pML, grade, copias: quantidade });
+      }
     }
     if (capturaUsada.current) {
       removerCaptura(capturaUsada.current);
@@ -196,6 +202,15 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
     }
     onInserido();
     limparTudo();
+  }
+
+  /** Etiqueta do produto recém-inserido, no último modelo usado (o mesmo da tela de etiquetas). */
+  async function imprimirAoSalvar(et: DadosEtiqueta) {
+    const modelos = await carregarModelos();
+    let salvo: string | null = null;
+    try { salvo = localStorage.getItem("eco.modeloEtiqueta"); } catch { /* sem storage */ }
+    const m = modelos.find((x) => x.id === salvo) ?? modelos[0];
+    imprimirEtiquetasNaPagina([et], m, lojas.find((l) => l.id === lote.loja_id)?.nome);
   }
 
   const abaAtual = ABAS.find((a) => a.id === aba)!;

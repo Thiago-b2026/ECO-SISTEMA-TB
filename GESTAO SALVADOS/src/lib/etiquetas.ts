@@ -115,3 +115,23 @@ export function imprimirEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loj
   w.document.close();
   return true;
 }
+
+/**
+ * Imprime sem abrir janela (quadro escondido na própria página). Serve para imprimir depois de um "await"
+ * (ex.: ao salvar), quando o navegador já bloquearia uma janela nova.
+ */
+export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) {
+  const quadro = document.createElement("iframe");
+  quadro.setAttribute("aria-hidden", "true");
+  quadro.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(quadro);
+  const doc = quadro.contentDocument!;
+  doc.open();
+  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false }));
+  doc.close();
+  setTimeout(() => {
+    quadro.contentWindow?.focus();
+    quadro.contentWindow?.print();
+    setTimeout(() => quadro.remove(), 60_000);
+  }, 400);
+}
