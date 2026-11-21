@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Search, UserX } from "lucide-react";
+import { Loader2, Plus, Search, Trash2, UserX } from "lucide-react";
 import { chamarAdminUsuarios } from "@/components/gerenciar-acesso";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -37,6 +37,29 @@ function PaginaPessoas() {
   const [excluindo, setExcluindo] = useState<string | null>(null);
 
   /** Excluir usuário direto da lista: só se o login nunca teve nenhum movimento (regra da função admin-usuarios). */
+  /** Excluir o CADASTRO (cliente, fornecedor, funcionário): só sem login e sem nenhum movimento (função excluir_pessoa no banco). */
+  async function excluirCadastro(p: Pessoa) {
+    setExcluindo(p.id);
+    try {
+      const { data, error } = await supabase.rpc("motivos_excluir_pessoa", { _pessoa_id: p.id });
+      if (error) throw new Error(error.message.includes("motivos_excluir_pessoa") ? "A função de excluir cadastro ainda não foi criada no banco (migration 0029)." : error.message);
+      const motivos = (data as string[] | null) ?? [];
+      if (motivos.length) {
+        toast.error(`${p.nome}: não pode excluir, já tem histórico. Use Inativar. Motivo: ${motivos.join("; ")}.`, { duration: 9000 });
+        return;
+      }
+      if (!window.confirm(`Excluir o cadastro de ${p.nome}? Nunca teve movimento. Não dá para desfazer.`)) return;
+      const { error: e2 } = await supabase.rpc("excluir_pessoa", { _pessoa_id: p.id });
+      if (e2) throw new Error(e2.message);
+      toast.success(`Cadastro de ${p.nome} excluído.`);
+      await carregar();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setExcluindo(null);
+    }
+  }
+
   async function excluirUsuario(p: Pessoa) {
     if (!p.user_id) return;
     setExcluindo(p.id);
@@ -166,6 +189,12 @@ function PaginaPessoas() {
                         <Button size="sm" variant="ghost" className="mr-1 text-destructive" disabled={excluindo === p.id}
                           title="Excluir usuário (só quem nunca teve movimento)" onClick={() => excluirUsuario(p)}>
                           {excluindo === p.id ? <Loader2 className="animate-spin" /> : <UserX />} Excluir usuário
+                        </Button>
+                      )}
+                      {admin && !p.user_id && (
+                        <Button size="sm" variant="ghost" className="mr-1 text-destructive" disabled={excluindo === p.id}
+                          title="Excluir cadastro (só quem nunca teve movimento)" onClick={() => excluirCadastro(p)}>
+                          {excluindo === p.id ? <Loader2 className="animate-spin" /> : <Trash2 />} Excluir
                         </Button>
                       )}
                       <Button

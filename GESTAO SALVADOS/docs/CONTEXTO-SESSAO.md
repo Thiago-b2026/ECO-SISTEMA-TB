@@ -21,6 +21,10 @@
   ⚠️ **NUNCA `db push`**: o banco não tem o histórico de migrations e o dry-run quer reaplicar as 32.
 - **Pessoas → Excluir usuário direto na lista** (admin; em quem tem login, menos o próprio admin): consulta os motivos na função
   `admin-usuarios` e só exclui se nunca teve movimento (mesma regra da aba LOGIN E PERMISSÕES). O cadastro da pessoa continua.
+- **Pessoas → "Excluir" (cadastro) para quem NÃO tem login** (cliente, fornecedor, funcionário; só admin): funções
+  `motivos_excluir_pessoa()` e `excluir_pessoa()` (migration **`20261121000029_excluir_pessoa.sql` — AINDA NÃO APLICADA**).
+  Movimento = qualquer linha em qualquer tabela com FK para `public.pessoas` (lido do `pg_constraint`, entra tabela nova sozinha).
+  Quem tem login: primeiro "Excluir usuário", depois o cadastro.
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
   símbolo em `src/assets/logo-simbolo.png` (topo no celular) e `public/favicon.png`; título da aba "Salvados LP — Gestão".
