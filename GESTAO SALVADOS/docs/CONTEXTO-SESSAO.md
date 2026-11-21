@@ -48,6 +48,17 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Venda retroativa + trava de duplicado no banco + aviso de versão (21/11)** — migration
+  **`20261121000031_trava_duplicado_venda_retroativa.sql` (APLICADA, ensaiada com rollback)**:
+  - Duplicado que passou (ELMORANE, NOVO TESTE P3658 às 18:23) veio de aba aberta antes da trava (publicada 15:57). Agora o gatilho
+    `trg_trava_item_duplicado` recusa no banco item repetido no mesmo lote (código 8+ dígitos ou `normalizar_nome`) quando o insert vem
+    da tela (`current_user = 'authenticated'`); RPCs (desmembrar/avaria/transferir) e origem planilha passam. Duplicados antigos
+    (planilhas: LOTE MOGI NOV 13, TESTE - Lote ML 129 216) continuam.
+  - `src/lib/versao.ts`: a cada 5 min / ao voltar para a aba compara o `index-*.js` publicado; se mudou, aviso "Atualizar".
+  - Venda retroativa: ação especial `vendas.retroativa` (editor de permissões do PDV; RESTRITA: fora de "todas", sem linha = NÃO; admin
+    sempre). `lancar_venda_retroativa()` = validações da `finalizar_venda` + data/hora (até 30 dias, não futuro) + motivo; `caixa_id`
+    nulo; `vendas.retroativa/motivo_retroativa`; estoque baixa na hora; financeiro/relatórios pelo `data_venda`. Tela: Vendas →
+    "Lançar venda retroativa" (`venda-retroativa-dialog.tsx`); lista mostra etiqueta "Retroativa" (lançada em / motivo).
 - **Trava de produto duplicado (21/11)**: `src/lib/duplicados.ts` (`acharDuplicado`: código de barras igual > nome igual,
   ignorando maiúsculas/acentos/pontuação/espaços). Inserir produto do lote: duplicado no lote BLOQUEIA o "Inserir" e oferece
   "Somar N un. no existente" (ou mudar o nome/código); mesmo anúncio do ML com nome diferente = só aviso (variação); já existe no

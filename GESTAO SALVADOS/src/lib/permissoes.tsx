@@ -11,7 +11,7 @@ import { SISTEMAS, SISTEMA_ATUAL, TELAS_EDITAVEIS, podeVerTela, sistemasDoUsuari
 export type Modulo = "pessoas" | "produtos" | "lotes" | "vendas" | "caixa" | "financeiro" | "cadastros_financeiros" | "crm" | "relatorios";
 export type Acao = "ver" | "inserir" | "editar" | "excluir";
 export type ChaveAcao =
-  | "vendas.cancelar" | "vendas.desconto" | "caixa.sangria" | "caixa.suprimento"
+  | "vendas.cancelar" | "vendas.desconto" | "vendas.retroativa" | "caixa.sangria" | "caixa.suprimento"
   | "produtos.alterar_preco" | "produtos.ajustar_estoque" | "produtos.ver_custo" | "dados.exportar";
 
 export const MODULOS: { id: Modulo; nome: string; desc: string; grupo: string }[] = [
@@ -29,6 +29,7 @@ export const MODULOS: { id: Modulo; nome: string; desc: string; grupo: string }[
 export const ACOES_ESPECIAIS: { id: ChaveAcao; nome: string; desc: string; grupo: string; risco?: boolean }[] = [
   { id: "vendas.desconto", nome: "Dar desconto na venda", desc: "sem isso, o PDV não aceita desconto", grupo: "Vendas", risco: true },
   { id: "vendas.cancelar", nome: "Cancelar venda", desc: "estorna a venda e devolve o estoque", grupo: "Vendas", risco: true },
+  { id: "vendas.retroativa", nome: "Lançar venda retroativa", desc: "venda com data passada (até 30 dias), fora do caixa · desligada até você marcar", grupo: "Vendas", risco: true },
   { id: "caixa.sangria", nome: "Fazer sangria", desc: "retirar dinheiro do caixa", grupo: "Caixa", risco: true },
   { id: "caixa.suprimento", nome: "Fazer suprimento", desc: "colocar dinheiro (troco) no caixa", grupo: "Caixa" },
   { id: "produtos.alterar_preco", nome: "Alterar preço de venda", desc: "mudar o preço de um produto", grupo: "Estoque", risco: true },
@@ -44,8 +45,10 @@ export type MapaAcoes = Record<ChaveAcao, boolean>;
 const linha = (m: Modulo, v: string) => ({ modulo: m, ver: v.includes("V"), inserir: v.includes("I"), editar: v.includes("E"), excluir: v.includes("X") });
 const mapa = (padrao: string, exc: Partial<Record<Modulo, string>> = {}) =>
   Object.fromEntries(MODULOS.map((m) => [m.id, linha(m.id, exc[m.id] ?? padrao)])) as MapaModulos;
+/** Ações que só valem se o admin marcar uma a uma: ficam fora de "todas" e, sem registro, são NÃO. */
+export const ACOES_RESTRITAS: ChaveAcao[] = ["vendas.retroativa"];
 const acoes = (on: ChaveAcao[] | "todas") =>
-  Object.fromEntries(ACOES_ESPECIAIS.map((a) => [a.id, on === "todas" || on.includes(a.id)])) as MapaAcoes;
+  Object.fromEntries(ACOES_ESPECIAIS.map((a) => [a.id, on === "todas" ? !ACOES_RESTRITAS.includes(a.id) : on.includes(a.id)])) as MapaAcoes;
 
 const telas = (on: string[] | "pdv" | "todas") =>
   Object.fromEntries(TELAS_EDITAVEIS.map((t) => [t.codigo, on === "todas" || (on === "pdv" ? t.sistema === "pdv" : on.includes(t.codigo))])) as MapaTelas;
@@ -138,7 +141,7 @@ export function PermissoesProvider({ children }: { children: ReactNode }) {
     const l = linhas.find((x) => x.modulo === m);
     return l ? l[a] : true;
   };
-  const podeAcao = (c: ChaveAcao) => role === "admin" || (flags.find((f) => f.chave === c)?.permitido ?? true);
+  const podeAcao = (c: ChaveAcao) => role === "admin" || (flags.find((f) => f.chave === c)?.permitido ?? !ACOES_RESTRITAS.includes(c));
   const efetivas = useMemo(
     () => (modoLegado ? telasLegado(role, (m) => pode(m, "ver")) : liberadas ?? new Set<string>()),
     [modoLegado, liberadas, role, linhas],

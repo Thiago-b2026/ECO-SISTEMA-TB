@@ -5,6 +5,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import "./styles.css";
+import { vigiarVersaoNova } from "@/lib/versao";
+
+// avisa quando sair versão nova (sem isso, a aba aberta continua com o código antigo)
+vigiarVersaoNova();
 
 const queryClient = new QueryClient();
 

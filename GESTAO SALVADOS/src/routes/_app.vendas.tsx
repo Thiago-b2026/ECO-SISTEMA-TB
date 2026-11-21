@@ -18,7 +18,8 @@ import { imprimirComprovanteDaVenda } from "@/lib/comprovante";
 import { Exportar } from "@/components/exportar";
 import { usePermissoes } from "@/lib/permissoes";
 
-import { Printer } from "lucide-react";
+import { History, Printer } from "lucide-react";
+import { VendaRetroativaDialog } from "@/components/venda-retroativa-dialog";
 
 export const Route = createFileRoute("/_app/vendas")({ component: PaginaVendas });
 
@@ -35,6 +36,9 @@ interface Venda {
   data_suspeita: boolean;
   motivo_data_suspeita: string | null;
   motivo_cancelamento: string | null;
+  retroativa?: boolean;
+  motivo_retroativa?: string | null;
+  created_at?: string;
   venda_pagamentos: { forma: string; valor: number; troco: number }[];
 }
 interface ItemVenda {
@@ -59,6 +63,8 @@ function PaginaVendas() {
   const [aberta, setAberta] = useState<string | null>(null);
   const [aba, setAba] = useState<"vendas" | "avulsas" | "nfe" | "nfce">("vendas");
   const [itens, setItens] = useState<Record<string, ItemVenda[]>>({});
+  const [retroativa, setRetroativa] = useState(false);
+  const podeRetroativa = role === "admin" || podeAcao("vendas.retroativa");
 
   async function carregar() {
     setVendas(null);
@@ -105,9 +111,12 @@ function PaginaVendas() {
 
   return (
     <div className="p-4 lg:p-6 space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Vendas e notas</h1>
-        <p className="text-sm text-muted-foreground">{finalizadas.length} vendas · {fmtBRL(total)} · ticket {finalizadas.length ? fmtBRL(total / finalizadas.length) : "—"}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-bold">Vendas e notas</h1>
+          <p className="text-sm text-muted-foreground">{finalizadas.length} vendas · {fmtBRL(total)} · ticket {finalizadas.length ? fmtBRL(total / finalizadas.length) : "—"}</p>
+        </div>
+        {podeRetroativa && <Button variant="outline" onClick={() => setRetroativa(true)}><History /> Lançar venda retroativa</Button>}
       </div>
       <div className="flex flex-wrap gap-2 border-b pb-2">
         {([["vendas", "Vendas (cupom não fiscal)"], ["avulsas", "Notas avulsas"], ["nfe", "Notas fiscais (NF-e)"], ["nfce", "Cupons fiscais (NFC-e)"]] as const).map(([k, l]) => (
@@ -128,8 +137,8 @@ function PaginaVendas() {
         <label className="flex items-center gap-2 text-sm ml-2"><input type="checkbox" checked={soSuspeitas} onChange={(e) => setSoSuspeitas(e.target.checked)} className="size-4 accent-primary" /> Só data suspeita</label>
         <div className="ml-auto">
           <Exportar titulo="Vendas" subtitulo={`${filtroLoja ? nomeLoja(filtroLoja) : "Todas as lojas"} · ${de} a ${ate}`}
-            colunas={[{ titulo: "Nº", numero: true }, { titulo: "Data" }, { titulo: "Loja" }, { titulo: "Vendedor" }, { titulo: "Pagamento" }, { titulo: "Total (R$)", numero: true }, { titulo: "Situação" }, { titulo: "Origem" }, { titulo: "Data suspeita" }]}
-            linhas={() => (vendas ?? []).map((v) => [v.numero, fmtDate(v.data_venda), nomeLoja(v.loja_id), v.vendedor_nome ?? "", v.venda_pagamentos.map((p) => FORMA_LABEL[p.forma] ?? p.forma).join(" + "), Number(v.total), v.status, v.origem === "legado" ? "Sistema antigo" : "PDV", v.data_suspeita ? "sim" : ""])} />
+            colunas={[{ titulo: "Nº", numero: true }, { titulo: "Data" }, { titulo: "Loja" }, { titulo: "Vendedor" }, { titulo: "Pagamento" }, { titulo: "Total (R$)", numero: true }, { titulo: "Situação" }, { titulo: "Origem" }, { titulo: "Data suspeita" }, { titulo: "Retroativa" }]}
+            linhas={() => (vendas ?? []).map((v) => [v.numero, fmtDate(v.data_venda), nomeLoja(v.loja_id), v.vendedor_nome ?? "", v.venda_pagamentos.map((p) => FORMA_LABEL[p.forma] ?? p.forma).join(" + "), Number(v.total), v.status, v.origem === "legado" ? "Sistema antigo" : "PDV", v.data_suspeita ? "sim" : "", v.retroativa ? "sim" : ""])} />
         </div>
       </Card>
       <Card className="p-4">
@@ -154,6 +163,7 @@ function PaginaVendas() {
                         <div className="flex gap-1">
                           {v.status === "cancelada" ? <Badge variant="destructive">Cancelada</Badge> : <Badge variant="outline">Finalizada</Badge>}
                           {v.origem === "legado" && <Badge variant="secondary">Sistema antigo</Badge>}
+                          {v.retroativa && <Badge className="bg-warning text-warning-foreground" title={`Lançada em ${v.created_at ? fmtDate(v.created_at) : "—"} · ${v.motivo_retroativa ?? ""}`}>Retroativa</Badge>}
                         </div>
                       </td>
                       <td className="py-2 whitespace-nowrap">
@@ -171,6 +181,7 @@ function PaginaVendas() {
                               <span>{fmtBRL(Number(i.total))}</span>
                             </div>
                           ))}
+                          {v.retroativa && <div className="mt-2 text-xs text-muted-foreground">Venda retroativa lançada em {v.created_at ? fmtDate(v.created_at) : "—"} · motivo: {v.motivo_retroativa ?? "—"} · não entrou no caixa.</div>}
                           {v.motivo_cancelamento && <div className="mt-2 text-destructive">Motivo do cancelamento: {v.motivo_cancelamento}</div>}
                           {v.data_suspeita && <div className="mt-2 text-xs text-muted-foreground">Data suspeita: {v.motivo_data_suspeita === "antes_do_sistema" ? "anterior ao início do sistema" : "posterior ao dia em que foi lançada"}</div>}
                         </td>
@@ -184,6 +195,7 @@ function PaginaVendas() {
         )}
       </Card>
       </>}
+      {retroativa && <VendaRetroativaDialog onClose={() => setRetroativa(false)} onFeito={carregar} />}
     </div>
   );
 }
