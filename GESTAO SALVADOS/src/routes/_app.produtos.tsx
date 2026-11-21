@@ -334,13 +334,29 @@ function CadastroProdutos() {
 }
 
 function MovimentarDialog({ produto, onClose, onFeito }: { produto: Produto; onClose: () => void; onFeito: () => void }) {
-  const [tipo, setTipo] = useState<"entrada" | "ajuste" | "perda" | "devolucao">("perda");
+  const atual = Number(produto.estoque_atual);
+  const [tipo, setTipo] = useState<"entrada" | "ajuste" | "perda" | "devolucao">("ajuste");
   const [qtd, setQtd] = useState("1");
+  /** Ajuste: estoque correto (contado). O sistema calcula a diferença, para mais ou para menos. */
+  const [contado, setContado] = useState(String(atual));
   const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
+  // aceita "−" do teclado do celular e espaço
+  const ler = (v: string) => lerNumero(v.replace(/[−–—]/g, "-").replace(/\s/g, ""));
+  const novoEstoque = ler(contado);
+  const diferenca = novoEstoque != null ? Math.round((novoEstoque - atual) * 1000) / 1000 : null;
+
   async function salvar() {
-    const q = lerNumero(qtd);
-    if (!q) return toast.error("Informe a quantidade.");
+    let q: number | null;
+    if (tipo === "ajuste") {
+      if (novoEstoque == null || novoEstoque < 0) return toast.error("Informe o estoque correto (0 ou mais).");
+      if (!diferenca) return toast.info("O estoque já está nessa quantidade.");
+      q = diferenca; // com sinal: negativo tira, positivo soma
+    } else {
+      q = ler(qtd);
+      if (!q || q <= 0) return toast.error("Informe a quantidade (maior que zero).");
+    }
+    if ((tipo === "ajuste" || tipo === "perda") && !motivo.trim()) return toast.error("Informe o motivo.");
     setSalvando(true);
     const { data, error } = await supabase.rpc("movimentar_estoque", { _produto_id: produto.id, _tipo: tipo, _quantidade: q, _motivo: motivo });
     setSalvando(false);
@@ -349,28 +365,54 @@ function MovimentarDialog({ produto, onClose, onFeito }: { produto: Produto; onC
     onFeito();
     onClose();
   }
+
+  const q = ler(qtd) ?? 0;
+  const previa = tipo === "ajuste" ? novoEstoque
+    : tipo === "perda" ? atual - Math.abs(q)
+    : atual + Math.abs(q);
+
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Movimentar estoque</DialogTitle>
-          <DialogDescription>{produto.titulo} · estoque atual {Number(produto.estoque_atual)}</DialogDescription>
+          <DialogDescription>{produto.titulo} · estoque atual <b>{atual}</b></DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-4 gap-1">
-            {(["entrada", "perda", "ajuste", "devolucao"] as const).map((t) => (
+            {(["ajuste", "entrada", "perda", "devolucao"] as const).map((t) => (
               <Button key={t} size="sm" variant={tipo === t ? "default" : "outline"} onClick={() => setTipo(t)}>{TIPO_MOV[t]}</Button>
             ))}
           </div>
-          <div>
-            <Label>Quantidade {tipo === "ajuste" ? "(use − para tirar, ex.: -2)" : ""}</Label>
-            <Input value={qtd} onChange={(e) => setQtd(e.target.value)} />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            {tipo === "ajuste" && "Ajuste: informe a quantidade que está de verdade na loja. Serve para aumentar ou diminuir."}
+            {tipo === "entrada" && "Entrada: soma ao estoque (produto que chegou)."}
+            {tipo === "perda" && "Perda: tira do estoque (avaria, furto, vencido)."}
+            {tipo === "devolucao" && "Devolução: soma ao estoque (cliente devolveu)."}
+          </p>
+          {tipo === "ajuste" ? (
+            <div>
+              <Label>Estoque correto (contado)</Label>
+              <Input value={contado} onChange={(e) => setContado(e.target.value)} inputMode="decimal" autoFocus className="h-11 text-lg font-semibold" />
+            </div>
+          ) : (
+            <div>
+              <Label>Quantidade {tipo === "perda" ? "a tirar" : "a somar"}</Label>
+              <Input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" autoFocus className="h-11 text-lg font-semibold" />
+            </div>
+          )}
+          {previa != null && (
+            <div className={`rounded-md border p-2 text-sm ${previa < 0 ? "border-destructive bg-destructive/10" : "bg-muted/40"}`}>
+              Estoque: <b>{atual}</b> → <b>{previa}</b>{" "}
+              {tipo === "ajuste" && diferenca ? <span className={diferenca < 0 ? "text-destructive" : "text-success"}>({diferenca < 0 ? `tira ${Math.abs(diferenca)}` : `soma ${diferenca}`})</span> : null}
+              {previa < 0 && <div className="text-xs text-destructive">O estoque não pode ficar negativo.</div>}
+            </div>
+          )}
           <div>
             <Label>Motivo {tipo === "ajuste" || tipo === "perda" ? "(obrigatório)" : "(opcional)"}</Label>
-            <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ex.: avaria na prateleira" />
+            <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder={tipo === "ajuste" ? "Ex.: contagem do estoque" : "Ex.: avaria na prateleira"} />
           </div>
-          <Button onClick={salvar} disabled={salvando} className="w-full">{salvando ? <Loader2 className="animate-spin" /> : "Confirmar"}</Button>
+          <Button onClick={salvar} disabled={salvando || (previa != null && previa < 0)} className="w-full h-11">{salvando ? <Loader2 className="animate-spin" /> : "Confirmar"}</Button>
         </div>
       </DialogContent>
     </Dialog>

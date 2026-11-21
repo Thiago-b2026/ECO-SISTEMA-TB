@@ -48,6 +48,10 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Ajuste de estoque que só aumentava (21/11)**: a tela pedia "use − para tirar" e quem digitava 2 somava (e o "−" do celular não era
+  entendido). Agora, em Produtos → Movimentar estoque, o **Ajuste** (aba padrão) pede o **estoque correto (contado)** e manda a diferença
+  com sinal para `movimentar_estoque` (banco igual), com prévia "28 → 25 (tira 3)". Entrada/Perda/Devolução: quantidade positiva.
+  Bloqueia estoque negativo; motivo obrigatório em ajuste e perda.
 - **"Cannot coerce the result to a single JSON object" (ELMORANE, 21/11)**: era lote que não existe mais (lotes de teste excluídos;
   aba/link antigo). Conferido no banco: ELMORANE (gerente, Eldorado + Monte Sinai, tela pdv.lotes) lê os 4 lotes atuais.
   `carregarLote` usa `maybeSingle()` e a tela mostra "Lote não encontrado: não existe mais ou é de loja sem acesso" + botão para a lista.
