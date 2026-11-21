@@ -24,7 +24,7 @@ interface LojaState {
   filtroLoja: string | null;
   /** Não-admin com mais de uma loja ainda não escolheu a empresa desta sessão */
   precisaEscolher: boolean;
-  /** Pode trocar de loja pelo menu (só admin) */
+  /** Pode trocar de loja pelo menu (admin, ou quem tem mais de uma loja liberada) */
   podeTrocar: boolean;
   escolherEmpresa: (id: string) => void;
 }
@@ -81,7 +81,12 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const precisaEscolher = !admin && !carregando && lojas.length > 1 && !(sessao && lojas.some((l) => l.id === sessao));
 
   function setLojaAtual(id: string) {
-    if (!admin) return; // só o admin troca de loja
+    // quem não é admin troca só entre as lojas liberadas para ele (sem "Todas as lojas"); vale para a sessão, como a escolha do login
+    if (!admin) {
+      if (id === TODAS || !lojas.some((l) => l.id === id)) return;
+      escolherEmpresa(id);
+      return;
+    }
     setLojaAtualState(id);
     try {
       localStorage.setItem(CHAVE, id);
@@ -93,7 +98,7 @@ export function LojaProvider({ children }: { children: ReactNode }) {
   const filtroLoja = lojaAtual === TODAS || !lojaAtual ? null : lojaAtual;
 
   return (
-    <Ctx.Provider value={{ lojas, lojaAtual, setLojaAtual, carregando, recarregar, filtroLoja, precisaEscolher, podeTrocar: admin, escolherEmpresa }}>
+    <Ctx.Provider value={{ lojas, lojaAtual, setLojaAtual, carregando, recarregar, filtroLoja, precisaEscolher, podeTrocar: admin || lojas.length > 1, escolherEmpresa }}>
       {children}
     </Ctx.Provider>
   );

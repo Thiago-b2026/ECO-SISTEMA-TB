@@ -48,6 +48,9 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Trocar de loja sem sair (21/11)**: quem tem mais de uma loja liberada (não-admin) agora tem o seletor "Loja atual" no menu e na
+  frente de loja (`setLojaAtual` → `escolherEmpresa`, vale para a sessão; sem "Todas as lojas", que segue só do admin). A tela de
+  escolha no login continua.
 - **Produto avulso: duplicado parecido, grade e Editar produto (21/11)** — migration **`20261121000032_avulso_trava_grade.sql`
   (APLICADA, ensaiada)**. O que passou (ELMORANE): "CHALEIRA ELETRICA ZENTRA" × "…1,8L" × "…1,8LT" e "BLUSA FEMININA" × "…BASICA SEM
   MANGA" (nomes parecidos, não iguais). Agora: `normalizar_nome` (banco e `duplicados.ts`) iguala unidades ("1,8LT" = "1,8 L" =

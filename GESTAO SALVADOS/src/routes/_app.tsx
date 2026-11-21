@@ -39,12 +39,9 @@ function SeletorLoja() {
   const { role } = useAuth();
   const { lojas, lojaAtual, setLojaAtual } = useLoja();
   if (lojas.length === 0) return null;
-  if (role !== "admin") {
-    const l = lojas.find((x) => x.id === lojaAtual) ?? lojas[0];
-    return <div className="px-5 py-2 text-xs opacity-80 border-b border-sidebar-border">Empresa: <b>{l.nome}</b></div>;
-  }
-  if (lojas.length === 1 && role !== "admin") {
-    return <div className="px-5 py-2 text-xs opacity-80 border-b border-sidebar-border">Loja: <b>{lojas[0].nome}</b></div>;
+  // uma loja só: mostra o nome; mais de uma (ou admin): escolhe no menu sem precisar sair
+  if (role !== "admin" && lojas.length === 1) {
+    return <div className="px-5 py-2 text-xs opacity-80 border-b border-sidebar-border">Empresa: <b>{lojas[0].nome}</b></div>;
   }
   return (
     <div className="px-3 py-2 border-b border-sidebar-border">
