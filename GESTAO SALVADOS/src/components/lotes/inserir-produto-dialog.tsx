@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { buscarML, camposDoCandidato, limpar, type Candidato, type Item, type Lote, type Pallet, type TipoBusca } from "@/lib/lotes";
+import { buscarMLComAviso, camposDoCandidato, limpar, type Candidato, type Item, type Lote, type Pallet, type TipoBusca } from "@/lib/lotes";
 import { custoPercentual, margem, precoSugerido, lerNumero, type ConfigArredondamento } from "@/lib/precificacao";
 import { fmtBRL } from "@/lib/format";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,6 +37,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   const [busca, setBusca] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [candidatos, setCandidatos] = useState<Candidato[] | null>(null);
+  const [avisoBusca, setAvisoBusca] = useState<string | null>(null);
   const [escolhido, setEscolhido] = useState<Candidato | null>(null);
   // formulário
   const [titulo, setTitulo] = useState("");
@@ -80,11 +81,13 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
     if (aba === "manual" || !texto) return;
     setBuscando(true);
     setCandidatos(null);
+    setAvisoBusca(null);
     setEscolhido(null);
     if (aba === "ean") setEan(texto.replace(/\D/g, ""));
     try {
-      const r = await buscarML(aba, texto, 5);
+      const { candidatos: r, aviso } = await buscarMLComAviso(aba, texto, 5);
       setCandidatos(r);
+      setAvisoBusca(aviso);
       if (r.length === 0) toast.info("Nada encontrado no Mercado Livre. Tente pelo nome ou insira sem buscar.");
     } catch (err) {
       // Mesmo sem o Mercado Livre, o produto pode ser inserido à mão (o código lido é mantido)
@@ -183,6 +186,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
 
         {candidatos && candidatos.length > 0 && !escolhido && (
           <div className="space-y-1">
+            {avisoBusca && <p className="rounded-md border border-warning bg-warning/15 p-2 text-xs font-medium">⚠️ {avisoBusca}</p>}
             <div className="text-xs font-medium text-muted-foreground">SELECIONE O PRODUTO CORRETO</div>
             <ul className="divide-y rounded-md border">
               {candidatos.map((c) => (

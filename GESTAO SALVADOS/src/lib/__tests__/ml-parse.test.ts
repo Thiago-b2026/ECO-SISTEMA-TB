@@ -146,3 +146,13 @@ describe("extrairIdDoLink com link do WhatsApp", () => {
     expect(nomeDoLink(link)).toBe("short duplo academia compressao corrida bermuda 2em 1 treino");
   });
 });
+
+describe("link novo do ML (produto do vendedor)", () => {
+  const link = "https://www.mercadolivre.com.br/short-duplo-academia-compressao-corrida-bermuda-2em-1-treino/up/MLBU3962023842?pdp_filters=item_id%3AMLB4667725923&matt_tool=38524122#origin=whatsapp&sid=whatsapp&wid=MLB466772592323:04";
+  it("pega o anúncio do item_id e o código MLBU", async () => {
+    const { extrairIdDoLink, extrairUserProduct } = await import("../../../supabase/functions/_shared/ml-parse");
+    expect(extrairIdDoLink(link)).toEqual({ tipo: "item", id: "MLB4667725923" });
+    expect(extrairUserProduct(link)).toBe("MLBU3962023842");
+    expect(extrairUserProduct("https://www.mercadolivre.com.br/x/p/MLB123")).toBeNull();
+  });
+});

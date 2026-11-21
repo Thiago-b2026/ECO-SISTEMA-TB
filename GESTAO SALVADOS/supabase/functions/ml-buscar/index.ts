@@ -8,7 +8,9 @@ import {
   candidatoDeItem,
   candidatoDeProduto,
   ehCodigoDeBarras,
+  candidatoDeUserProduct,
   extrairIdDoLink,
+  extrairUserProduct,
   nomeDoLink,
   precoDosAnuncios,
   variacoesDoNome,
@@ -125,6 +127,8 @@ Deno.serve(async (req) => {
 
     const token = await tokenValido();
     let candidatos: Candidato[] = [];
+    /** Mensagem para a tela quando o resultado NÃO é o anúncio exato do link (só parecidos pelo nome). */
+    let aviso: string | null = null;
 
     if (tipo === "ean") {
       // O leitor às vezes manda espaço ou traço junto
@@ -149,10 +153,40 @@ Deno.serve(async (req) => {
         if (st !== 403 && st !== 404) throw e;
         log.push(`link ${alvo.id}: ML respondeu ${st}`);
       }
-      // Plano B: busca pelo nome que vem escrito no próprio link
+      // Plano B: link novo (.../up/MLBU...) → "produto do vendedor" pela API oficial. Traz o produto EXATO
+      // (nome, foto, atributos) e, se ele estiver ligado a um produto de catálogo, o preço do catálogo.
+      const up = extrairUserProduct(texto);
+      if (candidatos.length === 0 && up) {
+        try {
+          const dados = await mlGet(`/user-products/${up}`, token);
+          log.push(`produto do vendedor ${up}: ok (${Object.keys(dados ?? {}).slice(0, 12).join(",")})`);
+          const catalogoId = dados?.catalog_product_id;
+          if (catalogoId) {
+            try {
+              candidatos = await detalharProdutos([String(catalogoId)], token);
+              log.push(`catálogo ${catalogoId}: ${candidatos.length}`);
+            } catch (e) {
+              log.push(`catálogo ${catalogoId}: ML respondeu ${(e as { status?: number }).status ?? "erro"}`);
+            }
+          }
+          if (candidatos.length === 0 && (dados?.name || dados?.title)) {
+            candidatos = [candidatoDeUserProduct(dados, texto.split("#")[0])];
+          }
+        } catch (e) {
+          const st = (e as { status?: number }).status;
+          if (st !== 401 && st !== 403 && st !== 404) throw e;
+          log.push(`produto do vendedor ${up}: ML respondeu ${st}`);
+        }
+      }
+      // Plano C: busca pelo nome que vem escrito no próprio link
       if (candidatos.length === 0) {
         const nome = nomeDoLink(texto);
-        if (nome) candidatos = await buscarPorNome(nome, max, token, log);
+        if (nome) {
+          candidatos = await buscarPorNome(nome, max, token, log);
+          aviso = alvo || up
+            ? "O Mercado Livre não deixa ler este anúncio (é de outro vendedor e não está no catálogo). Os resultados abaixo são PARECIDOS pelo nome do link, não o mesmo anúncio: confira foto e preço antes de escolher, ou use \"Inserir sem buscar\"."
+            : "Este link não tem o código do anúncio. Os resultados abaixo são parecidos pelo nome do link: confira antes de escolher.";
+        }
       }
     } else if (tipo === "categoria") {
       // Caminho da categoria no ML (para o mercadológico): [{ id, name }, ...]
@@ -165,7 +199,7 @@ Deno.serve(async (req) => {
 
     // Aparece em Supabase → Edge Functions → ml-buscar → Logs
     console.log(`ml-buscar ${tipo} "${texto}" → ${candidatos.length} | ${log.join(" | ")}`);
-    return json({ candidatos, tentativas: log });
+    return json({ candidatos, tentativas: log, aviso });
   } catch (e) {
     const err = e as Error & { status?: number; caminho?: string };
     console.error(`ml-buscar falhou: ${err.status ?? ""} ${err.caminho ?? ""} ${err.message} | ${log.join(" | ")}`);

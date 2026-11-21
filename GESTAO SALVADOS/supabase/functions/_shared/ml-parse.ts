@@ -29,6 +29,34 @@ export function extrairIdDoLink(link: string): IdDoLink | null {
   return null;
 }
 
+/** Código do "produto do usuário" dos links novos do ML: .../up/MLBU3962023842 → "MLBU3962023842". */
+export function extrairUserProduct(link: string): string | null {
+  const m = link.match(/\/up\/(MLBU\d+)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+/**
+ * Converte a resposta de GET /user-products/{id} (nome, fotos e atributos do produto do vendedor).
+ * O preço não vem nela; quem chama completa com o produto de catálogo, quando existir.
+ */
+export function candidatoDeUserProduct(up: any, link: string | null): Candidato {
+  const foto = up?.pictures?.[0];
+  return {
+    id: up.id,
+    tipo: "item",
+    titulo: up.name ?? up.title ?? "",
+    preco: null,
+    preco_original: null,
+    foto: (typeof foto === "string" ? foto : foto?.secure_url ?? foto?.url) ?? (up.thumbnail ?? null),
+    link,
+    gtin: attr(up.attributes, "GTIN"),
+    marca: attr(up.attributes, "BRAND"),
+    modelo: attr(up.attributes, "MODEL"),
+    categoria_id: up.category_id ?? null,
+    similaridade: null,
+  };
+}
+
 /**
  * Tira o nome do produto que vem escrito no próprio link (plano B quando o ML
  * nega a leitura do anúncio).

@@ -168,6 +168,11 @@ export function traduzirErroML(msg: string): string {
 export type TipoBusca = "ean" | "nome" | "link";
 
 export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Promise<Candidato[]> {
+  return (await buscarMLComAviso(tipo, valor, limite)).candidatos;
+}
+
+/** Igual a buscarML, mais o aviso quando o resultado não é o anúncio exato (link bloqueado pelo ML → parecidos pelo nome). */
+export async function buscarMLComAviso(tipo: TipoBusca, valor: string, limite = 3): Promise<{ candidatos: Candidato[]; aviso: string | null }> {
   const { data, error } = await supabase.functions.invoke("ml-buscar", { body: { tipo, valor, limite } });
   if (error) {
     const ctx = (error as { context?: Response }).context;
@@ -179,7 +184,7 @@ export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Prom
     throw e;
   }
   if (data?.tentativas?.length) console.info(`Mercado Livre "${valor}" (tentativas):`, data.tentativas.join(" | "));
-  return (data?.candidatos ?? []) as Candidato[];
+  return { candidatos: (data?.candidatos ?? []) as Candidato[], aviso: (data?.aviso as string | null) ?? null };
 }
 
 /** Campos do item calculados a partir do candidato escolhido e da regra do lote. */

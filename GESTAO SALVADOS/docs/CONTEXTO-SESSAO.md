@@ -25,6 +25,11 @@
   `motivos_excluir_pessoa()` e `excluir_pessoa()` (migration **`20261121000029_excluir_pessoa.sql` — AINDA NÃO APLICADA**).
   Movimento = qualquer linha em qualquer tabela com FK para `public.pessoas` (lido do `pg_constraint`, entra tabela nova sozinha).
   Quem tem login: primeiro "Excluir usuário", depois o cadastro.
+- **Link do ML que traz produto diferente** (ex.: `.../up/MLBU3962023842?pdp_filters=item_id:MLB4667725923`): o ML responde 403
+  ("PolicyAgent") para o anúncio de outro vendedor E para `/user-products/MLBU…`; a página do anúncio cai na verificação de
+  "tráfego suspeito" (não contornar). Sobra só a busca pelo nome do link → produtos PARECIDOS. `ml-buscar` agora tenta
+  `/user-products` (pega o produto exato se um dia o ML liberar, inclusive o catálogo ligado) e devolve `aviso`; a tela de inserir
+  produto e a aba Configuração Mercado Livre mostram o aviso em amarelo. Link de catálogo (`/p/MLB…`) segue exato.
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
   símbolo em `src/assets/logo-simbolo.png` (topo no celular) e `public/favicon.png`; título da aba "Salvados LP — Gestão".

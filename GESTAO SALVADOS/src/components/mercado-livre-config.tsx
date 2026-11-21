@@ -60,6 +60,7 @@ export function MercadoLivreConfig() {
   const [valor, setValor] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [resultado, setResultado] = useState<Candidato[] | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   async function carregarStatus() {
     setCarregando(true);
@@ -93,10 +94,12 @@ export function MercadoLivreConfig() {
     if (!valor.trim()) return;
     setBuscando(true);
     setResultado(null);
+    setAviso(null);
     const { data, error } = await supabase.functions.invoke("ml-buscar", { body: { tipo, valor: valor.trim() } });
     setBuscando(false);
     if (error) return toast.error(await erroDaFuncao(error));
     setResultado(data.candidatos ?? []);
+    setAviso(data.aviso ?? null);
   }
 
   const tipoAtual = TIPOS.find((t) => t.id === tipo)!;
@@ -170,6 +173,7 @@ export function MercadoLivreConfig() {
           {resultado && resultado.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>
           )}
+          {aviso && resultado && resultado.length > 0 && <p className="rounded-md border border-warning bg-warning/15 p-2 text-xs font-medium">⚠️ {aviso}</p>}
           {resultado && resultado.length > 0 && (
             <ul className="divide-y rounded-md border">
               {resultado.map((c) => (
