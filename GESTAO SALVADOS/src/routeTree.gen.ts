@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as CapturarRouteImport } from './routes/capturar'
 import { Route as FrenteRouteImport } from './routes/frente'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as NovaSenhaRouteImport } from './routes/nova-senha'
@@ -44,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CapturarRoute = CapturarRouteImport.update({
+  id: '/capturar',
+  path: '/capturar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FrenteRoute = FrenteRouteImport.update({
@@ -174,6 +180,7 @@ const AppLotesIdRoute = AppLotesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/capturar': typeof CapturarRoute
   '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/capturar': typeof CapturarRoute
   '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
@@ -232,6 +240,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/capturar': typeof CapturarRoute
   '/frente': typeof FrenteRoute
   '/login': typeof LoginRoute
   '/nova-senha': typeof NovaSenhaRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/capturar'
     | '/frente'
     | '/login'
     | '/nova-senha'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/capturar'
     | '/frente'
     | '/login'
     | '/nova-senha'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_app'
+    | '/capturar'
     | '/frente'
     | '/login'
     | '/nova-senha'
@@ -349,6 +361,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  CapturarRoute: typeof CapturarRoute
   FrenteRoute: typeof FrenteRoute
   LoginRoute: typeof LoginRoute
   NovaSenhaRoute: typeof NovaSenhaRoute
@@ -369,6 +382,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/capturar': {
+      id: '/capturar'
+      path: '/capturar'
+      fullPath: '/capturar'
+      preLoaderRoute: typeof CapturarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/frente': {
@@ -602,6 +622,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  CapturarRoute: CapturarRoute,
   FrenteRoute: FrenteRoute,
   LoginRoute: LoginRoute,
   NovaSenhaRoute: NovaSenhaRoute,

@@ -30,6 +30,15 @@
   "tráfego suspeito" (não contornar). Sobra só a busca pelo nome do link → produtos PARECIDOS. `ml-buscar` agora tenta
   `/user-products` (pega o produto exato se um dia o ML liberar, inclusive o catálogo ligado) e devolve `aviso`; a tela de inserir
   produto e a aba Configuração Mercado Livre mostram o aviso em amarelo. Link de catálogo (`/p/MLB…`) segue exato.
+- **Botão "Enviar para o PDV" (favorito do navegador) — a busca mais certeira para link.** Teste no PrecificaLote com o mesmo link
+  trouxe o produto exato: lá um robô DESKTOP abre a página como pessoa (fila; nota em estrelas = página, não API). Aqui: o usuário abre o
+  anúncio no Chrome/Edge do computador e clica no favorito; o código (`codigoDoBotao()` em `src/lib/captura-ml.ts`) lê os dados
+  estruturados da página (JSON-LD Product: nome, preço, marca, foto; preço "de" pelo aria-label; item_id do link; categoria do breadcrumb)
+  e abre `/capturar#<json>` (rota fora do layout logado; o `#` não vai a servidor). `/capturar` valida (`lerCapturaDoHash`), guarda no
+  localStorage (`ml:capturas`, 30) e avisa por BroadcastChannel; o "Inserir produto" (aba Link) lista "Enviados do Mercado Livre" e,
+  aberto, usa o anúncio na hora. Instalação: na aba Link, seção "Botão Enviar para o PDV" (arrastar para a barra de favoritos ou copiar
+  código). Testado no anúncio real: 33,90 / de 64,90 / Hueto / Bermudas / MLB4667725923 → venda sugerida 30,99 (igual ao PrecificaLote).
+  Não funciona no celular (favorito com código não roda lá).
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
   símbolo em `src/assets/logo-simbolo.png` (topo no celular) e `public/favicon.png`; título da aba "Salvados LP — Gestão".

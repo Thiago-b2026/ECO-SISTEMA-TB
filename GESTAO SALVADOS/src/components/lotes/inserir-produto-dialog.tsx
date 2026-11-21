@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { BotaoCamera } from "@/components/leitor-camera";
 import { cn } from "@/lib/utils";
+import { candidatoDaCaptura, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
+import { CapturasRecentes, InstalarBotaoCaptura } from "@/components/lotes/captura-ml";
 
 type Aba = TipoBusca | "manual";
 const ABAS: { id: Aba; label: string; placeholder: string }[] = [
@@ -69,6 +71,29 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
       limparTudo(false);
       setPalletId((p) => p || pallets[0]?.id || "");
     }
+  }, [open]);
+
+  /** Anúncio enviado pelo botão "Enviar para o PDV": entra como o produto escolhido (dados exatos da página). */
+  function usarCaptura(c: CapturaML) {
+    const cand = candidatoDaCaptura(c);
+    setAba("link");
+    setBusca(c.link);
+    setAvisoBusca(null);
+    setCandidatos([cand]);
+    escolher(cand);
+    capturaUsada.current = c.link;
+  }
+  const capturaUsada = useRef<string | null>(null);
+  const escolhidoRef = useRef<Candidato | null>(null);
+  escolhidoRef.current = escolhido;
+  // com o diálogo aberto, o anúncio enviado entra sozinho (se nada estiver escolhido ainda)
+  useEffect(() => {
+    if (!open) return;
+    return ouvirCapturas((c) => {
+      if (escolhidoRef.current) return toast.info(`Recebido do ML: ${c.titulo.slice(0, 50)}. Está na lista "Enviados do Mercado Livre".`);
+      usarCaptura(c);
+      toast.success("Anúncio recebido do Mercado Livre.");
+    });
   }, [open]);
 
   async function buscar(e: React.FormEvent) {
@@ -147,6 +172,10 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
       toast.success(`${titulo.trim().slice(0, 40)} inserido (${quantidade} un.)`);
       if (imprimir) toast.info("Impressão de etiqueta entra na próxima etapa.");
     }
+    if (capturaUsada.current) {
+      removerCaptura(capturaUsada.current);
+      capturaUsada.current = null;
+    }
     onInserido();
     limparTudo();
   }
@@ -184,9 +213,27 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
           </form>
         )}
 
+        {aba === "link" && !escolhido && (
+          <div className="space-y-2">
+            <CapturasRecentes onUsar={usarCaptura} />
+            <InstalarBotaoCaptura aberto={!!avisoBusca} />
+          </div>
+        )}
+
         {candidatos && candidatos.length > 0 && !escolhido && (
           <div className="space-y-1">
-            {avisoBusca && <p className="rounded-md border border-warning bg-warning/15 p-2 text-xs font-medium">⚠️ {avisoBusca}</p>}
+            {avisoBusca && (
+              <div className="space-y-1 rounded-md border border-warning bg-warning/15 p-2 text-xs font-medium">
+                <p>⚠️ {avisoBusca}</p>
+                {aba === "link" && /^https?:\/\//.test(busca.trim()) && (
+                  <p>
+                    Para pegar o anúncio exato:{" "}
+                    <a href={busca.trim()} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">abra o anúncio <ExternalLink className="size-3" /></a>{" "}
+                    e clique no favorito <b>Enviar para o PDV</b> (veja abaixo como instalar).
+                  </p>
+                )}
+              </div>
+            )}
             <div className="text-xs font-medium text-muted-foreground">SELECIONE O PRODUTO CORRETO</div>
             <ul className="divide-y rounded-md border">
               {candidatos.map((c) => (
