@@ -467,11 +467,26 @@ export function CompartilharPostDialog({ lojaId, loteId, dados, onClose }: { loj
     guardarLayoutPreferido(lojaId, k);
   }
 
+  // A imagem fica pronta antes do toque: no celular, o compartilhar só abre se for pedido na hora do toque.
+  const [imagem, setImagem] = useState<{ chave: string; blob: Blob | null } | null>(null);
+  const chaveImagem = layout ? `${chaveLayout(layout)}|${dados.nome}|${dados.precoVenda}|${dados.foto}` : "";
+  useEffect(() => {
+    if (!layout) return;
+    let vivo = true;
+    setImagem(null);
+    gerarImagemPost(layout, dados)
+      .then((blob) => vivo && setImagem({ chave: chaveImagem, blob }))
+      .catch(() => vivo && setImagem({ chave: chaveImagem, blob: null })); // no toque tenta de novo e mostra o erro
+    return () => { vivo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveImagem]);
+
   async function enviar() {
     if (!layout) return;
     setGerando(true);
     try {
-      const blob = await gerarImagemPost(layout, dados);
+      const pronta = imagem?.chave === chaveImagem ? imagem.blob : null; // null: gera agora (no celular pode cair no baixar)
+      const blob = pronta ?? (await gerarImagemPost(layout, dados));
       const r = await compartilharPost(blob, legenda, dados.nome);
       if (r === "baixado") toast.success("Imagem baixada e legenda copiada. Cole a legenda junto da imagem no WhatsApp.");
       if (r === "compartilhado") toast.success("Post compartilhado. A legenda também ficou copiada.");
@@ -523,7 +538,7 @@ export function CompartilharPostDialog({ lojaId, loteId, dados, onClose }: { loj
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
-                <Button onClick={enviar} disabled={gerando}>{gerando ? <Loader2 className="animate-spin" /> : <Share2 />} Compartilhar / baixar</Button>
+                <Button onClick={enviar} disabled={gerando || !imagem}>{gerando || !imagem ? <Loader2 className="animate-spin" /> : <Share2 />} {imagem ? "Compartilhar / baixar" : "Preparando imagem…"}</Button>
                 <Button variant="outline" onClick={copiarLegenda}><Copy /> Copiar legenda</Button>
                 <Button variant="ghost" onClick={() => setEditor(true)}><ImagePlus /> Editor de post</Button>
               </div>

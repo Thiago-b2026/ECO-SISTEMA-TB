@@ -364,25 +364,30 @@ export function nomeArquivoPost(nome: string) {
 
 /**
  * Celular: abre o compartilhar do aparelho (WhatsApp, Instagram…) com a imagem e a legenda.
- * Computador (ou sem suporte): baixa a imagem. Em todos os casos a legenda vai para a área de transferência,
- * porque o WhatsApp às vezes ignora o texto quando recebe a imagem.
+ * Computador (ou sem suporte): baixa a imagem e copia a legenda.
+ * IMPORTANTE: chame já com a imagem pronta e logo no toque. O celular só abre o compartilhar se ele for pedido
+ * no mesmo instante do toque; qualquer espera antes (gerar a imagem, copiar texto) faz o aparelho bloquear.
  */
 export async function compartilharPost(blob: Blob, legenda: string, nome: string): Promise<"compartilhado" | "baixado" | "cancelado"> {
-  try {
-    await navigator.clipboard?.writeText(legenda);
-  } catch {
-    /* sem permissão de área de transferência: segue */
-  }
   const arquivo = new File([blob], nomeArquivoPost(nome), { type: blob.type });
   const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
   const celular = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (celular && nav.share && nav.canShare?.({ files: [arquivo] })) {
+    // primeiro o compartilhar (sem nenhuma espera antes); a legenda vai junto
+    const pedido = nav.share({ files: [arquivo], text: legenda });
     try {
-      await nav.share({ files: [arquivo], text: legenda });
+      await pedido;
+      void navigator.clipboard?.writeText(legenda).catch(() => {});
       return "compartilhado";
     } catch (e) {
       if ((e as Error).name === "AbortError") return "cancelado";
+      // o aparelho recusou: cai no baixar
     }
+  }
+  try {
+    await navigator.clipboard?.writeText(legenda);
+  } catch {
+    /* sem permissão de área de transferência: segue */
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

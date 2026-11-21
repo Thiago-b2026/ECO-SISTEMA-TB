@@ -48,6 +48,9 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Compartilhar no celular** (21/11): o menu de compartilhar do aparelho não abria porque a imagem era gerada DEPOIS do toque
+  (o celular só aceita `navigator.share` na hora do toque) e caía no "baixar". Agora a arte é gerada ao abrir o diálogo
+  ("Preparando imagem…") e o toque chama `share` sem espera; a legenda vai junto e é copiada depois.
 - **0028 só foi aplicada de fato em 21/11 ~01:30** (a conferência anterior com `head: true` deu "ok" falso); salvar layout de post voltou.
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
