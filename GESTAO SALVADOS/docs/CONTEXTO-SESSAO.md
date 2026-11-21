@@ -48,6 +48,11 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **Editar custo** (21/11): no "Inserir produto" (todas as abas) os campos "% custo" (começa no % do lote) e "Custo (R$)" são
+  editáveis (digitado à mão vence o %; "usar %" volta ao automático). Em cada produto do lote: botão "Editar" → tela
+  `EditarItemDialog` (custo em R$ ou % do preço, margem, preço ML, preço de venda, quantidade, grade, pallet, código de barras).
+  A coluna Custo da tabela também é editável (com o olho aberto). "Reaplicar preços e custo %" e "Recalcular custo pelo valor pago"
+  substituem custos editados (agora avisam na confirmação).
 - **Compartilhar no celular** (21/11): o menu de compartilhar do aparelho não abria porque a imagem era gerada DEPOIS do toque
   (o celular só aceita `navigator.share` na hora do toque) e caía no "baixar". Agora a arte é gerada ao abrir o diálogo
   ("Preparando imagem…") e o toque chama `share` sem espera; a legenda vai junto e é copiada depois.

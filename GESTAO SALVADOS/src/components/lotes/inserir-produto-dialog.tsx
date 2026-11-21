@@ -50,6 +50,9 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   const [titulo, setTitulo] = useState("");
   const [precoML, setPrecoML] = useState("");
   const [precoVenda, setPrecoVenda] = useState("");
+  /** % de custo deste produto (começa no % do lote) e custo digitado à mão (null = calculado pelo %). */
+  const [percCusto, setPercCusto] = useState(String(lote.perc_custo));
+  const [custoManual, setCustoManual] = useState<string | null>(null);
   const [quantidade, setQuantidade] = useState(1);
   const [grade, setGrade] = useState("A");
   const [palletId, setPalletId] = useState<string>("");
@@ -65,6 +68,8 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
     setTitulo("");
     setPrecoML("");
     setPrecoVenda("");
+    setPercCusto(String(lote.perc_custo));
+    setCustoManual(null);
     setQuantidade(1);
     setEan("");
     if (!manterAba) setAba("ean");
@@ -156,7 +161,11 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
 
   const pML = lerNumero(precoML);
   const pVenda = lerNumero(precoVenda);
-  const custo = lote.rateio === "percentual" ? custoPercentual(pML ?? pVenda, lote.perc_custo) : null;
+  const percNum = lerNumero(percCusto) ?? lote.perc_custo;
+  const percMudou = percNum !== lote.perc_custo;
+  // Custo: digitado à mão > % (do lote ou o deste produto) sobre o preço ML > recálculo pelo valor pago no fim
+  const custoAuto = lote.rateio === "percentual" || percMudou ? custoPercentual(pML ?? pVenda, percNum) : null;
+  const custo = custoManual != null ? lerNumero(custoManual) : custoAuto;
   const duplicado = escolhido ? itens.find((i) => (i.ml_id && i.ml_id === escolhido.id) || (ean && i.codigo_barras === ean)) : null;
 
   async function inserir(somarNoExistente = false) {
@@ -322,7 +331,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
               <Label>Título</Label>
               <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               <div>
                 <Label className="text-xs">Preço ML (R$)</Label>
                 <Input value={precoML} onChange={(e) => { setPrecoML(e.target.value); setPrecoVenda(String(precoSugerido(lerNumero(e.target.value), lote.perc_desconto, cfg) ?? "")); }} />
@@ -332,8 +341,21 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
                 <Input value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} className="font-semibold" />
               </div>
               <div>
-                <Label className="text-xs">Custo unit.</Label>
-                <Input value={custo != null ? fmtBRL(custo) : "no recálculo"} disabled />
+                <Label className="text-xs">% custo</Label>
+                <Input value={percCusto} inputMode="decimal" onChange={(e) => { setPercCusto(e.target.value); setCustoManual(null); }} />
+              </div>
+              <div>
+                <Label className="flex items-center justify-between text-xs">
+                  Custo (R$)
+                  {custoManual != null && <button type="button" className="text-[11px] text-primary hover:underline" onClick={() => setCustoManual(null)}>usar %</button>}
+                </Label>
+                <Input
+                  value={custoManual ?? (custoAuto != null ? String(custoAuto) : "")}
+                  placeholder={lote.rateio === "percentual" ? "" : "no recálculo"}
+                  inputMode="decimal"
+                  onChange={(e) => setCustoManual(e.target.value)}
+                  className={cn(custoManual != null && "border-primary")}
+                />
               </div>
               <div>
                 <Label className="text-xs">Margem</Label>

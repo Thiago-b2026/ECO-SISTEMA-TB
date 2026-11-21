@@ -23,6 +23,8 @@ import { TransferirLoteDialog } from "@/components/lotes/transferir-lote-dialog"
 import { GraficosLote } from "@/components/lotes/graficos-lote";
 import { ArrowRightLeft, BarChart3, ImagePlus, Printer, Scissors, Share2, ShieldAlert } from "lucide-react";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
+import { EditarItemDialog } from "@/components/lotes/editar-item-dialog";
+import { Pencil } from "lucide-react";
 import { useLoja } from "@/lib/loja";
 import type { DadosEtiqueta } from "@/lib/etiquetas";
 import { CompartilharPostDialog, dadosDoItem, EditorPostDialog } from "@/components/lotes/editor-post-dialog";
@@ -63,6 +65,7 @@ function DetalheLote() {
   const [editorPost, setEditorPost] = useState(false);
   const [compartilhar, setCompartilhar] = useState<Item | null>(null);
   const [etiquetas, setEtiquetas] = useState<DadosEtiqueta[] | null>(null);
+  const [editando, setEditando] = useState<Item | null>(null);
   const { lojas } = useLoja();
   // robô
   const [rodando, setRodando] = useState(false);
@@ -158,7 +161,7 @@ function DetalheLote() {
   }
 
   async function reaplicarPrecos() {
-    if (!window.confirm("Recalcular o preço de venda de TODOS os itens pelo preço do ML, desconto e arredondamento atuais? Preços editados à mão serão substituídos.")) return;
+    if (!window.confirm(`Recalcular o preço de venda${lote!.rateio === "percentual" ? " e o custo" : ""} de TODOS os itens pelo preço do ML, desconto e arredondamento atuais? Preços${lote!.rateio === "percentual" ? " e custos" : ""} editados à mão serão substituídos.`)) return;
     const alterados = itens.filter((i) => i.preco_ml != null);
     for (const i of alterados) {
       const patch: Partial<Item> = { preco_venda: precoSugerido(i.preco_ml, lote!.perc_desconto, cfg) };
@@ -171,6 +174,7 @@ function DetalheLote() {
 
   async function recalcularCusto() {
     if (!lote!.valor_pago) return toast.error("Informe o valor pago no lote primeiro.");
+    if (!window.confirm("Recalcular o custo de TODOS os itens pelo valor pago no lote? Custos editados à mão serão substituídos.")) return;
     const { data, error } = await supabase.rpc("recalcular_custo_lote", { _lote_id: lote!.id });
     if (error) return toast.error(error.message);
     toast.success(`Custo de ${data} itens recalculado pelo valor pago.`);
@@ -378,7 +382,7 @@ function DetalheLote() {
                 <th className="py-2 pr-2">Pallet / grade</th>
                 <th className="py-2 pr-2 text-right">Ref. ML</th>
                 {lote.tipo === "planilha" && <th className="py-2 pr-2 text-right">Planilha</th>}
-                <th className="py-2 pr-2 text-right">Custo</th>
+                <th className="py-2 pr-2 text-right" title="Clique no olho do Custo total para ver e editar">Custo</th>
                 <th className="py-2 pr-2">Venda unit.</th>
                 <th className="py-2 pr-2 text-right">Margem</th>
                 <th className="py-2 pr-2">Situação</th>
@@ -401,6 +405,7 @@ function DetalheLote() {
                   onAvaria={() => setAvaria(i)}
                   onCompartilhar={() => setCompartilhar(i)}
                   onImprimir={() => imprimirItens([i])}
+                  onEditar={() => setEditando(i)}
                   onEscolher={(c) => escolherCandidato(i, c)}
                   palletNome={palletNome}
                 />
@@ -413,6 +418,7 @@ function DetalheLote() {
       </Card>
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
+      {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
       <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? []} loja={nomeLoja} />
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
@@ -439,13 +445,16 @@ interface LinhaProps {
   onAvaria: () => void;
   onCompartilhar: () => void;
   onImprimir: () => void;
+  onEditar: () => void;
   onEscolher: (c: Candidato) => void;
   palletNome: (id: string | null) => string;
 }
 
-function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar, onImprimir }: LinhaProps) {
+function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar, onImprimir, onEditar }: LinhaProps) {
   const [venda, setVenda] = useState(i.preco_venda != null ? String(i.preco_venda) : "");
   useEffect(() => setVenda(i.preco_venda != null ? String(i.preco_venda) : ""), [i.preco_venda]);
+  const [custoTxt, setCustoTxt] = useState(i.custo_unit != null ? String(i.custo_unit) : "");
+  useEffect(() => setCustoTxt(i.custo_unit != null ? String(i.custo_unit) : ""), [i.custo_unit]);
   const m = margem(i.preco_venda, i.custo_unit);
   const temCandidatos = (i.candidatos?.length ?? 0) > 0;
   const riscado = i.ocorrencia === "nao_chegou" || i.ocorrencia === "avaria_total";
@@ -463,7 +472,8 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
               <div className="text-xs text-muted-foreground">
                 {i.sku}{i.codigo_barras ? ` · ${i.codigo_barras}` : ""}{i.marca ? ` · ${i.marca}` : ""}
               </div>
-              <div className="mt-1 flex gap-1">
+              <div className="mt-1 flex flex-wrap gap-1">
+                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" title="Editar custo, preços e dados do produto" onClick={onEditar}><Pencil className="size-3.5" /> Editar</Button>
                 <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" title="Imprimir etiqueta" onClick={onImprimir}><Printer className="size-3.5" /> Etiqueta</Button>
                 <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs text-success" title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="size-3.5" /> Compartilhar</Button>
               </div>
@@ -490,7 +500,21 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
           ) : "—"}
         </td>
         {lote.tipo === "planilha" && <td className="py-2 pr-2 text-right whitespace-nowrap">{i.valor_planilha != null ? fmtBRL(i.valor_planilha) : "—"}</td>}
-        <td className="py-2 pr-2 text-right whitespace-nowrap">{verCusto ? (i.custo_unit != null ? fmtBRL(i.custo_unit) : "—") : "•••"}</td>
+        <td className="py-2 pr-2 text-right whitespace-nowrap">
+          {verCusto ? (
+            <div className="flex items-center justify-end rounded border bg-muted/40 px-1" title="Custo unitário (clique para editar)">
+              <span className="text-xs text-muted-foreground">R$</span>
+              <input
+                value={custoTxt}
+                onChange={(e) => setCustoTxt(e.target.value)}
+                onBlur={() => { const v = custoTxt.trim() ? lerNumero(custoTxt) : null; if (v !== i.custo_unit) onAtualizar({ custo_unit: v }); }}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                inputMode="decimal"
+                className="h-8 w-16 bg-transparent px-1 text-right outline-none"
+              />
+            </div>
+          ) : "•••"}
+        </td>
         <td className="py-2 pr-2">
           <div className="flex items-center rounded border bg-muted/40 px-1">
             <span className="text-xs text-muted-foreground">R$</span>
