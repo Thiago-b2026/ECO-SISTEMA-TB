@@ -1,0 +1,15 @@
+Extensão "Salvados LP – Busca no Mercado Livre"
+
+O que faz: quando o PDV (Lotes > Inserir produto > Link do anúncio) busca um link do Mercado Livre,
+o PDV abre o anúncio numa aba, esta extensão lê nome, preço, preço "de", foto e marca da própria
+página, devolve para o PDV e fecha a aba. Só age na aba aberta pelo PDV; nas outras não faz nada.
+
+Instalar (uma vez por computador, Chrome ou Edge):
+1. Descompacte o arquivo extensao-salvados-lp.zip (botão direito > Extrair tudo).
+2. Abra chrome://extensions (no Edge: edge://extensions).
+3. Ligue o "Modo do desenvolvedor".
+4. Clique em "Carregar sem compactação" e escolha a pasta extensao-salvados-lp.
+5. Volte ao PDV e aperte F5.
+
+Atualizar: depois de mudar arquivos desta pasta, gere de novo GESTAO SALVADOS/public/extensao-salvados-lp.zip
+e, no chrome://extensions, clique em recarregar na extensão.

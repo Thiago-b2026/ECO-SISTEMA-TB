@@ -1,59 +1,48 @@
-// Botão "Enviar para o PDV" (favorito do navegador) e lista de anúncios capturados.
-import { useEffect, useRef, useState } from "react";
-import { Bookmark, ChevronDown, Copy, MousePointerClick, X } from "lucide-react";
+// Instruções da extensão do Chrome e lista de anúncios recebidos pelo navegador.
+import { useEffect, useState } from "react";
+import { ChevronDown, Copy, Download, Puzzle, X } from "lucide-react";
 import { toast } from "sonner";
-import { codigoDoBotao, listarCapturas, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
+import { listarCapturas, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
 import { fmtBRL } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/** Link arrastável para a barra de favoritos + instruções. */
-export function InstalarBotaoCaptura({ aberto: abertoInicial = false }: { aberto?: boolean }) {
+/** Como instalar a extensão do Chrome (uma vez por computador). */
+export function InstalarExtensao({ aberto: abertoInicial = false }: { aberto?: boolean }) {
   const [aberto, setAberto] = useState(abertoInicial);
-  const ref = useRef<HTMLAnchorElement>(null);
-  const codigo = codigoDoBotao(window.location.origin);
-  // O React bloqueia "javascript:" no href; o favorito precisa dele, então vai direto no elemento.
-  useEffect(() => {
-    ref.current?.setAttribute("href", codigo);
-  }, [codigo, aberto]);
-
   async function copiar() {
     try {
-      await navigator.clipboard.writeText(codigo);
-      toast.success("Código copiado. Crie um favorito e cole no campo URL.");
+      await navigator.clipboard.writeText("chrome://extensions");
+      toast.success("Copiado. Cole na barra de endereço do Chrome.");
     } catch {
-      toast.error("Não foi possível copiar.");
+      toast.error("Não foi possível copiar. Digite chrome://extensions na barra de endereço.");
     }
   }
-
   return (
     <div className="rounded-md border bg-muted/30 text-sm">
       <button type="button" onClick={() => setAberto((v) => !v)} className="flex w-full items-center gap-2 p-2 text-left font-medium">
-        <Bookmark className="size-4 text-primary" /> Botão "Enviar para o PDV" (pega o anúncio exato, mesmo quando o ML bloqueia)
+        <Puzzle className="size-4 text-primary" /> Instale a extensão para o link trazer o anúncio exato (uma vez por computador)
         <ChevronDown className={cn("ml-auto size-4 transition-transform", aberto && "rotate-180")} />
       </button>
       {aberto && (
         <div className="space-y-2 border-t p-3">
-          <ol className="list-decimal space-y-1 pl-5 text-xs">
-            <li>Mostre a barra de favoritos do navegador (Ctrl + Shift + B).</li>
+          <ol className="list-decimal space-y-1.5 pl-5 text-xs">
             <li>
-              <b>Arraste</b> este botão para a barra de favoritos:{" "}
-              <a
-                ref={ref}
-                onClick={(e) => { e.preventDefault(); toast.info("Arraste o botão para a barra de favoritos. Clicar aqui não faz nada."); }}
-                className="mx-1 inline-flex cursor-grab items-center gap-1 rounded-md bg-primary px-2 py-1 font-semibold text-primary-foreground shadow"
-              >
-                <MousePointerClick className="size-3.5" /> Enviar para o PDV
-              </a>
+              <a href="/extensao-salvados-lp.zip" download className="inline-flex items-center gap-1 font-semibold text-primary underline"><Download className="size-3.5" /> Baixe a extensão</a>{" "}
+              e descompacte (botão direito no arquivo → Extrair tudo).
             </li>
-            <li>Abra o anúncio no Mercado Livre (no computador) e clique no favorito <b>Enviar para o PDV</b>.</li>
-            <li>O produto entra aqui sozinho, com nome, preço, preço "de" e foto exatos.</li>
+            <li>
+              No Chrome, abra <code className="rounded bg-muted px-1">chrome://extensions</code>{" "}
+              <Button type="button" size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={copiar}><Copy className="size-3" /> copiar</Button>
+            </li>
+            <li>Ligue o <b>Modo do desenvolvedor</b> (canto de cima, à direita).</li>
+            <li>Clique em <b>Carregar sem compactação</b> e escolha a pasta descompactada.</li>
+            <li>Volte aqui e aperte F5. Pronto: é só colar o link e buscar.</li>
           </ol>
           <p className="text-xs text-muted-foreground">
-            Não deu para arrastar? Crie um favorito qualquer, edite e cole no campo URL o código:{" "}
-            <Button type="button" size="sm" variant="outline" className="h-7" onClick={copiar}><Copy /> Copiar código</Button>
+            Ao buscar um link, o PDV abre o anúncio numa aba por 2 ou 3 segundos, lê nome, preço, preço "de" e foto, e fecha a aba.
+            Se o navegador avisar de pop-up bloqueado, clique em "Sempre permitir" para este site. Funciona no Chrome e no Edge do computador.
           </p>
-          <p className="text-xs text-muted-foreground">Funciona no Chrome e no Edge do computador. Os dados vêm da página que você está vendo; nada é enviado para fora do sistema.</p>
         </div>
       )}
     </div>
@@ -67,7 +56,7 @@ export function CapturasRecentes({ onUsar }: { onUsar: (c: CapturaML) => void })
   if (lista.length === 0) return null;
   return (
     <div className="space-y-1">
-      <div className="text-xs font-medium text-muted-foreground">ENVIADOS DO MERCADO LIVRE (botão "Enviar para o PDV")</div>
+      <div className="text-xs font-medium text-muted-foreground">RECEBIDOS DO MERCADO LIVRE PELO NAVEGADOR</div>
       <ul className="max-h-56 divide-y overflow-y-auto rounded-md border">
         {lista.map((c) => (
           <li key={c.link} className="flex items-center gap-2 p-2">

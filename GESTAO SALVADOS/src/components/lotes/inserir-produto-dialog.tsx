@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { BotaoCamera } from "@/components/leitor-camera";
 import { cn } from "@/lib/utils";
-import { candidatoDaCaptura, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
-import { CapturasRecentes, InstalarBotaoCaptura } from "@/components/lotes/captura-ml";
+import { candidatoDaCaptura, capturarPeloNavegador, extensaoInstalada, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
+import { CapturasRecentes, InstalarExtensao } from "@/components/lotes/captura-ml";
 
 type Aba = TipoBusca | "manual";
 const ABAS: { id: Aba; label: string; placeholder: string }[] = [
@@ -109,6 +109,19 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
     setAvisoBusca(null);
     setEscolhido(null);
     if (aba === "ean") setEan(texto.replace(/\D/g, ""));
+    // Link + extensão instalada: busca o anúncio exato pelo navegador (como o robô do PrecificaLote).
+    // A aba nova precisa abrir ainda dentro do clique, por isso vem antes de qualquer "await".
+    if (aba === "link" && extensaoInstalada()) {
+      try {
+        const c = await capturarPeloNavegador(texto);
+        usarCaptura(c);
+        toast.success("Anúncio lido no Mercado Livre.");
+        setBuscando(false);
+        return;
+      } catch (err) {
+        toast.warning(`${(err as Error).message} Buscando pelo jeito normal…`);
+      }
+    }
     try {
       const { candidatos: r, aviso } = await buscarMLComAviso(aba, texto, 5);
       setCandidatos(r);
@@ -216,7 +229,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
         {aba === "link" && !escolhido && (
           <div className="space-y-2">
             <CapturasRecentes onUsar={usarCaptura} />
-            <InstalarBotaoCaptura aberto={!!avisoBusca} />
+            {!extensaoInstalada() && <InstalarExtensao aberto={!!avisoBusca} />}
           </div>
         )}
 
@@ -229,7 +242,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
                   <p>
                     Para pegar o anúncio exato:{" "}
                     <a href={busca.trim()} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">abra o anúncio <ExternalLink className="size-3" /></a>{" "}
-                    e clique no favorito <b>Enviar para o PDV</b> (veja abaixo como instalar).
+                    {extensaoInstalada() ? "e busque de novo." : "ou instale a extensão (veja abaixo) para isso ser automático."}
                   </p>
                 )}
               </div>

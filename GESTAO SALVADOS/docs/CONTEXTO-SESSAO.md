@@ -30,15 +30,16 @@
   "tráfego suspeito" (não contornar). Sobra só a busca pelo nome do link → produtos PARECIDOS. `ml-buscar` agora tenta
   `/user-products` (pega o produto exato se um dia o ML liberar, inclusive o catálogo ligado) e devolve `aviso`; a tela de inserir
   produto e a aba Configuração Mercado Livre mostram o aviso em amarelo. Link de catálogo (`/p/MLB…`) segue exato.
-- **Botão "Enviar para o PDV" (favorito do navegador) — a busca mais certeira para link.** Teste no PrecificaLote com o mesmo link
-  trouxe o produto exato: lá um robô DESKTOP abre a página como pessoa (fila; nota em estrelas = página, não API). Aqui: o usuário abre o
-  anúncio no Chrome/Edge do computador e clica no favorito; o código (`codigoDoBotao()` em `src/lib/captura-ml.ts`) lê os dados
-  estruturados da página (JSON-LD Product: nome, preço, marca, foto; preço "de" pelo aria-label; item_id do link; categoria do breadcrumb)
-  e abre `/capturar#<json>` (rota fora do layout logado; o `#` não vai a servidor). `/capturar` valida (`lerCapturaDoHash`), guarda no
-  localStorage (`ml:capturas`, 30) e avisa por BroadcastChannel; o "Inserir produto" (aba Link) lista "Enviados do Mercado Livre" e,
-  aberto, usa o anúncio na hora. Instalação: na aba Link, seção "Botão Enviar para o PDV" (arrastar para a barra de favoritos ou copiar
-  código). Testado no anúncio real: 33,90 / de 64,90 / Hueto / Bermudas / MLB4667725923 → venda sugerida 30,99 (igual ao PrecificaLote).
-  Não funciona no celular (favorito com código não roda lá).
+- **Busca de link igual ao PrecificaLote: extensão do Chrome** (pasta `extensao-chrome/`, pacote `public/extensao-salvados-lp.zip`,
+  baixado pela tela). O favorito "Enviar para o PDV" saiu (usuário achou complicado). Fluxo: Inserir produto → aba Link → colar → Buscar.
+  Com a extensão (ela marca o PDV com `data-salvados-ext`), `capturarPeloNavegador()` abre o link numa aba chamada
+  `pdv-captura|<origem do PDV>`; o `anuncio.js` da extensão só age nessa aba, lê o JSON-LD Product da página (nome, preço, marca, foto;
+  preço "de" pelo aria-label; item_id do link; categoria do breadcrumb), devolve por `postMessage` (origem validada dos dois lados) e
+  fecha a aba (~2 s). Sem a aba do PDV (sem opener): plano B `/capturar#<json>` (localStorage + BroadcastChannel; lista "Recebidos").
+  Falhou/sem extensão → busca normal pela API (com aviso de "parecidos" e as instruções de instalar). Testado no Chrome com o link do
+  short (aba abriu, leu 33,90 / de 64,90 / Hueto / MLB4667725923, devolveu e fechou). Origens liberadas no manifest:
+  eco-sistema-tb.vercel.app e localhost:5173 — se o domínio mudar (ex.: sistema.grupotbdearaujo.com.br), atualizar manifest.json,
+  `anuncio.js` (regex da origem), gerar o zip de novo e recarregar a extensão. Só computador (Chrome/Edge).
 - **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
   `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
   símbolo em `src/assets/logo-simbolo.png` (topo no celular) e `public/favicon.png`; título da aba "Salvados LP — Gestão".

@@ -1,10 +1,10 @@
-// Captura de anúncio do Mercado Livre pelo NAVEGADOR do usuário (botão "Enviar para o PDV", um favorito do navegador).
+// Busca do anúncio EXATO do Mercado Livre pelo NAVEGADOR do usuário (modelo do "robô" do PrecificaLote).
 //
 // Por quê: a API oficial do ML nega (403) a leitura de anúncios de outros vendedores fora do catálogo, e a página
-// do anúncio aberta pelo servidor cai na verificação de robô. Já na tela do usuário a página abre normal.
-// O botão lê o que está NA TELA (dados estruturados da própria página: nome, preço, preço anterior, foto, marca)
-// e abre o PDV em /capturar com esses dados no "#" do endereço (o "#" não vai para servidor nenhum).
-// A página /capturar guarda no navegador (localStorage) e avisa o "Inserir produto" aberto (BroadcastChannel).
+// do anúncio aberta pelo servidor cai na verificação de robô. Já no navegador da pessoa a página abre normal.
+// Como: a extensão do Chrome "Salvados LP – Busca no Mercado Livre" (pasta extensao-chrome/). O PDV abre o link numa aba;
+// a extensão lê os dados que a própria página publica (nome, preço, preço anterior, foto, marca), devolve por postMessage
+// e fecha a aba. Plano B da extensão: abre /capturar#<dados> (guarda no localStorage e avisa por BroadcastChannel).
 import type { Candidato } from "@/lib/lotes";
 
 export interface CapturaML {
@@ -23,26 +23,6 @@ export interface CapturaML {
 const CHAVE = "ml:capturas";
 const CANAL = "ml-captura";
 const MAX = 30;
-
-/** Código do botão (favorito). Roda na página do anúncio, no navegador do usuário. Sem dependências. */
-export function codigoDoBotao(origemPdv: string): string {
-  const js = `(function(P){try{
-if(!/mercadoli(vre|bre)\\./.test(location.hostname)){alert('Abra a página de um anúncio do Mercado Livre e clique de novo em "Enviar para o PDV".');return}
-var ld=null;document.querySelectorAll('script[type="application/ld+json"]').forEach(function(s){try{var j=JSON.parse(s.textContent);(Array.isArray(j)?j:[j]).forEach(function(x){if(x&&x['@type']==='Product'&&!ld)ld=x})}catch(e){}});
-var m=function(n){var e=document.querySelector('meta[property="'+n+'"],meta[name="'+n+'"],meta[itemprop="'+n+'"]');return e?e.content:null};
-var num=function(t){if(t==null||t==='')return null;if(typeof t==='number')return t;var r=String(t).match(/(\\d[\\d.]*)\\s*reais(?:\\s*com\\s*(\\d+)\\s*centavos?)?/);if(r)return Number(r[1].replace(/\\./g,''))+(r[2]?Number(r[2])/100:0);var n=Number(String(t).replace(',','.'));return isFinite(n)?n:null};
-var o=ld&&ld.offers?(Array.isArray(ld.offers)?ld.offers[0]:ld.offers):{};
-var ant=document.querySelector('.ui-pdp-price__original-value, s.andes-money-amount');
-var h1=document.querySelector('h1');
-var img=ld&&ld.image?(Array.isArray(ld.image)?ld.image[0]:ld.image):m('og:image');
-var bc=[].slice.call(document.querySelectorAll('.andes-breadcrumb__item a')).map(function(a){return a.textContent.trim()}).filter(Boolean);
-var u=location.href;var w=(u.match(/item_id(?:%3A|:|=)(MLB-?\\d+)/i)||u.match(/\\/(MLB-\\d{6,})/i)||u.match(/\\/p\\/(MLB\\d+)/i)||[])[1];
-var d={titulo:(ld&&ld.name)||(h1&&h1.textContent.trim())||m('og:title'),preco:num(o&&o.price!=null?o.price:m('price')),preco_original:num(ant&&ant.getAttribute('aria-label')),foto:img||null,link:u.split('#')[0],id:w?w.replace('-','').toUpperCase():((ld&&ld.sku)||null),marca:ld&&ld.brand?(ld.brand.name||ld.brand):null,gtin:ld?(ld.gtin13||ld.gtin||ld.gtin8||ld.gtin12||null):null,categoria:bc.length?bc[bc.length-1]:null};
-if(!d.titulo){alert('Não achei o produto nesta página. Abra a página do anúncio (não a lista de busca).');return}
-window.open(P+'/capturar#'+encodeURIComponent(JSON.stringify(d)),'pdv_captura');
-}catch(e){alert('Não foi possível capturar: '+e.message)}})(${JSON.stringify(origemPdv)})`;
-  return "javascript:" + js.replace(/\n/g, "");
-}
 
 const txt = (v: unknown, max = 500): string | null => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 const valor = (v: unknown): number | null => {
@@ -64,12 +44,16 @@ const url = (v: unknown): string | null => {
 export function lerCapturaDoHash(hash: string, agora = new Date()): CapturaML | null {
   const bruto = hash.replace(/^#/, "");
   if (!bruto) return null;
-  let d: Record<string, unknown>;
   try {
-    d = JSON.parse(decodeURIComponent(bruto));
+    return validarCaptura(JSON.parse(decodeURIComponent(bruto)), agora);
   } catch {
     return null;
   }
+}
+
+/** Valida e limpa os dados de um anúncio vindos da página do ML (extensão ou favorito). null se inválido. */
+export function validarCaptura(bruto: unknown, agora = new Date()): CapturaML | null {
+  const d = bruto as Record<string, unknown>;
   if (!d || typeof d !== "object") return null;
   const titulo = txt(d.titulo, 300);
   const link = url(d.link);
@@ -110,6 +94,43 @@ export function candidatoDaCaptura(c: CapturaML): Candidato {
   };
 }
 
+// ------------------------------------------------------------ extensão do Chrome (busca automática)
+/** A extensão "Salvados LP – Busca no Mercado Livre" marca a página do PDV quando está instalada. */
+export function extensaoInstalada(): boolean {
+  return typeof document !== "undefined" && document.documentElement.hasAttribute("data-salvados-ext");
+}
+
+/**
+ * Busca o anúncio EXATO pelo navegador: abre o link numa aba (com o nome que a extensão reconhece),
+ * a extensão lê a página, devolve os dados e fecha a aba. Precisa ser chamada direto do clique
+ * (senão o navegador bloqueia a aba nova).
+ */
+export function capturarPeloNavegador(link: string, limiteMs = 30000): Promise<CapturaML> {
+  const alvo = url(link);
+  if (!alvo || !/mercadoli(vre|bre)\./i.test(new URL(alvo).hostname)) return Promise.reject(new Error("Cole um link do Mercado Livre."));
+  const aba = window.open(alvo, `pdv-captura|${window.location.origin}`);
+  if (!aba) return Promise.reject(new Error("O navegador bloqueou a aba do anúncio. Permita pop-ups deste site e busque de novo."));
+  window.focus();
+  return new Promise((ok, falha) => {
+    const fim = () => { window.removeEventListener("message", ouvir); clearTimeout(tempo); clearInterval(fechada); };
+    const ouvir = (e: MessageEvent) => {
+      if (!/^https:\/\/([a-z0-9-]+\.)*mercadoli(vre|bre)\.com(\.br)?$/i.test(e.origin)) return;
+      const m = e.data as { tipo?: string; dados?: unknown; erro?: string };
+      if (!m || m.tipo !== "salvados-captura") return;
+      fim();
+      if (m.erro) return falha(new Error(m.erro));
+      const c = validarCaptura(m.dados);
+      if (!c) return falha(new Error("A página do anúncio não trouxe os dados do produto."));
+      guardarCaptura(c, false);
+      ok(c);
+    };
+    window.addEventListener("message", ouvir);
+    const tempo = setTimeout(() => { fim(); falha(new Error("O anúncio não respondeu a tempo. Confira a aba do Mercado Livre que abriu.")); }, limiteMs);
+    // a pessoa fechou a aba antes de terminar
+    const fechada = setInterval(() => { if (aba.closed) { fim(); falha(new Error("A aba do anúncio foi fechada antes de terminar.")); } }, 1000);
+  });
+}
+
 // ------------------------------------------------------------ guardar no navegador
 export function listarCapturas(): CapturaML[] {
   try {
@@ -120,13 +141,15 @@ export function listarCapturas(): CapturaML[] {
   }
 }
 
-export function guardarCaptura(c: CapturaML) {
+/** Guarda no navegador. avisar=false quando quem recebeu já vai usar (evita o "Inserir produto" usar duas vezes). */
+export function guardarCaptura(c: CapturaML, avisar = true) {
   const xs = listarCapturas().filter((x) => x.link !== c.link);
   try {
     localStorage.setItem(CHAVE, JSON.stringify([c, ...xs].slice(0, MAX)));
   } catch {
     /* sem localStorage: segue só pelo aviso ao vivo */
   }
+  if (!avisar) return;
   try {
     const canal = new BroadcastChannel(CANAL);
     canal.postMessage(c);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { candidatoDaCaptura, codigoDoBotao, lerCapturaDoHash } from "@/lib/captura-ml";
+import { candidatoDaCaptura, lerCapturaDoHash, validarCaptura } from "@/lib/captura-ml";
 
 const dados = {
   titulo: "Short Duplo Academia Compressão Corrida Bermuda 2em 1 Treino",
@@ -14,7 +14,7 @@ const dados = {
 };
 const hash = (d: unknown) => "#" + encodeURIComponent(JSON.stringify(d));
 
-describe("captura do anúncio pelo botão Enviar para o PDV", () => {
+describe("anúncio lido pelo navegador (extensão)", () => {
   it("lê os dados enviados no #", () => {
     const c = lerCapturaDoHash(hash(dados), new Date("2026-11-21T03:00:00Z"))!;
     expect(c.titulo).toBe(dados.titulo);
@@ -45,10 +45,9 @@ describe("captura do anúncio pelo botão Enviar para o PDV", () => {
     expect(cand).toMatchObject({ id: "MLB4667725923", tipo: "item", preco: 33.9, preco_original: 64.9, similaridade: 100 });
   });
 
-  it("código do botão aponta para o PDV e é uma linha só", () => {
-    const c = codigoDoBotao("https://eco-sistema-tb.vercel.app");
-    expect(c.startsWith("javascript:(function(P){")).toBe(true);
-    expect(c).toContain('"https://eco-sistema-tb.vercel.app"');
-    expect(c).not.toContain("\n");
+  it("valida os dados que a extensão manda", () => {
+    expect(validarCaptura(dados)?.preco).toBe(33.9);
+    expect(validarCaptura(null)).toBeNull();
+    expect(validarCaptura({ ...dados, link: "https://outro-site.com/x" })).toBeNull();
   });
 });

@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Salvados LP – Busca no Mercado Livre",
+  "version": "1.0.0",
+  "description": "Quando o PDV Salvados LP busca um link do Mercado Livre, lê o anúncio aberto (nome, preço, preço anterior, foto) e devolve para o PDV.",
+  "icons": { "16": "icone-16.png", "48": "icone-48.png", "128": "icone-128.png" },
+  "content_scripts": [
+    {
+      "matches": ["https://*.mercadolivre.com.br/*", "https://*.mercadolibre.com/*"],
+      "js": ["anuncio.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://eco-sistema-tb.vercel.app/*", "http://localhost:5173/*"],
+      "js": ["pdv.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
