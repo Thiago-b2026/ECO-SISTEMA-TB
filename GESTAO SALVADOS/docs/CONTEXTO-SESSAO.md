@@ -15,14 +15,14 @@
   Abre pelo menu ⋮ e pelo botão "Editor de post" dentro do lote. Em cada produto do lote: botão **Compartilhar** (verde) → escolhe layout,
   edita legenda; celular abre o compartilhar (WhatsApp) com a imagem; computador baixa o JPG; a legenda sempre vai para a área de transferência.
   Fotos do ML liberam CORS (testado: imagem exportada). Último layout usado fica lembrado no aparelho (localStorage).
-- **Migration `20261120000028_post_layouts.sql` (tabela `public.post_layouts`, RLS pode_lotes + pode_ver_loja; excluir só gestor) — AINDA NÃO APLICADA.**
-  Sem ela os layouts prontos funcionam, mas "Salvar" layout dá erro. Aplicar SÓ ela com
+- **Migration `20261120000028_post_layouts.sql` (tabela `public.post_layouts`, RLS pode_lotes + pode_ver_loja; excluir só gestor) — APLICADA (conferida em 21/11).**
+  Comando usado (uma migration por vez):
   `npx supabase db query --remote=blqgmueqsqqpflorusrm --yes --workdir "<pasta do PDV>" -f "supabase/migrations/20261120000028_post_layouts.sql"`.
   ⚠️ **NUNCA `db push`**: o banco não tem o histórico de migrations e o dry-run quer reaplicar as 32.
 - **Pessoas → Excluir usuário direto na lista** (admin; em quem tem login, menos o próprio admin): consulta os motivos na função
   `admin-usuarios` e só exclui se nunca teve movimento (mesma regra da aba LOGIN E PERMISSÕES). O cadastro da pessoa continua.
 - **Pessoas → "Excluir" (cadastro) para quem NÃO tem login** (cliente, fornecedor, funcionário; só admin): funções
-  `motivos_excluir_pessoa()` e `excluir_pessoa()` (migration **`20261121000029_excluir_pessoa.sql` — AINDA NÃO APLICADA**).
+  `motivos_excluir_pessoa()` e `excluir_pessoa()` (migration **`20261121000029_excluir_pessoa.sql` — APLICADA em 21/11**; conferido: sem login e sem movimento → pode; com login → "exclua o usuário primeiro").
   Movimento = qualquer linha em qualquer tabela com FK para `public.pessoas` (lido do `pg_constraint`, entra tabela nova sozinha).
   Quem tem login: primeiro "Excluir usuário", depois o cadastro.
 - **Link do ML que traz produto diferente** (ex.: `.../up/MLBU3962023842?pdp_filters=item_id:MLB4667725923`): o ML responde 403
