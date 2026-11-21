@@ -110,7 +110,20 @@ function DetalheLote() {
   }, [itens, busca, fPallet, fStatus]);
 
   if (carregando && !lote) return <div className="p-6"><Loader2 className="animate-spin text-muted-foreground" /></div>;
-  if (!lote) return <div className="p-6">Lote não encontrado. <Link to="/produtos" search={{ aba: "lotes" }} className="text-primary">Voltar</Link></div>;
+  if (!lote)
+    return (
+      <div className="p-6">
+        <Card className="mx-auto max-w-md space-y-3 p-6 text-center">
+          <div className="text-lg font-semibold">Lote não encontrado</div>
+          <p className="text-sm text-muted-foreground">
+            Este lote não existe mais (pode ter sido excluído) ou é de uma loja que o seu usuário não tem liberada.
+          </p>
+          <Link to="/produtos" search={{ aba: "lotes" }} className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+            Ver a lista de lotes
+          </Link>
+        </Card>
+      </div>
+    );
 
   const contaNoTotal = (i: Item) => i.ocorrencia == null || i.ocorrencia === "avaria_parcial";
   const totalUn = itens.filter(contaNoTotal).reduce((s, i) => s + i.quantidade, 0);

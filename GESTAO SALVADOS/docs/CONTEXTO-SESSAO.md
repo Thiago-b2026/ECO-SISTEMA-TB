@@ -48,6 +48,9 @@
   Sem preço de venda ou com ocorrência (não chegou/avaria total): fica de fora. "Imprimir etiqueta ao salvar" (Inserir produto) agora
   imprime no último modelo usado, por quadro escondido (`imprimirEtiquetasNaPagina`, sem pop-up). Etiqueta de item de lote NÃO é
   registrada em `etiquetas_impressas` (só produto do cadastro conta como movimento).
+- **"Cannot coerce the result to a single JSON object" (ELMORANE, 21/11)**: era lote que não existe mais (lotes de teste excluídos;
+  aba/link antigo). Conferido no banco: ELMORANE (gerente, Eldorado + Monte Sinai, tela pdv.lotes) lê os 4 lotes atuais.
+  `carregarLote` usa `maybeSingle()` e a tela mostra "Lote não encontrado: não existe mais ou é de loja sem acesso" + botão para a lista.
 - **Editar custo** (21/11): no "Inserir produto" (todas as abas) os campos "% custo" (começa no % do lote) e "Custo (R$)" são
   editáveis (digitado à mão vence o %; "usar %" volta ao automático). Em cada produto do lote: botão "Editar" → tela
   `EditarItemDialog` (custo em R$ ou % do preço, margem, preço ML, preço de venda, quantidade, grade, pallet, código de barras).

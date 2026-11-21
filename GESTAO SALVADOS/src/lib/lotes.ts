@@ -144,12 +144,13 @@ export async function excluirLoteConfirmando(lote: { id: string; nome: string },
 
 export async function carregarLote(id: string) {
   const [{ data: lote, error }, itens, { data: pallets }] = await Promise.all([
-    supabase.from("lotes").select("*").eq("id", id).single(),
+    // maybeSingle: lote excluído (ou de loja sem acesso) volta vazio, sem erro técnico
+    supabase.from("lotes").select("*").eq("id", id).maybeSingle(),
     fetchAllRows<Item>(() => supabase.from("lote_itens").select("*").eq("lote_id", id).order("created_at", { ascending: false })),
     supabase.from("pallets").select("*").eq("lote_id", id).order("codigo"),
   ]);
   if (error) throw error;
-  return { lote: lote as Lote, itens, pallets: (pallets ?? []) as Pallet[] };
+  return { lote: (lote as Lote | null) ?? null, itens, pallets: (pallets ?? []) as Pallet[] };
 }
 
 export async function carregarConfig(): Promise<ConfigArredondamento> {
