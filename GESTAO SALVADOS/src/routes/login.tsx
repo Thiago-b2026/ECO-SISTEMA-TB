@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
-import { Store, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import logoSalvados from "@/assets/logo-salvados.jpg";
 import { toast } from "sonner";
 import { useAuth, homeRouteFor } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
@@ -86,13 +87,13 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(ellipse_at_top,_oklch(0.3_0.06_78),_oklch(0.1_0_0)_65%)] p-4">
       <Card className="w-full max-w-md p-8 shadow-2xl">
         <div className="flex flex-col items-center mb-6">
-          <div className="size-16 rounded-2xl bg-primary grid place-items-center mb-3">
-            <Store className="size-8 text-primary-foreground" />
+          <div className="mb-3 w-full max-w-[260px] overflow-hidden rounded-2xl bg-black px-6 py-4">
+            <img src={logoSalvados} alt="Salvados LP — Garimpo de oportunidades" className="w-full" />
           </div>
-          <h1 className="text-2xl font-bold">Eco Sistema TB</h1>
+          <h1 className="sr-only">Salvados LP</h1>
           <p className="text-sm text-muted-foreground">{TITULO[modo]}</p>
         </div>
 

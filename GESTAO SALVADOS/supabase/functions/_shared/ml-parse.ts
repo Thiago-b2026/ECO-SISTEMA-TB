@@ -10,10 +10,19 @@ export type IdDoLink = { tipo: "produto" | "item"; id: string };
  * - ...?item_id=MLB123 / wid=MLB123 → anúncio
  */
 export function extrairIdDoLink(link: string): IdDoLink | null {
-  const texto = link.trim();
+  let texto = link.trim();
+  // pdp_filters=item_id%3AMLB123 → item_id:MLB123
+  try {
+    texto = decodeURIComponent(texto);
+  } catch {
+    /* link com % solto: segue como veio */
+  }
   const produto = texto.match(/\/p\/(MLB\d+)/i);
   if (produto) return { tipo: "produto", id: produto[1].toUpperCase() };
-  const param = texto.match(/[?&#](?:item_id|wid)[=:](MLB)-?(\d+)/i);
+  // item_id antes de wid: o wid fica no fim do link e, copiado do WhatsApp,
+  // vem grudado com o horário da mensagem (wid=MLB123 + "23:04")
+  const param =
+    texto.match(/[?&#=:,]item_id[=:](MLB)-?(\d+)/i) ?? texto.match(/[?&#]wid[=:](MLB)-?(\d+)/i);
   if (param) return { tipo: "item", id: `MLB${param[2]}` };
   const item = texto.match(/\b(MLB)-?(\d{6,})\b/i);
   if (item) return { tipo: "item", id: `MLB${item[2]}` };
@@ -37,7 +46,8 @@ export function nomeDoLink(link: string): string | null {
   const item = caminho.match(/MLB-?\d+-([^/]+)/i);
   if (item) slug = item[1];
   else {
-    const produto = caminho.match(/\/([^/]+)\/p\/MLB\d+/i);
+    // .../nome/p/MLB123 (catálogo) ou .../nome/up/MLBU123 (link novo do ML)
+    const produto = caminho.match(/\/([^/]+)\/u?p\/MLBU?\d+/i);
     if (produto) slug = produto[1];
   }
   const nome = slug
@@ -45,6 +55,20 @@ export function nomeDoLink(link: string): string | null {
     .replace(/[-_]+/g, " ")
     .trim();
   return nome.length >= 3 ? nome : null;
+}
+
+/**
+ * Versões do nome para tentar no catálogo, da mais completa à mais curta.
+ * Nome de planilha costuma ser comprido (cor, voltagem, códigos) e a busca do
+ * ML não acha nada; com as primeiras palavras ela costuma achar.
+ */
+export function variacoesDoNome(texto: string): string[] {
+  const limpo = texto.replace(/[|/\\,;()[\]{}"+]+/g, " ").replace(/\s+/g, " ").trim();
+  const ps = limpo.split(" ").filter(Boolean);
+  const lista = [limpo];
+  if (ps.length > 6) lista.push(ps.slice(0, 6).join(" "));
+  if (ps.length > 4) lista.push(ps.slice(0, 4).join(" "));
+  return [...new Set(lista.filter((t) => t.length >= 3))];
 }
 
 /** Só dígitos, 8 a 14 (EAN-8, UPC-12, EAN-13, GTIN-14). */

@@ -126,6 +126,22 @@ export async function listarLotes(filtroLoja: string | null): Promise<LoteResumo
   });
 }
 
+/**
+ * Exclui o lote (itens e pallets saem junto, por cascade). Usado na lista (menu ⋮) e dentro do lote.
+ * Não exclui se o lote já lançou produtos no estoque (senão sumiriam estoque e vendas ligados a ele).
+ * Pede confirmação; devolve true se excluiu.
+ */
+export async function excluirLoteConfirmando(lote: { id: string; nome: string }, totalItens: number): Promise<boolean> {
+  const { count, error: e1 } = await supabase.from("produtos").select("id", { count: "exact", head: true }).eq("lote_id", lote.id);
+  if (e1) throw new Error(e1.message);
+  if (count) throw new Error(`O lote "${lote.nome}" já tem ${count} produtos lançados no estoque e não pode ser excluído.`);
+  if (!window.confirm(`EXCLUIR o lote "${lote.nome}" e seus ${totalItens} itens? Não dá para desfazer.`)) return false;
+  const { error, count: apagados } = await supabase.from("lotes").delete({ count: "exact" }).eq("id", lote.id);
+  if (error) throw new Error(error.message);
+  if (!apagados) throw new Error("Sem permissão para excluir este lote (só administrador ou gerente).");
+  return true;
+}
+
 export async function carregarLote(id: string) {
   const [{ data: lote, error }, itens, { data: pallets }] = await Promise.all([
     supabase.from("lotes").select("*").eq("id", id).single(),
@@ -157,10 +173,12 @@ export async function buscarML(tipo: TipoBusca, valor: string, limite = 3): Prom
     const ctx = (error as { context?: Response }).context;
     const body = ctx && typeof ctx.json === "function" ? await ctx.json().catch(() => null) : null;
     if (body?.detalhe) console.warn("Mercado Livre:", body.detalhe);
+    if (body?.tentativas?.length) console.info("Mercado Livre (tentativas):", body.tentativas.join(" | "));
     const e = new Error(traduzirErroML(body?.erro ?? error.message)) as Error & { status?: number };
     e.status = ctx?.status;
     throw e;
   }
+  if (data?.tentativas?.length) console.info(`Mercado Livre "${valor}" (tentativas):`, data.tentativas.join(" | "));
   return (data?.candidatos ?? []) as Candidato[];
 }
 

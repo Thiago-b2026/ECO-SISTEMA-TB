@@ -1,4 +1,33 @@
-# Contexto do projeto — passagem de sessão (atualizado em 08/11/2026)
+# Contexto do projeto — passagem de sessão (atualizado em 21/11/2026)
+
+## Sessão 20–21/11/2026 — Busca por link do ML no ar, menu ⋮ dos lotes e Editor de post
+- **Função `ml-buscar` v12 publicada** (corrige busca por link, inclusive link colado com ": " antes). Usuário testou: OK.
+  Permissão local `.claude/settings.local.json` (raiz) deixa o Claude rodar `npx supabase functions deploy … --project-ref blqgmueqsqqpflorusrm`
+  (o Supabase ainda pede `--yes`).
+- **Nova varredura do PrecificaLote** (conta do usuário, só leitura): menu ⋮ de cada lote (Abrir, Editar cadastro, Marcar Disponível/Vendido,
+  Ajustar custos, Transferir, Baixar/Exportar, Excluir) e `/edit-post` (camadas fundo/logo/foto/textos, layouts salvos, legenda com campos).
+- **Lista de lotes: menu ⋮ por linha** (`MenuLote` em `_app.lotes.index.tsx`): Abrir lote, Editor de post e, para admin/gerente,
+  Marcar como Em criação/Disponível/Vendido e Excluir. Excluir usa `excluirLoteConfirmando()` (`src/lib/lotes.ts`), o mesmo de dentro
+  do lote: bloqueia lote com produtos lançados no estoque; avisa quando a RLS não deixa (só gestor).
+- **Editor de post** (`src/lib/post.ts` + `src/components/lotes/editor-post-dialog.tsx`): arte 1080×1350 em canvas; 3 layouts prontos
+  (Verde saldão, Azul, Vermelho oferta) e layouts da loja; camadas com cor, fonte, negrito/itálico/riscado, faixa, posição (arrastar na arte);
+  logo enviada vira data URL (≤400 px) dentro do layout; campos {nome} {precoML} {precoVenda} {desconto} {qtd} nos textos e na legenda.
+  Abre pelo menu ⋮ e pelo botão "Editor de post" dentro do lote. Em cada produto do lote: botão **Compartilhar** (verde) → escolhe layout,
+  edita legenda; celular abre o compartilhar (WhatsApp) com a imagem; computador baixa o JPG; a legenda sempre vai para a área de transferência.
+  Fotos do ML liberam CORS (testado: imagem exportada). Último layout usado fica lembrado no aparelho (localStorage).
+- **Migration `20261120000028_post_layouts.sql` (tabela `public.post_layouts`, RLS pode_lotes + pode_ver_loja; excluir só gestor) — AINDA NÃO APLICADA.**
+  Sem ela os layouts prontos funcionam, mas "Salvar" layout dá erro. Aplicar SÓ ela com
+  `npx supabase db query --remote=blqgmueqsqqpflorusrm --yes --workdir "<pasta do PDV>" -f "supabase/migrations/20261120000028_post_layouts.sql"`.
+  ⚠️ **NUNCA `db push`**: o banco não tem o histórico de migrations e o dry-run quer reaplicar as 32.
+- **Pessoas → Excluir usuário direto na lista** (admin; em quem tem login, menos o próprio admin): consulta os motivos na função
+  `admin-usuarios` e só exclui se nunca teve movimento (mesma regra da aba LOGIN E PERMISSÕES). O cadastro da pessoa continua.
+- **Visual Salvados LP: preto e amarelo** (`src/styles.css`: primary amarelo da logo ≈ #F7AC03 com texto preto, barra lateral preta;
+  `text-primary` no tema claro vira dourado escuro para dar leitura). Logo em `src/assets/logo-salvados.jpg` (barra lateral e login),
+  símbolo em `src/assets/logo-simbolo.png` (topo no celular) e `public/favicon.png`; título da aba "Salvados LP — Gestão".
+  Original: `LOGO SALVADOS LP.jpg` (fora do Git).
+- **Menu sempre na barra lateral esquerda**: saiu o visual "ERP" (menu no topo) e a escolha em Minha conta (`layout-topo.tsx` e `visual.ts` apagados).
+- Testes 142 (novo `post.test.ts`); build ok. Publicado com push na `main` (Vercel).
+
 
 ## Sessão 08/11/2026 (noite, 3) — CADASTROS com abas, Excluir produto e Excluir usuário
 - **Menu final:** DASHBOARD · PDV · FRENTE DE LOJA · CADASTROS (Produtos, Pessoas, Empresas) · FINANCEIRO · CRM E WHATSAPP.

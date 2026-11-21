@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
-  camposDoCandidato, carregarConfig, carregarLote, limpar, OCORRENCIA_LABEL, processarFila, STATUS_ITEM_LABEL, STATUS_LOTE_LABEL,
+  camposDoCandidato, carregarConfig, carregarLote, excluirLoteConfirmando, limpar, OCORRENCIA_LABEL, processarFila, STATUS_ITEM_LABEL, STATUS_LOTE_LABEL,
   type Candidato, type Item, type ItemStatus, type Lote, type LoteStatus, type Ocorrencia, type Pallet,
 } from "@/lib/lotes";
 import { ARREDONDAMENTO_PADRAO, custoPercentual, lerNumero, margem, precoSugerido, type ConfigArredondamento } from "@/lib/precificacao";
@@ -21,7 +21,8 @@ import { InserirProdutoDialog } from "@/components/lotes/inserir-produto-dialog"
 import { AvariaDialog, DesmembrarDialog } from "@/components/lotes/acoes-item";
 import { TransferirLoteDialog } from "@/components/lotes/transferir-lote-dialog";
 import { GraficosLote } from "@/components/lotes/graficos-lote";
-import { ArrowRightLeft, BarChart3, Scissors, ShieldAlert } from "lucide-react";
+import { ArrowRightLeft, BarChart3, ImagePlus, Scissors, Share2, ShieldAlert } from "lucide-react";
+import { CompartilharPostDialog, dadosDoItem, EditorPostDialog } from "@/components/lotes/editor-post-dialog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/lotes/$id")({ component: DetalheLote });
@@ -56,6 +57,8 @@ function DetalheLote() {
   const [avaria, setAvaria] = useState<Item | null>(null);
   const [transferir, setTransferir] = useState(false);
   const [verGraficos, setVerGraficos] = useState(false);
+  const [editorPost, setEditorPost] = useState(false);
+  const [compartilhar, setCompartilhar] = useState<Item | null>(null);
   // robô
   const [rodando, setRodando] = useState(false);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
@@ -169,11 +172,11 @@ function DetalheLote() {
   }
 
   async function excluirLote() {
-    const { count } = await supabase.from("produtos").select("id", { count: "exact", head: true }).eq("lote_id", lote!.id);
-    if (count) return toast.error(`Este lote já tem ${count} produtos no estoque e não pode ser excluído.`);
-    if (!window.confirm(`EXCLUIR o lote "${lote!.nome}" e seus ${itens.length} itens? Não dá para desfazer.`)) return;
-    const { error } = await supabase.from("lotes").delete().eq("id", lote!.id);
-    if (error) return toast.error(error.message);
+    try {
+      if (!(await excluirLoteConfirmando(lote!, itens.length))) return;
+    } catch (e) {
+      return toast.error((e as Error).message);
+    }
     toast.success("Lote excluído.");
     navigate({ to: "/produtos", search: { aba: "lotes" } });
   }
@@ -232,6 +235,7 @@ function DetalheLote() {
           >
             {Object.entries(STATUS_LOTE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
+          <Button variant="outline" onClick={() => setEditorPost(true)}><ImagePlus /> Editor de post</Button>
           <Button variant="outline" onClick={lancarEstoque} disabled={rodando}><PackageCheck /> Lançar no estoque</Button>
           {lote.tipo === "manual" && (
             <Button onClick={() => setInserir(true)}><Plus /> Inserir produto</Button>
@@ -378,6 +382,7 @@ function DetalheLote() {
                   onExcluir={() => excluirItem(i)}
                   onDesmembrar={() => setDesmembrar(i)}
                   onAvaria={() => setAvaria(i)}
+                  onCompartilhar={() => setCompartilhar(i)}
                   onEscolher={(c) => escolherCandidato(i, c)}
                   palletNome={palletNome}
                 />
@@ -390,6 +395,8 @@ function DetalheLote() {
       </Card>
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
+      {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
+      {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
       {avaria && <AvariaDialog item={avaria} onClose={() => setAvaria(null)} onFeito={() => recarregar(true)} />}
       {transferir && <TransferirLoteDialog lote={lote} itens={itens} pallets={pallets} onClose={() => setTransferir(false)} onFeito={() => recarregar(true)} />}
       {lote.tipo === "manual" && (
@@ -411,11 +418,12 @@ interface LinhaProps {
   onExcluir: () => void;
   onDesmembrar: () => void;
   onAvaria: () => void;
+  onCompartilhar: () => void;
   onEscolher: (c: Candidato) => void;
   palletNome: (id: string | null) => string;
 }
 
-function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria }: LinhaProps) {
+function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar }: LinhaProps) {
   const [venda, setVenda] = useState(i.preco_venda != null ? String(i.preco_venda) : "");
   useEffect(() => setVenda(i.preco_venda != null ? String(i.preco_venda) : ""), [i.preco_venda]);
   const m = margem(i.preco_venda, i.custo_unit);
@@ -492,6 +500,7 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
           )}
           {i.quantidade > 0 && i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Desmembrar (caixa/kit → unidades)" onClick={onDesmembrar}><Scissors /></Button>}
           {i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Avaria parcial (separar com preço menor)" onClick={onAvaria}><ShieldAlert /></Button>}
+          <Button size="icon" variant="ghost" title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="text-success" /></Button>
           <Button size="icon" variant="ghost" title="Excluir" onClick={onExcluir}><Trash2 className="text-destructive" /></Button>
         </td>
       </tr>

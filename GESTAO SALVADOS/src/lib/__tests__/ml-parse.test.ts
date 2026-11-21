@@ -6,6 +6,7 @@ import {
   nomeDoLink,
   precoDosAnuncios,
   similaridade,
+  variacoesDoNome,
 } from "../../../supabase/functions/_shared/ml-parse.ts";
 
 describe("nomeDoLink", () => {
@@ -108,5 +109,40 @@ describe("precoDosAnuncios", () => {
   it("sem anúncios com preço, devolve null", () => {
     expect(precoDosAnuncios({ results: [] })).toBeNull();
     expect(precoDosAnuncios(null)).toBeNull();
+  });
+});
+
+describe("variacoesDoNome", () => {
+  it("nome curto: só ele mesmo", () => {
+    expect(variacoesDoNome("Fone Bluetooth JBL")).toEqual(["Fone Bluetooth JBL"]);
+  });
+  it("nome comprido: inteiro, 6 e 4 primeiras palavras", () => {
+    expect(variacoesDoNome("Liquidificador Philco PLQ1300 Preto 1200W 3 Litros 110V")).toEqual([
+      "Liquidificador Philco PLQ1300 Preto 1200W 3 Litros 110V",
+      "Liquidificador Philco PLQ1300 Preto 1200W 3",
+      "Liquidificador Philco PLQ1300 Preto",
+    ]);
+  });
+  it("tira barras, parênteses e espaços sobrando", () => {
+    expect(variacoesDoNome("  Kit 2 (Toalhas) | Banho / Rosto  ")).toEqual(["Kit 2 Toalhas Banho Rosto", "Kit 2 Toalhas Banho"]);
+  });
+});
+
+describe("nomeDoLink com link novo (/up/MLBU)", () => {
+  it("tira o nome do link /up/", () => {
+    expect(nomeDoLink("https://www.mercadolivre.com.br/short-duplo-academia-compressao/up/MLBU3012345678?pdp_filters=x")).toBe(
+      "short duplo academia compressao",
+    );
+  });
+});
+
+describe("extrairIdDoLink com link do WhatsApp", () => {
+  const link =
+    "https://www.mercadolivre.com.br/short-duplo-academia-compressao-corrida-bermuda-2em-1-treino/up/MLBU3962023842?pdp_filters=item_id%3AMLB4667725923&matt_tool=38524122&ua=abc#origin=whatsapp&sid=whatsapp&wid=MLB466772592323:04";
+  it("usa o item_id do pdp_filters, não o wid grudado com o horário", () => {
+    expect(extrairIdDoLink(link)).toEqual({ tipo: "item", id: "MLB4667725923" });
+  });
+  it("e ainda tira o nome do link", () => {
+    expect(nomeDoLink(link)).toBe("short duplo academia compressao corrida bermuda 2em 1 treino");
   });
 });

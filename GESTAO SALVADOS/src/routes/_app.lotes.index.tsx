@@ -1,10 +1,12 @@
-import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { Boxes, Clock, FileSpreadsheet, Loader2, Plus, RefreshCw, ScanBarcode, Settings2, TrendingUp } from "lucide-react";
+import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Boxes, CheckCircle2, Clock, FileSpreadsheet, FolderOpen, ImagePlus, Loader2, MoreVertical, Plus, RefreshCw, ScanBarcode, Settings2, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { useLoja } from "@/lib/loja";
-import { listarLotes, STATUS_LOTE_LABEL, type LoteResumo } from "@/lib/lotes";
+import { excluirLoteConfirmando, listarLotes, STATUS_LOTE_LABEL, type LoteResumo, type LoteStatus } from "@/lib/lotes";
+import { supabase } from "@/lib/supabase";
+import { EditorPostDialog } from "@/components/lotes/editor-post-dialog";
 import { fmtBRL, fmtDateOnly } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,24 @@ export function PaginaLotes() {
   const [config, setConfig] = useState(false);
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [aba, setAba] = useState<"lotes" | "ml">("lotes");
+  const [postLote, setPostLote] = useState<LoteResumo | null>(null);
+
+  async function mudarStatus(l: LoteResumo, status: LoteStatus) {
+    const { error } = await supabase.from("lotes").update({ status }).eq("id", l.id);
+    if (error) return toast.error("Não foi possível mudar a situação: " + error.message);
+    toast.success(`"${l.nome}" agora está ${STATUS_LOTE_LABEL[status]}.`);
+    setLotes((xs) => xs && xs.map((x) => (x.id === l.id ? { ...x, status } : x)));
+  }
+
+  async function excluir(l: LoteResumo) {
+    try {
+      if (!(await excluirLoteConfirmando(l, l.total_itens))) return;
+    } catch (e) {
+      return toast.error((e as Error).message);
+    }
+    toast.success(`Lote "${l.nome}" excluído.`);
+    setLotes((xs) => xs && xs.filter((x) => x.id !== l.id));
+  }
 
   async function carregar() {
     setLotes(null);
@@ -132,6 +152,7 @@ export function PaginaLotes() {
                   <th className="py-2 pr-2 text-right">Pallets</th>
                   <th className="py-2 pr-2 text-right">Valor do lote / ticket</th>
                   <th className="py-2 pr-2">Situação</th>
+                  <th className="py-2 w-10"></th>
                 </tr>
               </thead>
               <tbody>
@@ -163,6 +184,9 @@ export function PaginaLotes() {
                           {revisar > 0 && <Badge className={cn("bg-warning text-warning-foreground")}>{revisar} p/ revisar</Badge>}
                         </div>
                       </td>
+                      <td className="py-2 text-right">
+                        <MenuLote lote={l} gestor={gestor} onStatus={(st) => mudarStatus(l, st)} onPost={() => setPostLote(l)} onExcluir={() => excluir(l)} />
+                      </td>
                     </tr>
                   );
                 })}
@@ -176,6 +200,72 @@ export function PaginaLotes() {
 
       <NovoLoteDialog open={novo} onOpenChange={setNovo} />
       {gestor && <ConfigPrecoDialog open={config} onOpenChange={setConfig} />}
+      {postLote && <EditorPostDialog lojaId={postLote.loja_id} loteId={postLote.id} onClose={() => setPostLote(null)} />}
+    </div>
+  );
+}
+
+// Menu ⋮ de cada lote (como no PrecificaLote): abrir, mudar situação, editor de post e excluir.
+function MenuLote({ lote, gestor, onStatus, onPost, onExcluir }: {
+  lote: LoteResumo; gestor: boolean; onStatus: (s: LoteStatus) => void; onPost: () => void; onExcluir: () => void;
+}) {
+  const navigate = useNavigate();
+  const [aberto, setAberto] = useState(false);
+  // posição fixa na tela: a tabela tem rolagem própria e cortaria um menu "absolute"
+  const [pos, setPos] = useState({ top: 0, right: 0, acima: false });
+  const ref = useRef<HTMLDivElement>(null);
+  function alternar(e: React.MouseEvent<HTMLButtonElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const acima = window.innerHeight - r.bottom < 300;
+    setPos({ top: acima ? r.top : r.bottom, right: window.innerWidth - r.right, acima });
+    setAberto((v) => !v);
+  }
+  useEffect(() => {
+    if (!aberto) return;
+    const fechar = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setAberto(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setAberto(false); };
+    document.addEventListener("mousedown", fechar);
+    document.addEventListener("keydown", esc);
+    const rolar = () => setAberto(false);
+    window.addEventListener("scroll", rolar, true);
+    return () => {
+      document.removeEventListener("mousedown", fechar);
+      document.removeEventListener("keydown", esc);
+      window.removeEventListener("scroll", rolar, true);
+    };
+  }, [aberto]);
+
+  const item = (icone: React.ReactNode, texto: string, acao: () => void, perigo = false) => (
+    <button
+      key={texto}
+      onClick={() => { setAberto(false); acao(); }}
+      className={cn("flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted", perigo && "text-destructive")}
+    >
+      {icone} {texto}
+    </button>
+  );
+  const status: { s: LoteStatus; icone: React.ReactNode }[] = [
+    { s: "em_criacao", icone: <Clock className="size-4" /> },
+    { s: "disponivel", icone: <CheckCircle2 className="size-4 text-success" /> },
+    { s: "vendido", icone: <ShoppingCart className="size-4" /> },
+  ];
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <Button size="icon" variant="ghost" title="Ações do lote" onClick={alternar}><MoreVertical /></Button>
+      {aberto && (
+        <div
+          className="fixed z-50 w-56 rounded-md border bg-popover p-1 text-left text-popover-foreground shadow-lg"
+          style={{ right: pos.right, ...(pos.acima ? { bottom: window.innerHeight - pos.top + 4 } : { top: pos.top + 4 }) }}
+        >
+          {item(<FolderOpen className="size-4" />, "Abrir lote", () => navigate({ to: "/lotes/$id", params: { id: lote.id } }))}
+          {item(<ImagePlus className="size-4" />, "Editor de post", onPost)}
+          {gestor && <div className="my-1 border-t" />}
+          {gestor && status.filter((x) => x.s !== lote.status).map((x) => item(x.icone, `Marcar como ${STATUS_LOTE_LABEL[x.s]}`, () => onStatus(x.s)))}
+          {gestor && <div className="my-1 border-t" />}
+          {gestor && item(<Trash2 className="size-4" />, "Excluir", onExcluir, true)}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,19 @@
 // Busca produtos no Mercado Livre por código de barras, nome ou link.
 // Body: { tipo: "ean" | "nome" | "link" | "categoria", valor: string, limite?: number }
-// Resposta: { candidatos: Candidato[] }
+// Resposta: { candidatos: Candidato[], tentativas: string[] }
+// "tentativas" lista o que foi perguntado ao ML e quantos resultados vieram
+// (aparece no console do navegador e nos logs; ajuda a entender um "não encontrado").
 import { cors, exigirPapel, json, mlGet, SITE, tokenValido } from "../_shared/ml.ts";
-import { candidatoDeItem, candidatoDeProduto, ehCodigoDeBarras, extrairIdDoLink, nomeDoLink, precoDosAnuncios, type Candidato } from "../_shared/ml-parse.ts";
+import {
+  candidatoDeItem,
+  candidatoDeProduto,
+  ehCodigoDeBarras,
+  extrairIdDoLink,
+  nomeDoLink,
+  precoDosAnuncios,
+  variacoesDoNome,
+  type Candidato,
+} from "../_shared/ml-parse.ts";
 
 /**
  * Abre cada produto do catálogo. Se o ML negar o detalhe, usa o resumo que já
@@ -36,11 +47,58 @@ async function detalharProdutos(ids: string[], token: string, termo?: string, re
   return candidatos;
 }
 
-async function buscarPorNome(texto: string, max: number, token: string): Promise<Candidato[]> {
-  const r = await mlGet(`/products/search?status=active&site_id=${SITE}&q=${encodeURIComponent(texto)}&limit=${max}`, token);
-  const lista = (r.results ?? []).slice(0, max);
-  const candidatos = await detalharProdutos(lista.map((p: any) => p.id), token, texto, lista);
+/** Uma pergunta ao catálogo; anota na lista de tentativas quantos vieram. */
+async function catalogo(params: string, rotulo: string, token: string, log: string[]): Promise<any[]> {
+  const r = await mlGet(`/products/search?site_id=${SITE}&${params}`, token);
+  const lista = Array.isArray(r?.results) ? r.results : [];
+  log.push(`${rotulo}: ${lista.length}`);
+  return lista;
+}
+
+/** Tenta cada pergunta em ordem e para na primeira que trouxer produto. */
+async function tentarEmOrdem(
+  tentativas: [string, string][],
+  max: number,
+  token: string,
+  log: string[],
+  termo?: string,
+): Promise<Candidato[]> {
+  for (const [params, rotulo] of tentativas) {
+    const lista = (await catalogo(`${params}&limit=${max}`, rotulo, token, log)).slice(0, max);
+    if (lista.length === 0) continue;
+    const candidatos = await detalharProdutos(lista.map((p: any) => p.id), token, termo, lista);
+    if (candidatos.length) return candidatos;
+  }
+  return [];
+}
+
+/**
+ * Busca pelo nome tentando várias formas até achar:
+ * nome inteiro (só ativos) → nome inteiro (todos) → primeiras 6 palavras → primeiras 4.
+ */
+async function buscarPorNome(texto: string, max: number, token: string, log: string[]): Promise<Candidato[]> {
+  const tentativas: [string, string][] = [];
+  variacoesDoNome(texto).forEach((q, i) => {
+    if (i === 0) tentativas.push([`status=active&q=${encodeURIComponent(q)}`, `nome "${q}" (ativos)`]);
+    tentativas.push([`q=${encodeURIComponent(q)}`, `nome "${q}"`]);
+  });
+  // A similaridade é sempre contra o termo original
+  const candidatos = await tentarEmOrdem(tentativas, max, token, log, texto);
   return candidatos.sort((a, b) => (b.similaridade ?? 0) - (a.similaridade ?? 0));
+}
+
+/** Código de barras: identificador (ativos) → identificador (todos) → o código como texto. */
+function buscarPorCodigo(codigo: string, max: number, token: string, log: string[]): Promise<Candidato[]> {
+  return tentarEmOrdem(
+    [
+      [`status=active&product_identifier=${codigo}`, `código ${codigo} (ativos)`],
+      [`product_identifier=${codigo}`, `código ${codigo}`],
+      [`q=${codigo}`, `código ${codigo} como texto`],
+    ],
+    max,
+    token,
+    log,
+  );
 }
 
 /** Nome da etapa para a mensagem de erro (ajuda a saber o que o ML bloqueou). */
@@ -55,6 +113,7 @@ function etapa(caminho?: string): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  const log: string[] = [];
   try {
     const { erro } = await exigirPapel(req, ["admin", "gerente", "estoquista"]);
     if (erro) return erro;
@@ -68,35 +127,32 @@ Deno.serve(async (req) => {
     let candidatos: Candidato[] = [];
 
     if (tipo === "ean") {
-      if (!ehCodigoDeBarras(texto)) return json({ erro: "O código de barras deve ter só números (8 a 14 dígitos)." }, 400);
-      const r = await mlGet(`/products/search?status=active&site_id=${SITE}&product_identifier=${texto}`, token);
-      const lista = (r.results ?? []).slice(0, max);
-      candidatos = await detalharProdutos(lista.map((p: any) => p.id), token, undefined, lista);
+      // O leitor às vezes manda espaço ou traço junto
+      const codigo = texto.replace(/\D/g, "");
+      if (!ehCodigoDeBarras(codigo)) return json({ erro: "O código de barras deve ter só números (8 a 14 dígitos)." }, 400);
+      candidatos = await buscarPorCodigo(codigo, max, token, log);
     } else if (tipo === "nome") {
-      candidatos = await buscarPorNome(texto, max, token);
+      candidatos = await buscarPorNome(texto, max, token, log);
     } else if (tipo === "link") {
       const alvo = extrairIdDoLink(texto);
-      if (!alvo) return json({ erro: "Não reconheci esse link do Mercado Livre." }, 400);
-      if (alvo.tipo === "produto") {
-        try {
-          candidatos = await detalharProdutos([alvo.id], token);
-        } catch (e) {
-          if ((e as { status?: number }).status !== 403) throw e;
-        }
-      } else {
-        try {
-          const item = await mlGet(`/items/${alvo.id}`, token);
-          candidatos = [candidatoDeItem(item)];
-        } catch (e) {
-          // O ML bloqueia a leitura de anúncios de outros vendedores (403).
-          // Se o anúncio já é de catálogo, o produto aparece pela busca do nome do link.
-          if ((e as { status?: number }).status !== 403) throw e;
-        }
+      if (!alvo && !nomeDoLink(texto)) return json({ erro: "Não reconheci esse link do Mercado Livre." }, 400);
+      if (!alvo) log.push("link sem código de anúncio: buscando pelo nome");
+      else try {
+        candidatos = alvo.tipo === "produto"
+          ? await detalharProdutos([alvo.id], token)
+          : [candidatoDeItem(await mlGet(`/items/${alvo.id}`, token))];
+        log.push(`link ${alvo.id}: ${candidatos.length}`);
+      } catch (e) {
+        // O ML bloqueia a leitura de anúncios de outros vendedores (403) e responde
+        // 404 para anúncio encerrado. O produto ainda pode aparecer pelo nome do link.
+        const st = (e as { status?: number }).status;
+        if (st !== 403 && st !== 404) throw e;
+        log.push(`link ${alvo.id}: ML respondeu ${st}`);
       }
       // Plano B: busca pelo nome que vem escrito no próprio link
       if (candidatos.length === 0) {
         const nome = nomeDoLink(texto);
-        if (nome) candidatos = await buscarPorNome(nome, max, token);
+        if (nome) candidatos = await buscarPorNome(nome, max, token, log);
       }
     } else if (tipo === "categoria") {
       // Caminho da categoria no ML (para o mercadológico): [{ id, name }, ...]
@@ -107,20 +163,24 @@ Deno.serve(async (req) => {
       return json({ erro: "Tipo de busca inválido." }, 400);
     }
 
-    return json({ candidatos });
+    // Aparece em Supabase → Edge Functions → ml-buscar → Logs
+    console.log(`ml-buscar ${tipo} "${texto}" → ${candidatos.length} | ${log.join(" | ")}`);
+    return json({ candidatos, tentativas: log });
   } catch (e) {
     const err = e as Error & { status?: number; caminho?: string };
+    console.error(`ml-buscar falhou: ${err.status ?? ""} ${err.caminho ?? ""} ${err.message} | ${log.join(" | ")}`);
     if (err.status === 429) {
-      return json({ erro: "Mercado Livre pediu para esperar (muitas buscas). Tente de novo em alguns segundos." }, 429);
+      return json({ erro: "Mercado Livre pediu para esperar (muitas buscas). Tente de novo em alguns segundos.", tentativas: log }, 429);
     }
-    if (err.status === 404) return json({ erro: "Não encontrado no Mercado Livre." }, 404);
+    if (err.status === 404) return json({ erro: "Não encontrado no Mercado Livre.", tentativas: log }, 404);
     if (err.status === 401 || err.status === 403) {
       return json({
         erro: `O Mercado Livre negou o acesso ${etapa(err.caminho)}. Tente buscar pelo nome ou código de barras, ou use "Inserir sem buscar".`.replace("  ", " "),
         detalhe: `${err.status} ${err.caminho ?? ""}: ${err.message}`,
+        tentativas: log,
         bloqueio_ml: true,
       }, 403);
     }
-    return json({ erro: err.message }, 500);
+    return json({ erro: err.message, tentativas: log }, 500);
   }
 });

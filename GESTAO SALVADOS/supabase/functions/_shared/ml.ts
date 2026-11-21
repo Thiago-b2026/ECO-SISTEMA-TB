@@ -82,13 +82,28 @@ export async function tokenValido(): Promise<string> {
   if (!c) throw new Error("Conta do Mercado Livre não conectada. Vá em Mercado Livre → Conectar.");
   if (new Date(c.expires_at).getTime() - Date.now() > 10 * 60 * 1000) return c.access_token;
 
-  const t = await pedirToken({ grant_type: "refresh_token", refresh_token: c.refresh_token });
-  await db.from("ml_conexao").update({
+  let t: TokenML;
+  try {
+    t = await pedirToken({ grant_type: "refresh_token", refresh_token: c.refresh_token });
+  } catch (e) {
+    const msg = (e as Error).message;
+    console.error(`Renovação do token do ML falhou: ${msg}`);
+    // Pode ser corrida com outra busca que renovou no mesmo instante: relê o banco
+    const { data: novo } = await db.from("ml_conexao").select("access_token, expires_at").eq("id", 1).maybeSingle();
+    if (novo && new Date(novo.expires_at).getTime() - Date.now() > 60 * 1000) return novo.access_token;
+    if (/invalid_grant|invalid_token|expired/i.test(msg)) {
+      throw new Error("A conexão com o Mercado Livre venceu. O administrador precisa clicar em \"Reconectar conta\" em Lotes → Configuração Mercado Livre.");
+    }
+    throw e;
+  }
+  const { error } = await db.from("ml_conexao").update({
     access_token: t.access_token,
     refresh_token: t.refresh_token,
     expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString(),
     scope: t.scope ?? c.scope,
   }).eq("id", 1);
+  // O refresh_token antigo já não vale: se não salvou, a próxima busca vai falhar
+  if (error) console.error(`Token do ML renovado mas NÃO salvo: ${error.message}`);
   return t.access_token;
 }
 

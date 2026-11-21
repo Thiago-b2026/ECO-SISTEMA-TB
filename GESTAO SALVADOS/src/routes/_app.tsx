@@ -1,18 +1,17 @@
 import { Link, Outlet, createFileRoute, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, ChevronDown, LogOut, Menu, Store } from "lucide-react";
+import { Building2, ChevronDown, LogOut, Menu } from "lucide-react";
+import logoSalvados from "@/assets/logo-salvados.jpg";
+import logoSimbolo from "@/assets/logo-simbolo.png";
 import { LojaProvider, TODAS, useLoja } from "@/lib/loja";
-import { useVisual } from "@/lib/visual";
-import { LayoutTopo } from "@/components/layout-topo";
 import { PermissoesProvider, usePermissoes } from "@/lib/permissoes";
 import { EscolherEmpresa } from "@/components/escolher-empresa";
 
-/** Visual escolhido em Minha conta: clássico (menu lateral) ou ERP (menu no topo). */
+/** Menu sempre na barra lateral esquerda (o visual "ERP", com menu no topo, saiu em 21/11/2026 a pedido do usuário). */
 function EscolhaVisual() {
-  const visual = useVisual();
   const { precisaEscolher } = useLoja();
   if (precisaEscolher) return <EscolherEmpresa />;
-  return <PermissoesProvider>{visual === "erp" ? <LayoutTopo /> : <AppShell />}</PermissoesProvider>;
+  return <PermissoesProvider><AppShell /></PermissoesProvider>;
 }
 import { useAuth, homeRouteFor } from "@/lib/auth";
 import { NAV, PORTAL_URL, itemDaRota, itemVisivel, montarMenu } from "@/lib/nav";
@@ -103,14 +102,8 @@ function AppShell() {
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="px-5 py-5 flex items-center gap-3 border-b border-sidebar-border hover:bg-sidebar-accent">
-          <div className="size-10 rounded-lg bg-sidebar-primary grid place-items-center">
-            <Store className="size-5 text-sidebar-primary-foreground" />
-          </div>
-          <div>
-            <div className="font-bold text-lg leading-tight">Eco Sistema TB</div>
-            <div className="text-xs opacity-70">Gestão de salvados</div>
-          </div>
+        <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="block border-b border-sidebar-border bg-black px-6 py-4 hover:opacity-90">
+          <img src={logoSalvados} alt="Salvados LP — Garimpo de oportunidades" className="mx-auto w-full max-w-[200px]" />
         </a>
         <SeletorLoja />
         <nav className="flex-1 p-3 space-y-1 overflow-auto">
@@ -176,7 +169,9 @@ function AppShell() {
           <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Abrir menu">
             <Menu />
           </Button>
-          <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="font-semibold hover:underline">Eco Sistema TB</a>
+          <a href={PORTAL_URL} title="Ir para o Portal do Ecossistema TB" className="flex items-center gap-2 font-semibold hover:underline">
+            <img src={logoSimbolo} alt="" className="size-8 rounded" /> Salvados LP
+          </a>
         </header>
         <AvisoModoLegado />
         <main className="flex-1">

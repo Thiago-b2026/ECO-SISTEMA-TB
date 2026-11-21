@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Loader2, Plus, Search, UserX } from "lucide-react";
+import { chamarAdminUsuarios } from "@/components/gerenciar-acesso";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
@@ -31,8 +32,31 @@ const PAPEL: Record<AppRole, string> = { admin: "Admin", gerente: "Gerente", ven
 
 /** CADASTROS → PESSOAS. Ao abrir uma pessoa: abas DADOS | LOGIN E PERMISSÕES (esta só para o admin). */
 function PaginaPessoas() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const admin = role === "admin";
+  const [excluindo, setExcluindo] = useState<string | null>(null);
+
+  /** Excluir usuário direto da lista: só se o login nunca teve nenhum movimento (regra da função admin-usuarios). */
+  async function excluirUsuario(p: Pessoa) {
+    if (!p.user_id) return;
+    setExcluindo(p.id);
+    try {
+      const d = (await chamarAdminUsuarios({ acao: "motivos", user_id: p.user_id })) as { motivos?: string[]; historico?: boolean };
+      const motivos = d.motivos ?? [];
+      if (motivos.length) {
+        toast.error(`${p.nome}: não pode excluir${d.historico ? ", já tem histórico. Use Desativar" : ""}. Motivo: ${motivos.join("; ")}.`, { duration: 9000 });
+        return;
+      }
+      if (!window.confirm(`Excluir o usuário ${p.nome}? Ele nunca teve movimento. Apaga o login e as permissões; o cadastro da pessoa continua.`)) return;
+      await chamarAdminUsuarios({ acao: "excluir", user_id: p.user_id });
+      toast.success(`Usuário ${p.nome} excluído.`);
+      await carregar();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setExcluindo(null);
+    }
+  }
   const busca0 = Route.useSearch();
   const navigate = useNavigate({ from: "/pessoas" });
   const filtro: Filtro = busca0.filtro ?? "todos";
@@ -137,7 +161,13 @@ function PaginaPessoas() {
                         : <span className="font-medium text-success">Sim</span>}
                       {p.user_id && acesso.get(p.user_id)?.papel && <span className="ml-1 text-xs text-muted-foreground">· {PAPEL[acesso.get(p.user_id)!.papel!]}</span>}
                     </td>
-                    <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="py-2 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {admin && p.user_id && p.user_id !== user?.id && acesso.get(p.user_id)?.papel !== "admin" && (
+                        <Button size="sm" variant="ghost" className="mr-1 text-destructive" disabled={excluindo === p.id}
+                          title="Excluir usuário (só quem nunca teve movimento)" onClick={() => excluirUsuario(p)}>
+                          {excluindo === p.id ? <Loader2 className="animate-spin" /> : <UserX />} Excluir usuário
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
