@@ -40,6 +40,8 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   const [buscando, setBuscando] = useState(false);
   const [candidatos, setCandidatos] = useState<Candidato[] | null>(null);
   const [avisoBusca, setAvisoBusca] = useState<string | null>(null);
+  /** Por que o link não foi lido pela extensão (aparece junto do aviso amarelo). */
+  const [motivoExtensao, setMotivoExtensao] = useState<string | null>(null);
   const [escolhido, setEscolhido] = useState<Candidato | null>(null);
   // formulário
   const [titulo, setTitulo] = useState("");
@@ -107,6 +109,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
     setBuscando(true);
     setCandidatos(null);
     setAvisoBusca(null);
+    setMotivoExtensao(null);
     setEscolhido(null);
     if (aba === "ean") setEan(texto.replace(/\D/g, ""));
     // Link + extensão instalada: busca o anúncio exato pelo navegador (como o robô do PrecificaLote).
@@ -119,8 +122,10 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
         setBuscando(false);
         return;
       } catch (err) {
-        toast.warning(`${(err as Error).message} Buscando pelo jeito normal…`);
+        setMotivoExtensao(`A extensão não conseguiu ler o anúncio: ${(err as Error).message}`);
       }
+    } else if (aba === "link") {
+      setMotivoExtensao("A extensão não foi detectada nesta aba. Se você já instalou, aperte F5 e busque de novo.");
     }
     try {
       const { candidatos: r, aviso } = await buscarMLComAviso(aba, texto, 5);
@@ -238,6 +243,7 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
             {avisoBusca && (
               <div className="space-y-1 rounded-md border border-warning bg-warning/15 p-2 text-xs font-medium">
                 <p>⚠️ {avisoBusca}</p>
+                {motivoExtensao && <p className="font-semibold">🧩 {motivoExtensao}</p>}
                 {aba === "link" && /^https?:\/\//.test(busca.trim()) && (
                   <p>
                     Para pegar o anúncio exato:{" "}
