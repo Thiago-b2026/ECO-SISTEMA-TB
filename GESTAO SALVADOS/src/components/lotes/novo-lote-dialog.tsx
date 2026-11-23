@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { lerPlanilha } from "@/lib/planilha";
 import { linhaNaoEhProduto } from "@/lib/similaridade";
+import { unificarLinhas } from "@/lib/duplicados";
 import { colunaParaIndice, custoPercentual, lerNumero } from "@/lib/precificacao";
 import type { LoteTipo } from "@/lib/lotes";
 import { useLoja } from "@/lib/loja";
@@ -82,6 +83,10 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           const subcategoria = iSub >= 0 ? String(l[iSub] ?? "").trim() || null : null;
           return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria, subcategoria }];
         });
+        // produto repetido na planilha (mesmo nome ou código de barras, mesma grade) vira um item só, com a quantidade somada
+        const unif = unificarLinhas(linhasItens as { titulo: string; codigo_barras: string | null; grade: string; quantidade: number }[]);
+        linhasItens = unif.linhas;
+        if (unif.juntadas) toast.info(`${unif.juntadas} linha(s) repetida(s) juntada(s): a quantidade foi somada no mesmo produto.`);
         if (ignoradas) toast.info(`${ignoradas} linha(s) ignorada(s): subtotal, total ou sem nome de produto.`);
         // só números na coluna do nome = coluna errada (aconteceu no PrecificaLote: o preço foi buscado como nome)
         if (linhasItens.length === 0 && ignoradas > 0) return toast.error("A coluna do produto parece ter números (preço ou quantidade). Confira a letra da coluna do nome.");

@@ -380,3 +380,12 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 6. Domínio `sistema.grupotbdearaujo.com.br` quando o Registro.br publicar.
 7. Futuro: NFC-e/NF-e (Focus NFe ou Nuvem Fiscal), uazapi (WhatsApp automático), robô no servidor,
    seguir responsivo para celular.
+
+## Sessão 22/11/2026 (cont.) — Exportação no modelo PrecificaLote e junção de itens repetidos
+- **Baixar/Exportar** do lote agora gera **.xlsx** no mesmo modelo de `PRODUTOS 127V.xlsx` (exceljs, carregado só ao exportar):
+  - aba Planilha1: nome do lote em C2:I4, Qnt. Pallet, Qnt. Categorias, SUBTOTAL na linha 6 e as colunas
+    Pallet · Qtd · Condição (Grade) · Descrição do Item · Valor Unit (preço de venda) · Valor Total · Custo Unit (só para quem vê custo) · Categoria · Link · Codigo (SKU);
+  - abas Resumo por Pallet e Resumo por Categoria. Itens "não chegou" e "avaria total" ficam de fora.
+- **Importar planilha:** linhas do mesmo produto viram um item só, com a quantidade somada (`unificarLinhas` em `src/lib/duplicados.ts`):
+  mesmo código de barras ou mesmo nome normalizado, e a mesma grade. Nome igual com códigos de barras diferentes não junta.
+- Lotes já importados (ex.: LOTE MOGI 220V NOVEMB) continuam com as linhas repetidas; juntar esses só com o OK do usuário.

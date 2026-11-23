@@ -77,3 +77,41 @@ export function acharDuplicado<T extends Comparavel>(lista: T[], novo: Comparave
   }
   return null;
 }
+
+/**
+ * Junta as linhas repetidas de uma planilha de lote em uma só, somando a quantidade.
+ * Mesmo produto = mesmo código de barras (quando os dois têm) ou mesmo nome normalizado, e a mesma grade.
+ * Fica o primeiro valor/categoria encontrado. Retorna as linhas únicas e quantas foram juntadas.
+ */
+export function unificarLinhas<T extends { titulo: string; codigo_barras?: string | null; grade?: string | null; quantidade: number }>(
+  linhas: T[],
+): { linhas: T[]; juntadas: number } {
+  const porNome = new Map<string, T>();
+  const porCodigo = new Map<string, T>();
+  const saida: T[] = [];
+  let juntadas = 0;
+  for (const l of linhas) {
+    const grade = (l.grade ?? "A").toUpperCase();
+    const cod = l.codigo_barras?.replace(/\D/g, "") || null;
+    const kNome = `${grade}|${normalizarNome(l.titulo)}`;
+    const kCod = cod ? `${grade}|${cod}` : null;
+    let igual = kCod ? porCodigo.get(kCod) : undefined;
+    if (!igual) {
+      const n = porNome.get(kNome);
+      // mesmo nome mas códigos de barras diferentes: são produtos diferentes
+      const codN = n?.codigo_barras?.replace(/\D/g, "") || null;
+      if (n && !(cod && codN && cod !== codN)) igual = n;
+    }
+    if (igual) {
+      igual.quantidade += l.quantidade;
+      if (!igual.codigo_barras && cod) { igual.codigo_barras = cod; porCodigo.set(`${grade}|${cod}`, igual); }
+      juntadas++;
+      continue;
+    }
+    const nova = { ...l };
+    saida.push(nova);
+    if (!porNome.has(kNome)) porNome.set(kNome, nova);
+    if (kCod) porCodigo.set(kCod, nova);
+  }
+  return { linhas: saida, juntadas };
+}

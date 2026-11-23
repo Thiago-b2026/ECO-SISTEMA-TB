@@ -44,3 +44,20 @@ describe("trava de produto duplicado", () => {
     expect(acharParecidos(l, { titulo: "chaleira eletrica zentra" }).map((x) => x.titulo)).toEqual(["CHALEIRA ELETRICA ZENTRA 1,8L"]);
   });
 });
+
+describe("unificar linhas da planilha", () => {
+  it("soma a quantidade do mesmo produto", async () => {
+    const { unificarLinhas } = await import("@/lib/duplicados");
+    const r = unificarLinhas([
+      { titulo: "Micro-ondas PMO23B", quantidade: 2, grade: "A" },
+      { titulo: "MICRO-ONDAS  pmo23b", quantidade: 1, grade: "A" },
+      { titulo: "Micro-ondas PMO23B", quantidade: 3, grade: "B" },
+      { titulo: "Chaleira 1,8L", quantidade: 1, codigo_barras: "789" },
+      { titulo: "Chaleira elétrica", quantidade: 4, codigo_barras: "789" },
+      { titulo: "Ventilador 40cm", quantidade: 1, codigo_barras: "111" },
+      { titulo: "Ventilador 40cm", quantidade: 1, codigo_barras: "222" },
+    ]);
+    expect(r.juntadas).toBe(2);
+    expect(r.linhas.map((l) => l.quantidade)).toEqual([3, 3, 5, 1, 1]);
+  });
+});

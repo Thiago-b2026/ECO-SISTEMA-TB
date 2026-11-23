@@ -4,7 +4,6 @@ import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
-import { exportarExcel } from "@/lib/exportar";
 import { custoPercentual, lerNumero } from "@/lib/precificacao";
 import { fmtBRL } from "@/lib/format";
 import { STATUS_ITEM_LABEL, type Item, type LoteResumo } from "@/lib/lotes";
@@ -134,24 +133,124 @@ export function AjustarCustosDialog({ lote, onClose, onFeito }: { lote: LoteResu
   );
 }
 
-/** Baixar/Exportar: planilha Excel com todos os itens do lote. */
+/**
+ * Baixar/Exportar: planilha .xlsx no MESMO modelo da exportação do PrecificaLote ("PRODUTOS 127V.xlsx"):
+ *  - Planilha1: título (nome do lote), Qnt. Pallet, Qnt. Categorias, totais (SUBTOTAL) e as colunas
+ *    Pallet · Qtd · Condição (Grade) · Descrição do Item · Valor Unit · Valor Total · Custo Unit · Categoria · Link · Codigo;
+ *  - Resumo por Pallet e Resumo por Categoria (qtd de itens e valor total).
+ * Itens com ocorrência "não chegou"/"avaria total" ficam de fora.
+ */
 export async function exportarLote(lote: LoteResumo, verCusto: boolean) {
-  const itens = await fetchAllRows<Item & { pallets: { codigo: string } | null }>(() =>
+  const todos = await fetchAllRows<Item & { pallets: { codigo: string } | null }>(() =>
     supabase.from("lote_itens").select("*, pallets(codigo)").eq("lote_id", lote.id).order("created_at"),
   );
+  const itens = todos.filter((i) => i.ocorrencia !== "nao_chegou" && i.ocorrencia !== "avaria_total");
   if (!itens.length) return toast.info("Lote sem itens para exportar.");
-  const colunas = [
-    { titulo: "SKU" }, { titulo: "Produto" }, { titulo: "Termo da planilha" }, { titulo: "Código de barras" },
-    { titulo: "Qtd.", numero: true }, { titulo: "Pallet" }, { titulo: "Grade" }, { titulo: "Categoria" },
-    { titulo: "Valor planilha (R$)", numero: true }, { titulo: "Preço ML (R$)", numero: true }, { titulo: "Preço de venda (R$)", numero: true },
-    ...(verCusto ? [{ titulo: "Custo unit. (R$)", numero: true }] : []),
-    { titulo: "Situação" }, { titulo: "Semelhança %", numero: true }, { titulo: "Link ML" },
-  ];
-  const linhas = itens.map((i) => [
-    i.sku, i.titulo, i.termo ?? "", i.codigo_barras ?? "", i.quantidade, i.pallets?.codigo ?? "", i.grade, i.categoria ?? "",
-    i.valor_planilha, i.preco_ml, i.preco_venda,
-    ...(verCusto ? [i.custo_unit] : []),
-    STATUS_ITEM_LABEL[i.status] ?? i.status, i.similaridade, i.ml_link ?? "",
-  ]);
-  exportarExcel(`Lote ${lote.nome}`, colunas, linhas);
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const dinheiro = '#,##0.00';
+  const negrito = { bold: true } as const;
+  const palletDe = (i: (typeof itens)[number]) => i.pallets?.codigo ?? "Sem pallet";
+  const categoriaDe = (i: Item) => (i.categoria?.trim() || "Outros");
+  const pallets = [...new Set(itens.map(palletDe))];
+  const categorias = [...new Set(itens.map(categoriaDe))];
+
+  // ---------- Planilha1
+  const ws = wb.addWorksheet("Planilha1");
+  ws.mergeCells("A1:D1");
+  ws.mergeCells("A2:B2");
+  ws.mergeCells("C2:I4");
+  ws.getCell("A2").value = { formula: "C2", result: lote.nome };
+  ws.getCell("C2").value = lote.nome;
+  ws.getCell("C2").font = { bold: true, size: 18 };
+  ws.getCell("C2").alignment = { vertical: "middle", horizontal: "center" };
+  ws.getCell("A3").value = "Qnt. Pallet:";
+  ws.getCell("B3").value = pallets.length;
+  ws.getCell("A4").value = "Qnt. Categorias:";
+  ws.getCell("B4").value = categorias.length;
+  ["A3", "A4"].forEach((c) => (ws.getCell(c).font = negrito));
+  const ini = 8;
+  const fim = Math.max(ini, ini + itens.length - 1);
+  const totalQtd = itens.reduce((t, i) => t + i.quantidade, 0);
+  const totalValor = itens.reduce((t, i) => t + (i.preco_venda ?? 0) * i.quantidade, 0);
+  ws.getCell("B6").value = { formula: `SUBTOTAL(9,B${ini}:B${fim + 100})`, result: totalQtd };
+  ws.getCell("F6").value = { formula: `SUBTOTAL(9,F${ini}:F${fim + 100})`, result: Math.round(totalValor * 100) / 100 };
+  ws.getCell("F6").numFmt = dinheiro;
+  ["B6", "F6"].forEach((c) => (ws.getCell(c).font = negrito));
+  const cab = ["Pallet", "Qtd", "Condição\n(Grade)", "Descrição do Item", "Valor Unit", "Valor Total", "Custo Unit", "Categoria", "Link do Anúncio Encontrado", "Codigo"];
+  const linhaCab = ws.getRow(7);
+  cab.forEach((t, k) => {
+    const c = linhaCab.getCell(k + 1);
+    c.value = t;
+    c.font = negrito;
+    c.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7AC03" } };
+    c.border = { bottom: { style: "thin" } };
+  });
+  linhaCab.height = 30;
+  itens.forEach((i, k) => {
+    const r = ws.getRow(ini + k);
+    const unit = i.preco_venda ?? null;
+    r.values = [
+      palletDe(i), i.quantidade, i.grade, i.titulo,
+      unit, unit != null ? Math.round(unit * i.quantidade * 100) / 100 : null,
+      verCusto ? i.custo_unit : null, categoriaDe(i), i.ml_link ?? "", i.sku,
+    ];
+    [5, 6, 7].forEach((col) => (r.getCell(col).numFmt = dinheiro));
+  });
+  ws.columns = [{ width: 11 }, { width: 7 }, { width: 10 }, { width: 60 }, { width: 12 }, { width: 13 }, { width: 12 }, { width: 22 }, { width: 50 }, { width: 10 }];
+  ws.views = [{ state: "frozen", ySplit: 7 }];
+  ws.autoFilter = { from: "A7", to: `J${fim}` };
+
+  // ---------- Resumos
+  const resumo = (nome: string, rotulo: string, rotuloQtd: string, coluna: string, chave: (i: (typeof itens)[number]) => string, refQtd: string) => {
+    const r = wb.addWorksheet(nome);
+    r.mergeCells("A1:B1");
+    r.mergeCells(nome === "Resumo por Pallet" ? "A2:B2" : "B2:C2");
+    r.getCell("A2").value = rotulo;
+    r.getCell(nome === "Resumo por Pallet" ? "C2" : "B2").value = { formula: "Planilha1!C2", result: lote.nome };
+    r.getCell("A3").value = rotuloQtd;
+    r.getCell("B3").value = { formula: `Planilha1!${refQtd}`, result: nome === "Resumo por Pallet" ? pallets.length : categorias.length };
+    ["A2", "A3"].forEach((c) => (r.getCell(c).font = negrito));
+    const grupos = new Map<string, { qtd: number; valor: number }>();
+    for (const i of itens) {
+      const g = grupos.get(chave(i)) ?? { qtd: 0, valor: 0 };
+      g.qtd += i.quantidade;
+      g.valor += (i.preco_venda ?? 0) * i.quantidade;
+      grupos.set(chave(i), g);
+    }
+    const linhas = [...grupos.entries()];
+    const ultima = 6 + Math.max(1, linhas.length);
+    r.getCell("B5").value = { formula: `SUBTOTAL(9,B7:B${ultima + 100})`, result: linhas.reduce((t, [, g]) => t + g.qtd, 0) };
+    r.getCell("C5").value = { formula: `SUBTOTAL(9,C7:C${ultima + 100})`, result: Math.round(linhas.reduce((t, [, g]) => t + g.valor, 0) * 100) / 100 };
+    r.getCell("C5").numFmt = dinheiro;
+    ["B5", "C5"].forEach((c) => (r.getCell(c).font = negrito));
+    const h = r.getRow(6);
+    [coluna, "Qtd de Itens", "Valor Total"].forEach((t, k) => {
+      const c = h.getCell(k + 1);
+      c.value = t;
+      c.font = negrito;
+      c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7AC03" } };
+    });
+    linhas.forEach(([nomeGrupo, g], k) => {
+      const row = r.getRow(7 + k);
+      row.values = [nomeGrupo, g.qtd, Math.round(g.valor * 100) / 100];
+      row.getCell(3).numFmt = dinheiro;
+    });
+    r.columns = [{ width: 28 }, { width: 14 }, { width: 16 }];
+  };
+  resumo("Resumo por Pallet", "Resumo por Pallet    : ", "Qnt. Pallet:", "Pallet", palletDe, "B3");
+  resumo("Resumo por Categoria", "Resumo por Categoria   -", "Qnt. Categoria:", "Categoria", categoriaDe, "B4");
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${lote.nome.replace(/[\\/:*?"<>|]+/g, " ").trim() || "lote"}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast.success(`Planilha do lote "${lote.nome}" baixada (${itens.length} itens).`);
 }
