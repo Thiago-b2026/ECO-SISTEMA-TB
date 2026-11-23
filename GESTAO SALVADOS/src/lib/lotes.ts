@@ -232,12 +232,19 @@ export async function processarFila(
   // site primeiro (anúncios de fora do catálogo também); falhou ou veio vazio → catálogo
   const buscar = async (tipo: TipoBusca, valor: string): Promise<Candidato[]> => {
     if (tipo === "nome" && abaSite && !abaSite.closed) {
-      try {
-        const r = await buscarNoSite(abaSite, valor);
-        await new Promise((ok) => setTimeout(ok, 1200)); // ritmo de pessoa
-        if (r.length) { viaSite++; return r; }
-      } catch (e) {
-        if (e instanceof VerificacaoML) throw e;
+      // Depois de muitas buscas seguidas o ML faz uma checagem automática que se resolve sozinha:
+      // espera 30 s e tenta de novo (até 2 vezes). Não contorna nada; se continuar, para e a pessoa resolve na aba.
+      for (let tentativa = 0; tentativa < 3; tentativa++) {
+        try {
+          const r = await buscarNoSite(abaSite, valor);
+          await new Promise((ok) => setTimeout(ok, 2500)); // ritmo calmo entre buscas
+          if (r.length) { viaSite++; return r; }
+          break;
+        } catch (e) {
+          if (!(e instanceof VerificacaoML)) break;
+          if (tentativa === 2) throw e;
+          await new Promise((ok) => setTimeout(ok, 30000));
+        }
       }
     }
     return buscarComEspera(tipo, valor);
