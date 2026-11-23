@@ -41,6 +41,12 @@ describe("nota de semelhança da busca da planilha", () => {
     expect(notaSemelhanca("Micro-ondas PMO23E", "Micro-ondas PMO23E Philco", 899, 78.99).motivos.join()).toContain("preço");
   });
 
+  it("kit de várias unidades vai para conferência", () => {
+    const r = notaSemelhanca("Ventilador oscilante de parede Ventisol New 60cm 220V", "Kit 2 Ventiladores De Parede Ventisol New 60 Oscilante 220V");
+    expect(r.nota).toBeLessThan(90);
+    expect(notaSemelhanca("Kit 2 tigelas batedeira", "Kit 2 tigelas batedeira inox").nota).toBeGreaterThanOrEqual(90);
+  });
+
   it("situação pela nota", () => {
     expect(situacaoPelaNota(95, 90)).toBe("sucesso");
     expect(situacaoPelaNota(70, 90)).toBe("similar");

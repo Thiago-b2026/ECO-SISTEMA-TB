@@ -26,7 +26,10 @@
   PH110AZ, L-1200RL). O robô parou 2x com "verificação" mas a página estava normal: checagem automática do ML depois de ~25 buscas.
   Ajustes: `buscarNoSite` espera até 45 s mesmo após aviso de verificação; robô com 2,5 s entre buscas e, na verificação, espera 30 s e
   tenta de novo (até 2x) antes de parar. Itens "não encontrado" agora limpam o produto antigo (título volta ao termo, sem preço ML).
-  Na 3ª retomada a aba do PDV foi trocada/recarregada e o robô parou: ficaram 44 na fila (retomar com "Buscar 44 na fila").
+  Na 3ª retomada a aba do PDV foi trocada e a aba antiga do robô (opener morto) não respondia; fechada, o usuário retomou e TERMINOU
+  (23:04). **Resultado final do lote: 80 sucesso, 8 similar (+1 kit remarcado), 12 não encontrado, 1 aprovado** (antes: 49/50 com
+  peças e modelos errados + 23 subtotais). Regra nova: anúncio de kit/várias unidades sem "kit" no termo → máx. 70 (conferir).
+  Atenção: se a aba do PDV for trocada, feche a aba antiga do robô antes de retomar (ela fica ligada à aba velha).
 - Reavaliação offline com os candidatos já buscados desse lote: antes 49 sucesso/50 similar (com peças e modelos errados); agora
   56 sucesso (todos conferidos, modelo batendo), 14 similar, 31 não encontrado, 23 subtotais fora.
 

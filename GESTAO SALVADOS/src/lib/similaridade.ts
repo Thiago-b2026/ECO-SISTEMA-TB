@@ -95,6 +95,13 @@ export function notaSemelhanca(termo: string, titulo: string, precoAchado?: numb
     motivos.push(`parece peça/acessório (${pecas.slice(0, 3).join(", ")})`);
   }
 
+  // kit / várias unidades no anúncio ("Kit 2 ventiladores", "3 unidades") quando o termo é de um produto só
+  const ehKit = (t: string) => /(^| )kit( |$)|(^| )([2-9]|1[0-9]) (unidades|unid|un|pecas|peca)( |$)|(^| )(par|dupla|combo)( |$)/.test(t);
+  if (ehKit(tituloNorm) && !ehKit(termoNorm)) {
+    nota = Math.min(nota - 20, 70);
+    motivos.push("anúncio é kit/mais de uma unidade");
+  }
+
   // voltagem trocada
   const vt = VOLT(termo);
   const va = VOLT(titulo);
