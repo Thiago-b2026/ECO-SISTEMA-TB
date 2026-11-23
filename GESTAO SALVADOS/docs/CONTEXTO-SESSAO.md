@@ -389,3 +389,9 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - **Importar planilha:** linhas do mesmo produto viram um item só, com a quantidade somada (`unificarLinhas` em `src/lib/duplicados.ts`):
   mesmo código de barras ou mesmo nome normalizado, e a mesma grade. Nome igual com códigos de barras diferentes não junta.
 - Lotes já importados (ex.: LOTE MOGI 220V NOVEMB) continuam com as linhas repetidas; juntar esses só com o OK do usuário.
+- **Feito com OK do usuário:** no LOTE MOGI 220V NOVEMB (ainda em criação, nada lançado) foram juntados 6 grupos de linhas repetidas,
+  mesmo modelo e mesmo anúncio do ML: PMO23B (3→1), MO-02-34, ME23B, PCL10QF, BLQ1300 e L-99-FB. O lote passou de 101 para 94 itens,
+  e a quantidade total (128) não mudou. Valor da planilha e custo ficaram pela média ponderada, então o custo total não mudou.
+  Ficaram separados de propósito, porque a descrição é diferente: "Liquidificador Série 5000" (P3696/P3697) e "Ventilador de parede 50cm" (P3777/P3779).
+- Atenção: a junção da importação só pega o nome igual (depois de normalizar). "Microondas PMO23B 220v" × "Micro-ondas PMO23B" continuam
+  entrando separados. Se quiser, dá para juntar também pelo código do modelo.
