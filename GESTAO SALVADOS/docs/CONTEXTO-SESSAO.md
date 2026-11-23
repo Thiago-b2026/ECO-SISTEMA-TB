@@ -30,6 +30,13 @@
   (23:04). **Resultado final do lote: 80 sucesso, 8 similar (+1 kit remarcado), 12 não encontrado, 1 aprovado** (antes: 49/50 com
   peças e modelos errados + 23 subtotais). Regra nova: anúncio de kit/várias unidades sem "kit" no termo → máx. 70 (conferir).
   Atenção: se a aba do PDV for trocada, feche a aba antiga do robô antes de retomar (ela fica ligada à aba velha).
+- **Editar produto do lote → "Salvar e buscar de novo"**: salva nome/código/qtd/grade/pallet, grava termo = nome editado e refaz a busca
+  daquele item com a mesma regra do robô (`buscarItem` + `criarBuscador`, extraídos de `processarFila`; busca do site se extensão 1.1).
+- **Menu ⋮ da lista de lotes completo (como o PrecificaLote)**: Abrir lote, Editar cadastro (nome, observação, % desconto,
+  similaridade — `EditarLoteDialog`), Marcar Em criação/Disponível/Vendido (gestor), Ajustar custos (% sobre o preço recalcula cada
+  item; ou valor pago → `recalcular_custo_lote` — `AjustarCustosDialog`), Transferir produtos (abre o lote com `?acao=transferir`),
+  Baixar/Exportar (Excel com todos os itens; custo só com "ver custo"; `exportarLote`), Editor de post, Excluir (gestor).
+  Arquivo: `src/components/lotes/menu-lote-acoes.tsx`.
 - Reavaliação offline com os candidatos já buscados desse lote: antes 49 sucesso/50 similar (com peças e modelos errados); agora
   56 sucesso (todos conferidos, modelo batendo), 14 similar, 31 não encontrado, 23 subtotais fora.
 

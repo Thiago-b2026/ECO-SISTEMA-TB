@@ -220,16 +220,9 @@ export function camposDoCandidato(c: Candidato, lote: Lote, cfg: ConfigArredonda
  * Roda no navegador enquanto a tela estiver aberta, 1 item por vez,
  * esperando quando o ML pede (erro 429).
  */
-export async function processarFila(
-  lote: Lote,
-  cfg: ConfigArredondamento,
-  aoProgredir: (feitos: number, total: number) => void,
-  parar: () => boolean,
-  /** Aba do robô (extensão 1.1+): busca na página de BUSCA do site, como o robô do PrecificaLote. Sem ela: catálogo (API). */
-  abaSite: Window | null = null,
-): Promise<{ feitos: number; erros: number; aviso?: string; viaSite: number }> {
+/** Busca no ML: pela BUSCA DO SITE (aba do robô, extensão 1.1+) e, se falhar ou vier vazio, pelo catálogo (API). */
+export function criarBuscador(abaSite: Window | null) {
   let viaSite = 0;
-  // site primeiro (anúncios de fora do catálogo também); falhou ou veio vazio → catálogo
   const buscar = async (tipo: TipoBusca, valor: string): Promise<Candidato[]> => {
     if (tipo === "nome" && abaSite && !abaSite.closed) {
       // Depois de muitas buscas seguidas o ML faz uma checagem automática que se resolve sozinha:
@@ -249,6 +242,60 @@ export async function processarFila(
     }
     return buscarComEspera(tipo, valor);
   };
+  return { buscar, viaSite: () => viaSite };
+}
+
+/**
+ * Busca UM item e devolve o que gravar nele (status, produto escolhido, opções).
+ * Mesma regra do robô: nota nova, escolhe a melhor, 2ª busca pelo código do modelo, "não encontrado" não preenche produto.
+ * Erro VerificacaoML sobe para quem chamou.
+ */
+export async function buscarItem(
+  item: Pick<Item, "termo" | "titulo" | "codigo_barras" | "valor_planilha">,
+  lote: Lote,
+  cfg: ConfigArredondamento,
+  buscar: (tipo: TipoBusca, valor: string) => Promise<Candidato[]>,
+): Promise<Record<string, unknown>> {
+  const termo = item.termo ?? item.titulo;
+  const tipo: TipoBusca = item.codigo_barras && /^\d{8,14}$/.test(item.codigo_barras) ? "ean" : "nome";
+  let cands = await buscar(tipo, tipo === "ean" ? item.codigo_barras! : termo);
+  const notar = (cs: Candidato[]) =>
+    cs.map((c) => ({ ...c, similaridade: tipo === "ean" ? 100 : notaSemelhanca(termo, c.titulo, c.preco, item.valor_planilha).nota }))
+      .sort((a, b) => (b.similaridade ?? 0) - (a.similaridade ?? 0));
+  cands = notar(cands);
+  // fraco e o termo tem código de modelo: tenta de novo pelo nome do produto + código (ex.: "Micro-ondas MHP35S2")
+  const codigos = tipo === "nome" ? codigosDeModelo(termo) : [];
+  if (codigos.length && (cands[0]?.similaridade ?? 0) < lote.similaridade_min) {
+    try {
+      const principal = termo.split(/\s+/).find((w) => !/\d/.test(w)) ?? "";
+      const extra = notar(await buscar("nome", `${principal} ${codigos[0]}`.trim()));
+      const vistos = new Set(cands.map((c) => c.id));
+      cands = notar([...cands, ...extra.filter((c) => !vistos.has(c.id))]);
+    } catch (e) {
+      if (e instanceof VerificacaoML) throw e;
+      /* segunda tentativa é bônus: segue com o que tem */
+    }
+  }
+  cands = cands.slice(0, 5);
+  // limpa o produto de uma busca anterior (senão continua aparecendo o anúncio errado)
+  const vazio = { titulo: termo, ml_id: null, ml_link: null, foto_url: null, preco_ml: null, preco_ml_original: null, preco_venda: null, marca: null };
+  if (cands.length === 0) return { status: "nao_encontrado", candidatos: [], ...vazio };
+  const melhor = cands[0];
+  const sim = melhor.similaridade ?? 0;
+  const status = tipo === "ean" ? "sucesso" : situacaoPelaNota(sim, lote.similaridade_min);
+  if (status === "nao_encontrado") return { status, similaridade: sim, candidatos: cands, ...vazio };
+  return { ...camposDoCandidato({ ...melhor, similaridade: sim }, lote, cfg, item.valor_planilha), titulo: melhor.titulo, status, candidatos: cands };
+}
+
+export async function processarFila(
+  lote: Lote,
+  cfg: ConfigArredondamento,
+  aoProgredir: (feitos: number, total: number) => void,
+  parar: () => boolean,
+  /** Aba do robô (extensão 1.1+): busca na página de BUSCA do site, como o robô do PrecificaLote. Sem ela: catálogo (API). */
+  abaSite: Window | null = null,
+): Promise<{ feitos: number; erros: number; aviso?: string; viaSite: number }> {
+  const { buscar, viaSite } = criarBuscador(abaSite);
   const pendentes = await fetchAllRows<Item>(() =>
     supabase.from("lote_itens").select("*").eq("lote_id", lote.id).eq("status", "pendente").order("created_at"),
   );
@@ -257,52 +304,12 @@ export async function processarFila(
   aoProgredir(0, pendentes.length);
   for (const item of pendentes) {
     if (parar()) break;
-    const termo = item.termo ?? item.titulo;
     let patch: Record<string, unknown>;
     try {
-      const tipo: TipoBusca = item.codigo_barras && /^\d{8,14}$/.test(item.codigo_barras) ? "ean" : "nome";
-      let cands = await buscar(tipo, tipo === "ean" ? item.codigo_barras! : termo);
-      // nota nova (modelo, peça/acessório, voltagem, preço da planilha) e escolhe o MELHOR, não o primeiro
-      const notar = (cs: Candidato[]) =>
-        cs.map((c) => ({ ...c, similaridade: tipo === "ean" ? 100 : notaSemelhanca(termo, c.titulo, c.preco, item.valor_planilha).nota }))
-          .sort((a, b) => (b.similaridade ?? 0) - (a.similaridade ?? 0));
-      cands = notar(cands);
-      // fraco e o termo tem código de modelo: tenta de novo pelo nome do produto + código (ex.: "Micro-ondas MHP35S2" → "micro ondas mhp35s2")
-      const codigos = tipo === "nome" ? codigosDeModelo(termo) : [];
-      if (codigos.length && (cands[0]?.similaridade ?? 0) < lote.similaridade_min) {
-        try {
-          const principal = termo.split(/\s+/).find((w) => !/\d/.test(w)) ?? "";
-          const extra = notar(await buscar("nome", `${principal} ${codigos[0]}`.trim()));
-          const vistos = new Set(cands.map((c) => c.id));
-          cands = notar([...cands, ...extra.filter((c) => !vistos.has(c.id))]);
-        } catch {
-          /* segunda tentativa é bônus: segue com o que tem */
-        }
-      }
-      cands = cands.slice(0, 5);
-      if (cands.length === 0) {
-        patch = { status: "nao_encontrado", candidatos: [], titulo: termo, ml_id: null, ml_link: null, foto_url: null, preco_ml: null, preco_ml_original: null, preco_venda: null, marca: null };
-      } else {
-        const melhor = cands[0];
-        const sim = melhor.similaridade ?? 0;
-        const status = tipo === "ean" ? "sucesso" : situacaoPelaNota(sim, lote.similaridade_min);
-        patch = status === "nao_encontrado"
-          // nada bom o bastante: NÃO preenche com um produto qualquer; deixa as opções para escolher à mão
-          ? {
-              status, similaridade: sim, candidatos: cands,
-              // limpa o produto de uma busca anterior (senão continua aparecendo o anúncio errado)
-              titulo: termo, ml_id: null, ml_link: null, foto_url: null, preco_ml: null, preco_ml_original: null, preco_venda: null, marca: null,
-            }
-          : {
-              ...camposDoCandidato({ ...melhor, similaridade: sim }, lote, cfg, item.valor_planilha),
-              titulo: melhor.titulo,
-              status,
-              candidatos: cands,
-            };
-      }
+      patch = await buscarItem(item, lote, cfg, buscar);
     } catch (e) {
       // ML pediu verificação na aba do robô: para tudo (o item continua na fila) e avisa
-      if (e instanceof VerificacaoML) return { feitos, erros, aviso: e.message, viaSite };
+      if (e instanceof VerificacaoML) return { feitos, erros, aviso: e.message, viaSite: viaSite() };
       erros++;
       patch = { status: "erro" };
     }
@@ -310,7 +317,7 @@ export async function processarFila(
     feitos++;
     aoProgredir(feitos, pendentes.length);
   }
-  return { feitos, erros, viaSite };
+  return { feitos, erros, viaSite: viaSite() };
 }
 
 async function buscarComEspera(tipo: TipoBusca, valor: string): Promise<Candidato[]> {

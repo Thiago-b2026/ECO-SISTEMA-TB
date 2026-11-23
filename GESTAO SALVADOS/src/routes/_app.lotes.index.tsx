@@ -1,12 +1,14 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, CheckCircle2, Clock, FileSpreadsheet, FolderOpen, ImagePlus, Loader2, MoreVertical, Plus, RefreshCw, ScanBarcode, Settings2, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
+import { ArrowRightLeft, Boxes, Calculator, CheckCircle2, Clock, Download, FileSpreadsheet, FolderOpen, ImagePlus, Loader2, MoreVertical, Pencil, Plus, RefreshCw, ScanBarcode, Settings2, ShoppingCart, Trash2, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { useLoja } from "@/lib/loja";
 import { excluirLoteConfirmando, listarLotes, STATUS_LOTE_LABEL, type LoteResumo, type LoteStatus } from "@/lib/lotes";
 import { supabase } from "@/lib/supabase";
 import { EditorPostDialog } from "@/components/lotes/editor-post-dialog";
+import { AjustarCustosDialog, EditarLoteDialog, exportarLote } from "@/components/lotes/menu-lote-acoes";
+import { usePermissoes } from "@/lib/permissoes";
 import { fmtBRL, fmtDateOnly } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,11 @@ export function PaginaLotes() {
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const [aba, setAba] = useState<"lotes" | "ml">("lotes");
   const [postLote, setPostLote] = useState<LoteResumo | null>(null);
+  const [editarLote, setEditarLote] = useState<LoteResumo | null>(null);
+  const [custosLote, setCustosLote] = useState<LoteResumo | null>(null);
+  const { podeAcao } = usePermissoes();
+  const podeExportar = podeAcao("dados.exportar");
+  const verCusto = role === "admin" || podeAcao("produtos.ver_custo");
 
   async function mudarStatus(l: LoteResumo, status: LoteStatus) {
     const { error } = await supabase.from("lotes").update({ status }).eq("id", l.id);
@@ -185,7 +192,12 @@ export function PaginaLotes() {
                         </div>
                       </td>
                       <td className="py-2 text-right">
-                        <MenuLote lote={l} gestor={gestor} onStatus={(st) => mudarStatus(l, st)} onPost={() => setPostLote(l)} onExcluir={() => excluir(l)} />
+                        <MenuLote
+                          lote={l} gestor={gestor} podeExportar={podeExportar}
+                          onStatus={(st) => mudarStatus(l, st)} onPost={() => setPostLote(l)} onExcluir={() => excluir(l)}
+                          onEditar={() => setEditarLote(l)} onCustos={() => setCustosLote(l)}
+                          onExportar={() => exportarLote(l, verCusto).catch((e) => toast.error((e as Error).message))}
+                        />
                       </td>
                     </tr>
                   );
@@ -200,14 +212,17 @@ export function PaginaLotes() {
 
       <NovoLoteDialog open={novo} onOpenChange={setNovo} />
       {gestor && <ConfigPrecoDialog open={config} onOpenChange={setConfig} />}
+      {editarLote && <EditarLoteDialog lote={editarLote} onClose={() => setEditarLote(null)} onFeito={carregar} />}
+      {custosLote && <AjustarCustosDialog lote={custosLote} onClose={() => setCustosLote(null)} onFeito={carregar} />}
       {postLote && <EditorPostDialog lojaId={postLote.loja_id} loteId={postLote.id} onClose={() => setPostLote(null)} />}
     </div>
   );
 }
 
 // Menu ⋮ de cada lote (como no PrecificaLote): abrir, mudar situação, editor de post e excluir.
-function MenuLote({ lote, gestor, onStatus, onPost, onExcluir }: {
-  lote: LoteResumo; gestor: boolean; onStatus: (s: LoteStatus) => void; onPost: () => void; onExcluir: () => void;
+function MenuLote({ lote, gestor, podeExportar, onStatus, onPost, onExcluir, onEditar, onCustos, onExportar }: {
+  lote: LoteResumo; gestor: boolean; podeExportar: boolean; onStatus: (s: LoteStatus) => void; onPost: () => void; onExcluir: () => void;
+  onEditar: () => void; onCustos: () => void; onExportar: () => void;
 }) {
   const navigate = useNavigate();
   const [aberto, setAberto] = useState(false);
@@ -259,9 +274,14 @@ function MenuLote({ lote, gestor, onStatus, onPost, onExcluir }: {
           style={{ right: pos.right, ...(pos.acima ? { bottom: window.innerHeight - pos.top + 4 } : { top: pos.top + 4 }) }}
         >
           {item(<FolderOpen className="size-4" />, "Abrir lote", () => navigate({ to: "/lotes/$id", params: { id: lote.id } }))}
-          {item(<ImagePlus className="size-4" />, "Editor de post", onPost)}
+          {item(<Pencil className="size-4" />, "Editar cadastro", onEditar)}
           {gestor && <div className="my-1 border-t" />}
           {gestor && status.filter((x) => x.s !== lote.status).map((x) => item(x.icone, `Marcar como ${STATUS_LOTE_LABEL[x.s]}`, () => onStatus(x.s)))}
+          <div className="my-1 border-t" />
+          {item(<Calculator className="size-4" />, "Ajustar custos", onCustos)}
+          {item(<ArrowRightLeft className="size-4" />, "Transferir produtos", () => navigate({ to: "/lotes/$id", params: { id: lote.id }, search: { acao: "transferir" } }))}
+          {podeExportar && item(<Download className="size-4" />, "Baixar/Exportar (Excel)", onExportar)}
+          {item(<ImagePlus className="size-4" />, "Editor de post", onPost)}
           {gestor && <div className="my-1 border-t" />}
           {gestor && item(<Trash2 className="size-4" />, "Excluir", onExcluir, true)}
         </div>

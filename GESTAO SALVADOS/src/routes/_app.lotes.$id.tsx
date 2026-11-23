@@ -32,7 +32,11 @@ import type { DadosEtiqueta } from "@/lib/etiquetas";
 import { CompartilharPostDialog, dadosDoItem, EditorPostDialog } from "@/components/lotes/editor-post-dialog";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/_app/lotes/$id")({ component: DetalheLote });
+export const Route = createFileRoute("/_app/lotes/$id")({
+  // ?acao=transferir: vem do menu ⋮ da lista de lotes e abre a transferência direto
+  validateSearch: (s: Record<string, unknown>): { acao?: "transferir" } => (s.acao === "transferir" ? { acao: "transferir" } : {}),
+  component: DetalheLote,
+});
 
 const COR_STATUS: Record<ItemStatus, string> = {
   pendente: "bg-muted text-foreground",
@@ -63,6 +67,7 @@ function DetalheLote() {
   const [desmembrar, setDesmembrar] = useState<Item | null>(null);
   const [avaria, setAvaria] = useState<Item | null>(null);
   const [transferir, setTransferir] = useState(false);
+  const { acao } = Route.useSearch();
   const [verGraficos, setVerGraficos] = useState(false);
   const [editorPost, setEditorPost] = useState(false);
   const [compartilhar, setCompartilhar] = useState<Item | null>(null);
@@ -111,6 +116,15 @@ function DetalheLote() {
         (!t || i.titulo.toLowerCase().includes(t) || i.sku.toLowerCase().includes(t) || (i.codigo_barras ?? "").includes(t) || (i.termo ?? "").toLowerCase().includes(t)),
     );
   }, [itens, busca, fPallet, fStatus]);
+
+  // menu ⋮ → "Transferir produtos": abre a transferência assim que o lote carregar
+  useEffect(() => {
+    if (acao === "transferir" && lote && !carregando) {
+      setTransferir(true);
+      navigate({ to: "/lotes/$id", params: { id }, search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acao, lote, carregando]);
 
   if (carregando && !lote) return <div className="p-6"><Loader2 className="animate-spin text-muted-foreground" /></div>;
   if (!lote)
@@ -474,7 +488,7 @@ function DetalheLote() {
       </Card>
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
-      {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} itens={itens} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
+      {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} itens={itens} cfg={cfg} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
       <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? []} loja={nomeLoja} />
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}

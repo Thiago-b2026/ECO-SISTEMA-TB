@@ -1,9 +1,11 @@
 // Tela "Editar produto do lote": custo (valor ou %), preços, quantidade, grade, pallet e código de barras.
 import { useState } from "react";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import type { Item, Lote, Pallet } from "@/lib/lotes";
+import { buscarItem, criarBuscador, limpar, STATUS_ITEM_LABEL, type Item, type Lote, type Pallet } from "@/lib/lotes";
+import type { ConfigArredondamento } from "@/lib/precificacao";
+import { abrirAbaRobo, extensaoBuscaSite } from "@/lib/captura-ml";
 import { custoPercentual, lerNumero, margem } from "@/lib/precificacao";
 import { fmtBRL } from "@/lib/format";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,8 +17,8 @@ import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
 
 const txt = (v: number | null | undefined) => (v != null ? String(v) : "");
 
-export function EditarItemDialog({ item, lote, pallets, itens = [], onClose, onSalvo }: {
-  item: Item; lote: Lote; pallets: Pallet[]; itens?: Item[]; onClose: () => void; onSalvo: () => void;
+export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose, onSalvo }: {
+  item: Item; lote: Lote; pallets: Pallet[]; itens?: Item[]; cfg?: ConfigArredondamento; onClose: () => void; onSalvo: () => void;
 }) {
   const [titulo, setTitulo] = useState(item.titulo);
   const [precoML, setPrecoML] = useState(txt(item.preco_ml));
@@ -28,6 +30,7 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], onClose, onS
   const [palletId, setPalletId] = useState(item.pallet_id ?? "");
   const [ean, setEan] = useState(item.codigo_barras ?? "");
   const [salvando, setSalvando] = useState(false);
+  const [buscando, setBuscando] = useState(false);
 
   const pML = lerNumero(precoML);
   const pVenda = lerNumero(precoVenda);
@@ -41,6 +44,40 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], onClose, onS
     setPerc(v);
     const n = lerNumero(v);
     if (n != null) setCusto(txt(custoPercentual(base, n)));
+  }
+
+  /**
+   * Salva o que foi editado e busca de novo no Mercado Livre com o nome editado (ou o código de barras, se tiver),
+   * com a mesma regra do robô. A aba do robô (busca do site) abre aqui, ainda dentro do clique.
+   */
+  async function salvarEBuscar() {
+    if (!titulo.trim()) return toast.error("Informe o nome para buscar.");
+    if (achado) return toast.error(`Já existe no lote (${achado.item.sku}) com ${TEXTO_MOTIVO[achado.motivo]}. Mude o nome ou o código de barras.`);
+    if (!cfg) return toast.error("Configuração de preço não carregada. Feche e abra de novo.");
+    const aba = extensaoBuscaSite() ? abrirAbaRobo() : null;
+    setBuscando(true);
+    try {
+      const termo = titulo.trim();
+      const codigo = ean.replace(/\D/g, "") || null;
+      const { error: e1 } = await supabase.from("lote_itens").update({
+        termo, titulo: termo, codigo_barras: codigo, quantidade: Math.max(1, Math.round(lerNumero(quantidade) ?? 1)),
+        grade, pallet_id: palletId || null,
+      }).eq("id", item.id);
+      if (e1) throw new Error(e1.message);
+      const { buscar } = criarBuscador(aba);
+      const patch = await buscarItem({ termo, titulo: termo, codigo_barras: codigo, valor_planilha: item.valor_planilha }, lote, cfg, buscar);
+      const { error: e2 } = await supabase.from("lote_itens").update(limpar(patch)).eq("id", item.id);
+      if (e2) throw new Error(e2.message);
+      const st = String(patch.status) as keyof typeof STATUS_ITEM_LABEL;
+      toast.success(`Busca refeita: ${STATUS_ITEM_LABEL[st] ?? st}${patch.similaridade != null ? ` (${patch.similaridade}%)` : ""} · ${String(patch.titulo ?? termo).slice(0, 60)}`);
+      onSalvo();
+      onClose();
+    } catch (e) {
+      toast.error("Não foi possível buscar de novo: " + (e as Error).message);
+    } finally {
+      aba?.close();
+      setBuscando(false);
+    }
   }
 
   async function salvar() {
@@ -133,7 +170,10 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], onClose, onS
 
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={salvar} disabled={salvando || !!achado}>{salvando ? <Loader2 className="animate-spin" /> : <Save />} Salvar</Button>
+            <Button variant="outline" onClick={salvarEBuscar} disabled={salvando || buscando || !!achado} title="Salva e busca de novo no Mercado Livre com o nome/código editado">
+              {buscando ? <Loader2 className="animate-spin" /> : <RefreshCw />} Salvar e buscar de novo
+            </Button>
+            <Button onClick={salvar} disabled={salvando || buscando || !!achado}>{salvando ? <Loader2 className="animate-spin" /> : <Save />} Salvar</Button>
           </div>
         </div>
       </DialogContent>
