@@ -78,40 +78,61 @@ export function acharDuplicado<T extends Comparavel>(lista: T[], novo: Comparave
   return null;
 }
 
+/** Modelo do produto para juntar linhas: códigos de modelo (ex.: "pmo23b") e a voltagem, se tiver. */
+export type ModeloDe = (titulo: string) => { chave: string; volt: string | null } | null;
+
 /**
  * Junta as linhas repetidas de uma planilha de lote em uma só, somando a quantidade.
- * Mesmo produto = mesmo código de barras (quando os dois têm) ou mesmo nome normalizado, e a mesma grade.
- * Fica o primeiro valor/categoria encontrado. Retorna as linhas únicas e quantas foram juntadas.
+ * Mesmo produto (sempre com a mesma grade) quando:
+ *  - tem o mesmo código de barras; ou
+ *  - tem o mesmo nome normalizado; ou
+ *  - (com `modeloDe`) tem o mesmo código de modelo ("Microondas PMO23B 220v" = "Micro-ondas PMO23B") e a voltagem não briga
+ *    (220V × 127V não junta; sem voltagem junta com qualquer uma).
+ * Códigos de barras diferentes nunca juntam. Fica o nome da primeira linha; o valor da planilha vira a média ponderada.
  */
-export function unificarLinhas<T extends { titulo: string; codigo_barras?: string | null; grade?: string | null; quantidade: number }>(
+export function unificarLinhas<T extends { titulo: string; codigo_barras?: string | null; grade?: string | null; quantidade: number; valor_planilha?: number | null }>(
   linhas: T[],
+  modeloDe?: ModeloDe,
 ): { linhas: T[]; juntadas: number } {
-  const porNome = new Map<string, T>();
-  const porCodigo = new Map<string, T>();
-  const saida: T[] = [];
+  type Grupo = { item: T; cod: string | null; volt: string | null; somaValor: number; qtdValor: number };
+  const porNome = new Map<string, Grupo>();
+  const porCodigo = new Map<string, Grupo>();
+  const porModelo = new Map<string, Grupo[]>();
+  const grupos: Grupo[] = [];
   let juntadas = 0;
+  const codigoBate = (g: Grupo, cod: string | null) => !(cod && g.cod && cod !== g.cod);
   for (const l of linhas) {
     const grade = (l.grade ?? "A").toUpperCase();
     const cod = l.codigo_barras?.replace(/\D/g, "") || null;
     const kNome = `${grade}|${normalizarNome(l.titulo)}`;
     const kCod = cod ? `${grade}|${cod}` : null;
-    let igual = kCod ? porCodigo.get(kCod) : undefined;
-    if (!igual) {
+    const mod = modeloDe?.(l.titulo) ?? null;
+    const kMod = mod ? `${grade}|${mod.chave}` : null;
+    let g = kCod ? porCodigo.get(kCod) : undefined;
+    if (!g) {
       const n = porNome.get(kNome);
-      // mesmo nome mas códigos de barras diferentes: são produtos diferentes
-      const codN = n?.codigo_barras?.replace(/\D/g, "") || null;
-      if (n && !(cod && codN && cod !== codN)) igual = n;
+      if (n && codigoBate(n, cod)) g = n;
     }
-    if (igual) {
-      igual.quantidade += l.quantidade;
-      if (!igual.codigo_barras && cod) { igual.codigo_barras = cod; porCodigo.set(`${grade}|${cod}`, igual); }
+    if (!g && kMod) {
+      g = (porModelo.get(kMod) ?? []).find((x) => codigoBate(x, cod) && (!mod!.volt || !x.volt || mod!.volt === x.volt));
+    }
+    const v = l.valor_planilha ?? null;
+    if (g) {
+      g.item.quantidade += l.quantidade;
+      if (v != null) { g.somaValor += v * l.quantidade; g.qtdValor += l.quantidade; }
+      if (!g.cod && cod) { g.cod = cod; g.item.codigo_barras = cod; porCodigo.set(`${grade}|${cod}`, g); }
+      if (!g.volt && mod?.volt) g.volt = mod.volt;
       juntadas++;
       continue;
     }
-    const nova = { ...l };
-    saida.push(nova);
-    if (!porNome.has(kNome)) porNome.set(kNome, nova);
-    if (kCod) porCodigo.set(kCod, nova);
+    const novo: Grupo = { item: { ...l }, cod, volt: mod?.volt ?? null, somaValor: v != null ? v * l.quantidade : 0, qtdValor: v != null ? l.quantidade : 0 };
+    grupos.push(novo);
+    if (!porNome.has(kNome)) porNome.set(kNome, novo);
+    if (kCod) porCodigo.set(kCod, novo);
+    if (kMod) porModelo.set(kMod, [...(porModelo.get(kMod) ?? []), novo]);
   }
-  return { linhas: saida, juntadas };
+  for (const g of grupos) {
+    if (g.qtdValor > 0 && "valor_planilha" in g.item) g.item.valor_planilha = Math.round((g.somaValor / g.qtdValor) * 100) / 100;
+  }
+  return { linhas: grupos.map((g) => g.item), juntadas };
 }

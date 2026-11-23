@@ -61,3 +61,23 @@ describe("nota de semelhança da busca da planilha", () => {
     expect(linhaNaoEhProduto("Micro-ondas PMO30F")).toBe(false);
   });
 });
+
+describe("juntar linhas da planilha pelo modelo", () => {
+  it("junta nomes diferentes do mesmo modelo e respeita voltagem, kit e código de barras", async () => {
+    const { unificarLinhas } = await import("@/lib/duplicados");
+    const { modeloParaJuntar } = await import("@/lib/similaridade");
+    const r = unificarLinhas([
+      { titulo: "Micro-ondas PMO23B", quantidade: 1, grade: "A", valor_planilha: 680 },
+      { titulo: "Microondas PMO23B 220v", quantidade: 1, grade: "A", valor_planilha: 746.9 },
+      { titulo: "Micro-ondas PMO23B 220V", quantidade: 1, grade: "A", valor_planilha: 746.9 },
+      { titulo: "Micro-ondas PMO23B 127V", quantidade: 1, grade: "A", valor_planilha: 700 },
+      { titulo: "Kit 2 Micro-ondas PMO23B", quantidade: 1, grade: "A", valor_planilha: 1400 },
+      { titulo: "Micro-ondas PMO23B", quantidade: 2, grade: "B", valor_planilha: 500 },
+      { titulo: "Ventilador de parede 50cm Ventisol", quantidade: 2, grade: "A", valor_planilha: 274.9 },
+      { titulo: "Ventilador oscilante parede 50cm 220v", quantidade: 1, grade: "A", valor_planilha: 264.9 },
+    ], modeloParaJuntar);
+    expect(r.linhas.map((l) => l.quantidade)).toEqual([3, 1, 1, 2, 2, 1]);
+    expect(r.linhas[0].valor_planilha).toBe(724.6);
+    expect(r.juntadas).toBe(2);
+  });
+});

@@ -44,6 +44,19 @@ const VOLT = (t: string) => {
 
 const palavras = (t: string) => normalizarNome(t).split(" ").filter((p) => p && !VAZIAS.has(p) && !/^(220|127|110)v?$/.test(p) && p !== "v" && p !== "bivolt");
 
+/**
+ * Modelo para juntar linhas repetidas da planilha: códigos de modelo do nome + voltagem.
+ * Sem código de modelo (ex.: "Ventilador de parede 50cm") devolve null: aí só junta por nome igual.
+ * Kit/várias unidades entra com outra chave, para não juntar "Kit 2 X123" com "X123".
+ */
+export function modeloParaJuntar(titulo: string): { chave: string; volt: string | null } | null {
+  const cods = codigosDeModelo(titulo);
+  if (!cods.length) return null;
+  const n = normalizarNome(titulo);
+  const kit = /(^| )kit( |$)|(^| )([2-9]|1[0-9]) (unidades|unid|un|pecas|peca)( |$)/.test(n) ? "kit|" : "";
+  return { chave: kit + [...cods].sort().join("+"), volt: VOLT(titulo) };
+}
+
 export interface Analise {
   nota: number;
   motivos: string[];
