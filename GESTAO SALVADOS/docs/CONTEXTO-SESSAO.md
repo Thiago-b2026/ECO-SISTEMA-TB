@@ -1,4 +1,20 @@
-# Contexto do projeto — passagem de sessão (atualizado em 21/11/2026)
+# Contexto do projeto — passagem de sessão (atualizado em 22/11/2026)
+
+## Sessão 22/11/2026 — Busca da planilha com muita divergência (lote "LOTE MOGI 220V NOVEMB")
+- Diagnóstico do lote 7f3b135b (planilha PRODUTOS_POR_CATEGORIA_LOTES_1_A_4.xlsx, 124 itens): 23 linhas "SUBTOTAL ..." viraram itens;
+  nota antiga = só % de palavras do termo no título → peças com 100% ("Membrana painel micro-ondas ME36B", "Motor do liquidificador
+  L-99-FB", "Prato com rodízio", "Transformador") e outros modelos aceitos ("Micro-ondas Luoruil" para MHP35S2/CMS23ARBNA).
+- PrecificaLote com a MESMA planilha (projeto 314, 22/11 20:11): 79 de 83 "Não achou" — a coluna do nome foi mapeada para a de PREÇO
+  (termos "800.9", "620"…); a comparação lá precisa ser refeita com a coluna certa.
+- Correção (`src/lib/similaridade.ts`, testes `similaridade.test.ts`): `notaSemelhanca` = palavras em comum + código de modelo
+  (`codigosDeModelo`: letras+números 4+, junta hífen; ausente → máx. 35) + peça/acessório ANTES do nome do produto, "compatível" ou
+  "para/p/" → máx. 40 + voltagem trocada −25 + preço fora de 35%–300% da planilha −30. `situacaoPelaNota`: ≥ mínimo do lote = sucesso,
+  ≥ 50 similar, < 50 não encontrado (não preenche produto; deixa as opções). Robô (`processarFila`): 5 candidatos, escolhe a melhor nota,
+  2ª busca "nome + código do modelo" quando fraco. Importação ignora SUBTOTAL/TOTAL/cabeçalho/só número (`linhaNaoEhProduto`) e avisa.
+  Lote: botões "Refazer busca" (não aprovados → fila) e "Remover N linhas que não são produto".
+- Reavaliação offline com os candidatos já buscados desse lote: antes 49 sucesso/50 similar (com peças e modelos errados); agora
+  56 sucesso (todos conferidos, modelo batendo), 14 similar, 31 não encontrado, 23 subtotais fora.
+
 
 ## Sessão 20–21/11/2026 — Busca por link do ML no ar, menu ⋮ dos lotes e Editor de post
 - **Função `ml-buscar` v12 publicada** (corrige busca por link, inclusive link colado com ": " antes). Usuário testou: OK.

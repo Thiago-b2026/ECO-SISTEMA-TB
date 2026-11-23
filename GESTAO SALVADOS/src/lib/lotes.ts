@@ -1,9 +1,9 @@
 // Acesso a dados de lotes/itens e o "robô" que processa a fila de busca no ML.
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { codigosDeModelo, notaSemelhanca, situacaoPelaNota } from "@/lib/similaridade";
 import {
   ARREDONDAMENTO_PADRAO,
-  classificar,
   custoPercentual,
   precoSugerido,
   type ConfigArredondamento,
@@ -237,19 +237,40 @@ export async function processarFila(
     let patch: Record<string, unknown>;
     try {
       const tipo: TipoBusca = item.codigo_barras && /^\d{8,14}$/.test(item.codigo_barras) ? "ean" : "nome";
-      const cands = await buscarComEspera(tipo, tipo === "ean" ? item.codigo_barras! : termo);
+      let cands = await buscarComEspera(tipo, tipo === "ean" ? item.codigo_barras! : termo);
+      // nota nova (modelo, peça/acessório, voltagem, preço da planilha) e escolhe o MELHOR, não o primeiro
+      const notar = (cs: Candidato[]) =>
+        cs.map((c) => ({ ...c, similaridade: tipo === "ean" ? 100 : notaSemelhanca(termo, c.titulo, c.preco, item.valor_planilha).nota }))
+          .sort((a, b) => (b.similaridade ?? 0) - (a.similaridade ?? 0));
+      cands = notar(cands);
+      // fraco e o termo tem código de modelo: tenta de novo pelo nome do produto + código (ex.: "Micro-ondas MHP35S2" → "micro ondas mhp35s2")
+      const codigos = tipo === "nome" ? codigosDeModelo(termo) : [];
+      if (codigos.length && (cands[0]?.similaridade ?? 0) < lote.similaridade_min) {
+        try {
+          const principal = termo.split(/\s+/).find((w) => !/\d/.test(w)) ?? "";
+          const extra = notar(await buscarComEspera("nome", `${principal} ${codigos[0]}`.trim()));
+          const vistos = new Set(cands.map((c) => c.id));
+          cands = notar([...cands, ...extra.filter((c) => !vistos.has(c.id))]);
+        } catch {
+          /* segunda tentativa é bônus: segue com o que tem */
+        }
+      }
+      cands = cands.slice(0, 5);
       if (cands.length === 0) {
         patch = { status: "nao_encontrado", candidatos: [] };
       } else {
         const melhor = cands[0];
-        const sim = tipo === "ean" ? 100 : melhor.similaridade;
-        const status = classificar(sim, lote.similaridade_min);
-        patch = {
-          ...camposDoCandidato({ ...melhor, similaridade: sim }, lote, cfg, item.valor_planilha),
-          titulo: melhor.titulo,
-          status,
-          candidatos: cands,
-        };
+        const sim = melhor.similaridade ?? 0;
+        const status = tipo === "ean" ? "sucesso" : situacaoPelaNota(sim, lote.similaridade_min);
+        patch = status === "nao_encontrado"
+          // nada bom o bastante: NÃO preenche com um produto qualquer; deixa as opções para escolher à mão
+          ? { status, similaridade: sim, candidatos: cands }
+          : {
+              ...camposDoCandidato({ ...melhor, similaridade: sim }, lote, cfg, item.valor_planilha),
+              titulo: melhor.titulo,
+              status,
+              candidatos: cands,
+            };
       }
     } catch {
       erros++;
@@ -265,7 +286,7 @@ export async function processarFila(
 async function buscarComEspera(tipo: TipoBusca, valor: string): Promise<Candidato[]> {
   for (let tentativa = 0; tentativa < 4; tentativa++) {
     try {
-      return await buscarML(tipo, valor, 3);
+      return await buscarML(tipo, valor, 5);
     } catch (e) {
       if ((e as { status?: number }).status === 429) {
         await new Promise((ok) => setTimeout(ok, 3000 * (tentativa + 1)));

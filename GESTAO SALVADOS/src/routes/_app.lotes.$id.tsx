@@ -23,6 +23,7 @@ import { TransferirLoteDialog } from "@/components/lotes/transferir-lote-dialog"
 import { GraficosLote } from "@/components/lotes/graficos-lote";
 import { ArrowRightLeft, BarChart3, ImagePlus, Printer, Scissors, Share2, ShieldAlert } from "lucide-react";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
+import { linhaNaoEhProduto } from "@/lib/similaridade";
 import { EditarItemDialog } from "@/components/lotes/editar-item-dialog";
 import { Pencil } from "lucide-react";
 import { useLoja } from "@/lib/loja";
@@ -241,6 +242,17 @@ function DetalheLote() {
     }
   }
 
+  // linhas da planilha que não são produto (SUBTOTAL, TOTAL…) e ainda não foram aprovadas
+  const lixo = itens.filter((i) => i.status !== "aprovado" && i.origem === "planilha" && linhaNaoEhProduto(i.termo ?? i.titulo));
+  async function removerLixo() {
+    const lista = lixo.slice(0, 8).map((i) => "• " + (i.termo ?? i.titulo)).join("\n") + (lixo.length > 8 ? "\n…" : "");
+    if (!window.confirm(`Remover ${lixo.length} linha(s) que não são produto?\n\n${lista}`)) return;
+    const { error } = await supabase.from("lote_itens").delete().in("id", lixo.map((i) => i.id));
+    if (error) return toast.error(error.message);
+    toast.success(`${lixo.length} linha(s) removida(s).`);
+    recarregar(true);
+  }
+
   async function emMassa(de: ItemStatus[], para: ItemStatus, pergunta: string) {
     const alvo = itens.filter((i) => de.includes(i.status));
     if (alvo.length === 0) return toast.info("Nenhum item nessa situação.");
@@ -362,6 +374,10 @@ function DetalheLote() {
               )}
               <Button variant="outline" size="sm" onClick={() => emMassa(["sucesso"], "aprovado", "Aprovar os {n} itens com Sucesso?")}><Check /> Aprovar sucessos</Button>
               <Button variant="outline" size="sm" onClick={() => emMassa(["nao_encontrado", "erro"], "pendente", "Mandar {n} itens (não encontrados/erro) de volta para a fila?")}><RotateCcw /> Reprocessar</Button>
+              <Button variant="outline" size="sm" title="Busca de novo todos os itens ainda não aprovados (com a regra nova de semelhança)" onClick={() => emMassa(["sucesso", "similar", "nao_encontrado", "erro"], "pendente", "Refazer a busca de {n} itens ainda NÃO aprovados? (os aprovados ficam como estão; depois clique em Buscar na fila)")}><RotateCcw /> Refazer busca</Button>
+              {lixo.length > 0 && (
+                <Button variant="outline" size="sm" className="text-destructive" onClick={removerLixo}><Trash2 /> Remover {lixo.length} linha(s) que não são produto</Button>
+              )}
             </div>
           </div>
           {rodando && (

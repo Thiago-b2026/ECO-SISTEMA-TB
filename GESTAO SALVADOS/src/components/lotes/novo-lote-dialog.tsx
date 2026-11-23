@@ -4,6 +4,7 @@ import { FileSpreadsheet, Loader2, ScanBarcode } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { lerPlanilha } from "@/lib/planilha";
+import { linhaNaoEhProduto } from "@/lib/similaridade";
 import { colunaParaIndice, custoPercentual, lerNumero } from "@/lib/precificacao";
 import type { LoteTipo } from "@/lib/lotes";
 import { useLoja } from "@/lib/loja";
@@ -67,9 +68,12 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       try {
         const linhas = await lerPlanilha(arquivo);
         const inicio = Math.max(1, Number(linhaInicial) || 1) - 1;
+        let ignoradas = 0;
         linhasItens = linhas.slice(inicio).flatMap((l) => {
           const nomeProd = String(l[iProd] ?? "").trim();
           if (!nomeProd) return [];
+          // SUBTOTAL/TOTAL, cabeçalho repetido ou só número (coluna errada) não é produto
+          if (linhaNaoEhProduto(nomeProd)) { ignoradas++; return []; }
           const valor = iValor >= 0 ? lerNumero(l[iValor]) : null;
           const qtd = iQtd >= 0 ? Math.max(1, Math.round(lerNumero(l[iQtd]) ?? 1)) : 1;
           const ean = iEan >= 0 ? String(l[iEan] ?? "").replace(/\D/g, "") || null : null;
@@ -78,6 +82,9 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           const subcategoria = iSub >= 0 ? String(l[iSub] ?? "").trim() || null : null;
           return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria, subcategoria }];
         });
+        if (ignoradas) toast.info(`${ignoradas} linha(s) ignorada(s): subtotal, total ou sem nome de produto.`);
+        // só números na coluna do nome = coluna errada (aconteceu no PrecificaLote: o preço foi buscado como nome)
+        if (linhasItens.length === 0 && ignoradas > 0) return toast.error("A coluna do produto parece ter números (preço ou quantidade). Confira a letra da coluna do nome.");
       } catch (err) {
         return toast.error((err as Error).message);
       }
