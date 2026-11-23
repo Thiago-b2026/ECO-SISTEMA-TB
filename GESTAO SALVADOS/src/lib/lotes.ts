@@ -281,14 +281,18 @@ export async function processarFila(
       }
       cands = cands.slice(0, 5);
       if (cands.length === 0) {
-        patch = { status: "nao_encontrado", candidatos: [] };
+        patch = { status: "nao_encontrado", candidatos: [], titulo: termo, ml_id: null, ml_link: null, foto_url: null, preco_ml: null, preco_ml_original: null, preco_venda: null, marca: null };
       } else {
         const melhor = cands[0];
         const sim = melhor.similaridade ?? 0;
         const status = tipo === "ean" ? "sucesso" : situacaoPelaNota(sim, lote.similaridade_min);
         patch = status === "nao_encontrado"
           // nada bom o bastante: NÃO preenche com um produto qualquer; deixa as opções para escolher à mão
-          ? { status, similaridade: sim, candidatos: cands }
+          ? {
+              status, similaridade: sim, candidatos: cands,
+              // limpa o produto de uma busca anterior (senão continua aparecendo o anúncio errado)
+              titulo: termo, ml_id: null, ml_link: null, foto_url: null, preco_ml: null, preco_ml_original: null, preco_venda: null, marca: null,
+            }
           : {
               ...camposDoCandidato({ ...melhor, similaridade: sim }, lote, cfg, item.valor_planilha),
               titulo: melhor.titulo,

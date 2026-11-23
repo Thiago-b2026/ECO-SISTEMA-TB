@@ -20,6 +20,13 @@
   Teste no Chrome: "Batedeira planetária PBP90A" (antes Tedge errada) → "Batedeira Planetária Philco … Pbp90a" nota 100; PMO30F certo e a
   peça "Teclado Membrana … Pmo30f" com 40. Extensão instalada na loja ainda é 1.0: tela do lote avisa para atualizar (zip de novo por
   cima da pasta + ↻ em chrome://extensions).
+- Rodada real no lote (22/11 22:20–22:36, extensão 1.1 no Chrome do usuário): 57 buscados pelo site → 44 sucesso (conferidos: PBP90A,
+  OBAT641, PH10P, ME36B, MO-01-21-B, AWD01, PPP01P, ME3EP, ST65L… antes peças/modelos errados; 9 de anúncios fora do catálogo /up/),
+  3 similar, 9 não encontrado (modelos que não existem no ML: MHP35S2, MHP35B2, CMS23ARBNA, CMS46ABBNA, BMS46ARANA, BFE62A, WAF2S,
+  PH110AZ, L-1200RL). O robô parou 2x com "verificação" mas a página estava normal: checagem automática do ML depois de ~25 buscas.
+  Ajustes: `buscarNoSite` espera até 45 s mesmo após aviso de verificação; robô com 2,5 s entre buscas e, na verificação, espera 30 s e
+  tenta de novo (até 2x) antes de parar. Itens "não encontrado" agora limpam o produto antigo (título volta ao termo, sem preço ML).
+  Na 3ª retomada a aba do PDV foi trocada/recarregada e o robô parou: ficaram 44 na fila (retomar com "Buscar 44 na fila").
 - Reavaliação offline com os candidatos já buscados desse lote: antes 49 sucesso/50 similar (com peças e modelos errados); agora
   56 sucesso (todos conferidos, modelo batendo), 14 similar, 31 não encontrado, 23 subtotais fora.
 
