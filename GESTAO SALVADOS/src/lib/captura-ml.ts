@@ -162,7 +162,7 @@ export function abrirAbaRobo(): Window | null {
 }
 
 /** Leva a aba do robô para a busca do termo no site e espera a extensão devolver os resultados. */
-export function buscarNoSite(aba: Window, termo: string, limiteMs = 30000): Promise<Candidato[]> {
+export function buscarNoSite(aba: Window, termo: string, limiteMs = 45000): Promise<Candidato[]> {
   const slug = slugBusca(termo);
   if (!slug) return Promise.resolve([]);
   return new Promise((ok, falha) => {
@@ -174,8 +174,10 @@ export function buscarNoSite(aba: Window, termo: string, limiteMs = 30000): Prom
       // resposta de uma busca anterior (a página antiga ainda respondendo): ignora
       const pagina = decodeURIComponent(String(m.pagina ?? "")).toLowerCase();
       if (!pagina.includes(slug.slice(0, 25))) return;
+      // "verificação" pode ser só a checagem automática do ML, que se resolve sozinha e recarrega a página:
+      // continua esperando a mesma busca; só desiste (VerificacaoML) se o tempo acabar sem resultado.
+      if (m.erro === "verificacao") { viuVerificacao = true; return; }
       fim();
-      if (m.erro === "verificacao") return falha(new VerificacaoML("O Mercado Livre pediu uma verificação na aba do robô. Resolva lá e clique em Buscar de novo."));
       const lista = Array.isArray(m.resultados) ? m.resultados : [];
       ok(lista.map((r) => r as Record<string, unknown>).filter((r) => typeof r.titulo === "string").map((r) => ({
         id: String(r.id ?? r.link ?? ""),
@@ -192,8 +194,14 @@ export function buscarNoSite(aba: Window, termo: string, limiteMs = 30000): Prom
         similaridade: null,
       })));
     };
+    let viuVerificacao = false;
     window.addEventListener("message", ouvir);
-    const tempo = setTimeout(() => { fim(); falha(new Error("A busca no site não respondeu a tempo.")); }, limiteMs);
+    const tempo = setTimeout(() => {
+      fim();
+      falha(viuVerificacao
+        ? new VerificacaoML("O Mercado Livre pediu uma verificação na aba do robô. Resolva lá e clique em Buscar de novo.")
+        : new Error("A busca no site não respondeu a tempo."));
+    }, limiteMs);
     try {
       aba.location.href = `https://lista.mercadolivre.com.br/${slug}`;
     } catch {
