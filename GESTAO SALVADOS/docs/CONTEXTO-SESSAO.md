@@ -12,6 +12,14 @@
   ≥ 50 similar, < 50 não encontrado (não preenche produto; deixa as opções). Robô (`processarFila`): 5 candidatos, escolhe a melhor nota,
   2ª busca "nome + código do modelo" quando fraco. Importação ignora SUBTOTAL/TOTAL/cabeçalho/só número (`linhaNaoEhProduto`) e avisa.
   Lote: botões "Refazer busca" (não aprovados → fila) e "Remover N linhas que não são produto".
+- **Robô pela BUSCA DO SITE (extensão 1.1.0)**, como o robô do PrecificaLote: "Buscar na fila" abre (no clique) a aba
+  `pdv-busca|<PDV>`; `buscarNoSite()` leva a aba para `lista.mercadolivre.com.br/<slug>`; `anuncio.js` (`buscaDoRobo`) lê o JSON-LD
+  `@graph` (48 Product: nome, preço, foto, marca, link; preço "de" pelos cartões) e devolve por postMessage (confere a página pelo slug);
+  a aba fica aberta e vai para o próximo termo (1,2 s entre buscas); no fim fecha. Site vazio/erro → catálogo (API). Página sem
+  resultados nem aviso = verificação do ML → `VerificacaoML`: o robô PARA, item fica na fila, pessoa resolve na aba (não contornar).
+  Teste no Chrome: "Batedeira planetária PBP90A" (antes Tedge errada) → "Batedeira Planetária Philco … Pbp90a" nota 100; PMO30F certo e a
+  peça "Teclado Membrana … Pmo30f" com 40. Extensão instalada na loja ainda é 1.0: tela do lote avisa para atualizar (zip de novo por
+  cima da pasta + ↻ em chrome://extensions).
 - Reavaliação offline com os candidatos já buscados desse lote: antes 49 sucesso/50 similar (com peças e modelos errados); agora
   56 sucesso (todos conferidos, modelo batendo), 14 similar, 31 não encontrado, 23 subtotais fora.
 

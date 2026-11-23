@@ -6,6 +6,7 @@
 // a extensão lê os dados que a própria página publica (nome, preço, preço anterior, foto, marca), devolve por postMessage
 // e fecha a aba. Plano B da extensão: abre /capturar#<dados> (guarda no localStorage e avisa por BroadcastChannel).
 import type { Candidato } from "@/lib/lotes";
+import { normalizarNome } from "@/lib/duplicados";
 
 export interface CapturaML {
   id: string | null; // MLB… do anúncio (ou MLBU… do produto do vendedor)
@@ -128,6 +129,77 @@ export function capturarPeloNavegador(link: string, limiteMs = 30000): Promise<C
     const tempo = setTimeout(() => { fim(); falha(new Error("O anúncio não respondeu a tempo. Confira a aba do Mercado Livre que abriu.")); }, limiteMs);
     // a pessoa fechou a aba antes de terminar
     const fechada = setInterval(() => { if (aba.closed) { fim(); falha(new Error("A aba do anúncio foi fechada antes de terminar.")); } }, 1000);
+  });
+}
+
+// ------------------------------------------------------------ robô da planilha pela BUSCA do site (extensão 1.1+)
+/** Versão da extensão instalada ("1.1.0"), ou null. */
+export function versaoExtensao(): string | null {
+  return typeof document !== "undefined" ? document.documentElement.getAttribute("data-salvados-ext") : null;
+}
+/** A extensão sabe ler a página de busca do site (1.1.0 ou mais nova). */
+export function extensaoBuscaSite(): boolean {
+  const [a, b] = (versaoExtensao() ?? "0.0").split(".").map(Number);
+  return a > 1 || (a === 1 && b >= 1);
+}
+
+/** Erro de quando o ML pede verificação na aba do robô: o robô para e a pessoa resolve na aba (não contornamos). */
+export class VerificacaoML extends Error {}
+
+/** "Micro-ondas MHP35S2 220V" → "micro-ondas-mhp35s2-220v" (endereço da busca do site). */
+export function slugBusca(termo: string): string {
+  return normalizarNome(termo).replace(/\s+/g, "-").slice(0, 120);
+}
+
+/**
+ * Abre a aba do robô. Precisa ser chamada DIRETO do clique (senão o navegador bloqueia a aba nova).
+ * A extensão só age em aba com esse nome.
+ */
+export function abrirAbaRobo(): Window | null {
+  const aba = window.open("about:blank", `pdv-busca|${window.location.origin}`);
+  window.focus();
+  return aba;
+}
+
+/** Leva a aba do robô para a busca do termo no site e espera a extensão devolver os resultados. */
+export function buscarNoSite(aba: Window, termo: string, limiteMs = 30000): Promise<Candidato[]> {
+  const slug = slugBusca(termo);
+  if (!slug) return Promise.resolve([]);
+  return new Promise((ok, falha) => {
+    const fim = () => { window.removeEventListener("message", ouvir); clearTimeout(tempo); };
+    const ouvir = (e: MessageEvent) => {
+      if (!/^https:\/\/([a-z0-9-]+\.)*mercadoli(vre|bre)\.com(\.br)?$/i.test(e.origin)) return;
+      const m = e.data as { tipo?: string; pagina?: string; resultados?: unknown[]; erro?: string };
+      if (!m || m.tipo !== "salvados-busca") return;
+      // resposta de uma busca anterior (a página antiga ainda respondendo): ignora
+      const pagina = decodeURIComponent(String(m.pagina ?? "")).toLowerCase();
+      if (!pagina.includes(slug.slice(0, 25))) return;
+      fim();
+      if (m.erro === "verificacao") return falha(new VerificacaoML("O Mercado Livre pediu uma verificação na aba do robô. Resolva lá e clique em Buscar de novo."));
+      const lista = Array.isArray(m.resultados) ? m.resultados : [];
+      ok(lista.map((r) => r as Record<string, unknown>).filter((r) => typeof r.titulo === "string").map((r) => ({
+        id: String(r.id ?? r.link ?? ""),
+        tipo: "item" as const,
+        titulo: String(r.titulo),
+        preco: typeof r.preco === "number" ? r.preco : null,
+        preco_original: typeof r.preco_original === "number" ? r.preco_original : null,
+        foto: typeof r.foto === "string" ? r.foto : null,
+        link: typeof r.link === "string" ? r.link : null,
+        gtin: null,
+        marca: typeof r.marca === "string" ? r.marca : null,
+        modelo: null,
+        categoria_id: null,
+        similaridade: null,
+      })));
+    };
+    window.addEventListener("message", ouvir);
+    const tempo = setTimeout(() => { fim(); falha(new Error("A busca no site não respondeu a tempo.")); }, limiteMs);
+    try {
+      aba.location.href = `https://lista.mercadolivre.com.br/${slug}`;
+    } catch {
+      fim();
+      falha(new Error("A aba do robô foi fechada."));
+    }
   });
 }
 

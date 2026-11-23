@@ -2,6 +2,7 @@
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
 import { codigosDeModelo, notaSemelhanca, situacaoPelaNota } from "@/lib/similaridade";
+import { buscarNoSite, VerificacaoML } from "@/lib/captura-ml";
 import {
   ARREDONDAMENTO_PADRAO,
   custoPercentual,
@@ -224,7 +225,23 @@ export async function processarFila(
   cfg: ConfigArredondamento,
   aoProgredir: (feitos: number, total: number) => void,
   parar: () => boolean,
-): Promise<{ feitos: number; erros: number }> {
+  /** Aba do robô (extensão 1.1+): busca na página de BUSCA do site, como o robô do PrecificaLote. Sem ela: catálogo (API). */
+  abaSite: Window | null = null,
+): Promise<{ feitos: number; erros: number; aviso?: string; viaSite: number }> {
+  let viaSite = 0;
+  // site primeiro (anúncios de fora do catálogo também); falhou ou veio vazio → catálogo
+  const buscar = async (tipo: TipoBusca, valor: string): Promise<Candidato[]> => {
+    if (tipo === "nome" && abaSite && !abaSite.closed) {
+      try {
+        const r = await buscarNoSite(abaSite, valor);
+        await new Promise((ok) => setTimeout(ok, 1200)); // ritmo de pessoa
+        if (r.length) { viaSite++; return r; }
+      } catch (e) {
+        if (e instanceof VerificacaoML) throw e;
+      }
+    }
+    return buscarComEspera(tipo, valor);
+  };
   const pendentes = await fetchAllRows<Item>(() =>
     supabase.from("lote_itens").select("*").eq("lote_id", lote.id).eq("status", "pendente").order("created_at"),
   );
@@ -237,7 +254,7 @@ export async function processarFila(
     let patch: Record<string, unknown>;
     try {
       const tipo: TipoBusca = item.codigo_barras && /^\d{8,14}$/.test(item.codigo_barras) ? "ean" : "nome";
-      let cands = await buscarComEspera(tipo, tipo === "ean" ? item.codigo_barras! : termo);
+      let cands = await buscar(tipo, tipo === "ean" ? item.codigo_barras! : termo);
       // nota nova (modelo, peça/acessório, voltagem, preço da planilha) e escolhe o MELHOR, não o primeiro
       const notar = (cs: Candidato[]) =>
         cs.map((c) => ({ ...c, similaridade: tipo === "ean" ? 100 : notaSemelhanca(termo, c.titulo, c.preco, item.valor_planilha).nota }))
@@ -248,7 +265,7 @@ export async function processarFila(
       if (codigos.length && (cands[0]?.similaridade ?? 0) < lote.similaridade_min) {
         try {
           const principal = termo.split(/\s+/).find((w) => !/\d/.test(w)) ?? "";
-          const extra = notar(await buscarComEspera("nome", `${principal} ${codigos[0]}`.trim()));
+          const extra = notar(await buscar("nome", `${principal} ${codigos[0]}`.trim()));
           const vistos = new Set(cands.map((c) => c.id));
           cands = notar([...cands, ...extra.filter((c) => !vistos.has(c.id))]);
         } catch {
@@ -272,7 +289,9 @@ export async function processarFila(
               candidatos: cands,
             };
       }
-    } catch {
+    } catch (e) {
+      // ML pediu verificação na aba do robô: para tudo (o item continua na fila) e avisa
+      if (e instanceof VerificacaoML) return { feitos, erros, aviso: e.message, viaSite };
       erros++;
       patch = { status: "erro" };
     }
@@ -280,7 +299,7 @@ export async function processarFila(
     feitos++;
     aoProgredir(feitos, pendentes.length);
   }
-  return { feitos, erros };
+  return { feitos, erros, viaSite };
 }
 
 async function buscarComEspera(tipo: TipoBusca, valor: string): Promise<Candidato[]> {

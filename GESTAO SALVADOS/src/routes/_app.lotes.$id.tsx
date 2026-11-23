@@ -24,6 +24,7 @@ import { GraficosLote } from "@/components/lotes/graficos-lote";
 import { ArrowRightLeft, BarChart3, ImagePlus, Printer, Scissors, Share2, ShieldAlert } from "lucide-react";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
 import { linhaNaoEhProduto } from "@/lib/similaridade";
+import { abrirAbaRobo, extensaoBuscaSite, versaoExtensao } from "@/lib/captura-ml";
 import { EditarItemDialog } from "@/components/lotes/editar-item-dialog";
 import { Pencil } from "lucide-react";
 import { useLoja } from "@/lib/loja";
@@ -72,6 +73,7 @@ function DetalheLote() {
   const [rodando, setRodando] = useState(false);
   const [progresso, setProgresso] = useState({ feitos: 0, total: 0 });
   const pararRef = useRef(false);
+  const [viaSite, setViaSite] = useState(false);
 
   async function recarregar(silencioso = false) {
     if (!silencioso) setCarregando(true);
@@ -230,10 +232,16 @@ function DetalheLote() {
 
   async function iniciarRobo() {
     pararRef.current = false;
+    // Extensão 1.1+: busca pela página de busca do site (como o robô do PrecificaLote). A aba abre aqui, no clique.
+    const aba = extensaoBuscaSite() ? abrirAbaRobo() : null;
+    if (extensaoBuscaSite() && !aba) toast.warning("O navegador bloqueou a aba do robô (pop-up). Buscando pelo catálogo; permita pop-ups deste site para usar a busca do site.");
+    setViaSite(!!aba);
     setRodando(true);
     try {
-      const r = await processarFila(lote!, cfg, (feitos, total) => setProgresso({ feitos, total }), () => pararRef.current);
-      toast.success(`Robô terminou: ${r.feitos} buscados${r.erros ? `, ${r.erros} com erro` : ""}.`);
+      const r = await processarFila(lote!, cfg, (feitos, total) => setProgresso({ feitos, total }), () => pararRef.current, aba);
+      if (r.aviso) toast.warning(r.aviso, { duration: 15000 });
+      else toast.success(`Robô terminou: ${r.feitos} buscados${r.viaSite ? ` (${r.viaSite} pela busca do site)` : ""}${r.erros ? `, ${r.erros} com erro` : ""}.`);
+      if (!r.aviso) aba?.close();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -380,9 +388,23 @@ function DetalheLote() {
               )}
             </div>
           </div>
+          {!rodando && versaoExtensao() && !extensaoBuscaSite() && (
+            <p className="rounded-md border border-warning bg-warning/15 p-2 text-xs">
+              🧩 Sua extensão está na versão {versaoExtensao()}. Atualize para a 1.1 e o robô passa a buscar pela busca do site do Mercado Livre
+              (acha anúncios fora do catálogo): baixe de novo em <a href="/extensao-salvados-lp.zip" download className="font-semibold text-primary underline">extensao-salvados-lp.zip</a>,
+              descompacte por cima da pasta antiga e clique em ↻ (recarregar) na extensão em chrome://extensions. Depois aperte F5 aqui.
+            </p>
+          )}
+          {!rodando && lote.tipo === "planilha" && !versaoExtensao() && (
+            <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+              Dica: com a extensão do Chrome instalada, o robô busca pela busca do site do Mercado Livre (mais anúncios, como o PrecificaLote). Instruções no Inserir produto → Link do anúncio.
+            </p>
+          )}
           {rodando && (
             <div className="space-y-1">
-              <div className="text-sm">Robô buscando no Mercado Livre… {progresso.feitos}/{progresso.total} — mantenha esta tela aberta.</div>
+              <div className="text-sm">
+                Robô buscando no Mercado Livre{viaSite ? " pela busca do site (aba do robô aberta — não feche)" : " pelo catálogo"}… {progresso.feitos}/{progresso.total} — mantenha esta tela aberta.
+              </div>
               <div className="h-2 rounded bg-muted"><div className="h-2 rounded bg-primary transition-all" style={{ width: `${progresso.total ? (progresso.feitos / progresso.total) * 100 : 0}%` }} /></div>
             </div>
           )}
