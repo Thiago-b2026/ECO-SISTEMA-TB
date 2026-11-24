@@ -407,3 +407,15 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   - a tela "Pallets" (botão ao lado do filtro de pallet e em Parâmetros) cria, renomeia e exclui pallets vazios;
   - `codigoPallet` padroniza o nome: até 15 caracteres, maiúsculas, espaço vira hífen.
 - A partir de agora o deploy vai só para o `main`, não mais para a branch também, por causa do limite de deploys da Vercel (6 projetos por envio).
+
+## Sessão 24/11/2026 — Tabela do lote sem rolagem lateral e impressão igual ao PrecificaLote
+- **Tabela do lote:** cabe sem rolar para o lado (larguras fixas a partir de 1280 px; testado em 1280 e 1366). Planilha ficou embaixo do preço ML;
+  ícones aprovar/opções/desmembrar/avaria/excluir foram para a coluna Situação; botões Editar/Etiqueta/Compartilhar embaixo do nome.
+  Abaixo de 1280 px (tablet/celular) cada produto vira um cartão.
+- **Impressão** (comparada com o PrecificaLote, só leitura): diálogo "Pré-visualização da Etiqueta" (Impressora, prévia em tamanho real, Cancelar/Imprimir);
+  etiqueta redesenhada: nome em 2 linhas, SKU na vertical, De / % OFF com 2 casas, Por, código de barras e logo. Modelos prontos: 100x50/1, 33x22/3,
+  50x25/2, 70x30/1, 50x30/2. Modelos personalizados (★) usam o desenho novo, com os campos que já tinham (sem logo até marcar "Logo" no editor).
+  Nos modelos prontos, Grade e nome da loja não saem mais (igual ao PrecificaLote); dá para ligar num modelo próprio.
+- **x/y impressos:** migration `20261124000033_etiquetas_impressas_lote.sql` APLICADA (`lote_itens.etiquetas_impressas`, `registrar_etiquetas_lote`).
+  Botão Etiqueta: cinza = nenhuma, amarelo = parte, verde = todas. Etiquetas impressas antes desta data não foram contadas.
+- Não verificado: impressão em papel (conferir tamanho e leitura do código de barras na impressora) e o "Imprimir Todos" do PrecificaLote (não foi clicado).

@@ -108,6 +108,8 @@ export interface Item {
   operador_id: string | null;
   origem_item_id: string | null;
   tipo_derivado: "desmembrado" | "avaria_parcial" | null;
+  /** etiquetas já impressas deste item ("x/y impressos") */
+  etiquetas_impressas?: number;
   created_at: string;
 }
 

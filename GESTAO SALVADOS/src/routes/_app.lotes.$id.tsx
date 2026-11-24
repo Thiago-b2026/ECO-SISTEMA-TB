@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, Bot, Check, PackageCheck, ChevronDown, ChevronUp, Eye, EyeOff, ExternalLink, Loader2, Plus, RotateCcw, Search, Square, Trash2,
 } from "lucide-react";
@@ -154,7 +154,7 @@ function DetalheLote() {
   /** Item do lote → etiqueta "De (preço ML) / Por (preço de venda)". Sem preço de venda ou riscado: fica de fora. */
   const etiquetaDe = (i: Item): DadosEtiqueta | null =>
     i.preco_venda == null || !contaNoTotal(i) ? null
-      : { titulo: i.titulo, sku: i.sku, preco: i.preco_venda, precoDe: i.preco_ml, grade: i.grade, copias: Math.max(1, i.quantidade) };
+      : { lote_item_id: i.id, titulo: i.titulo, sku: i.sku, preco: i.preco_venda, precoDe: i.preco_ml, grade: i.grade, copias: Math.max(1, i.quantidade) };
   function imprimirItens(lista: Item[]) {
     const ets = lista.map(etiquetaDe).filter((x): x is DadosEtiqueta => x != null);
     if (ets.length === 0) return toast.info("Nenhum produto com preço de venda para imprimir.");
@@ -438,23 +438,32 @@ function DetalheLote() {
           <Button size="sm" variant="outline" onClick={() => setVerPallets(true)} title="Criar, renomear ou excluir pallets">Pallets</Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-muted-foreground">
+        {/* Tela larga: tabela que cabe sem rolar para o lado (larguras fixas, o nome usa o que sobra). Tela menor: um cartão por produto. */}
+        <div>
+          <table className="block w-full text-sm xl:table xl:table-fixed">
+            <colgroup className="hidden xl:table-column-group">
+              <col />
+              <col className="w-[60px]" />
+              <col className="w-[104px]" />
+              <col className="w-[112px]" />
+              <col className="w-[98px]" />
+              <col className="w-[108px]" />
+              <col className="w-[60px]" />
+              <col className="w-[132px]" />
+            </colgroup>
+            <thead className="hidden text-left text-muted-foreground xl:table-header-group">
               <tr className="border-b">
-                <th className="py-2 pr-2">Produto</th>
-                <th className="py-2 pr-2 text-right">Qtd.</th>
-                <th className="py-2 pr-2">Pallet / grade</th>
-                <th className="py-2 pr-2 text-right">Ref. ML</th>
-                {lote.tipo === "planilha" && <th className="py-2 pr-2 text-right">Planilha</th>}
-                <th className="py-2 pr-2 text-right" title="Clique no olho do Custo total para ver e editar">Custo</th>
-                <th className="py-2 pr-2">Venda unit.</th>
-                <th className="py-2 pr-2 text-right">Margem</th>
-                <th className="py-2 pr-2">Situação</th>
-                <th className="py-2"></th>
+                <th className="py-2 xl:!px-1.5">Produto</th>
+                <th className="py-2 xl:!px-1.5 text-right">Qtd.</th>
+                <th className="py-2 xl:!px-1.5">Pallet / grade</th>
+                <th className="py-2 xl:!px-1.5 text-right">{lote.tipo === "planilha" ? "ML / Planilha" : "Ref. ML"}</th>
+                <th className="py-2 xl:!px-1.5 text-right" title="Clique no olho do Custo total para ver e editar">Custo</th>
+                <th className="py-2 xl:!px-1.5">Venda unit.</th>
+                <th className="py-2 xl:!px-1.5 text-right">Marg.</th>
+                <th className="py-2">Situação</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="block xl:table-row-group">
               {visiveis.map((i) => (
                 <LinhaItem
                   key={i.id}
@@ -484,7 +493,7 @@ function DetalheLote() {
 
       {desmembrar && <DesmembrarDialog item={desmembrar} onClose={() => setDesmembrar(null)} onFeito={() => recarregar(true)} />}
       {editando && <EditarItemDialog item={editando} lote={lote} pallets={pallets} itens={itens} cfg={cfg} onClose={() => setEditando(null)} onSalvo={() => recarregar(true)} />}
-      <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? []} loja={nomeLoja} />
+      <EtiquetasDialog open={etiquetas != null} onOpenChange={(v) => !v && setEtiquetas(null)} itens={etiquetas ?? SEM_ETIQUETAS} loja={nomeLoja} onImpresso={() => recarregar(true)} />
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
       {avaria && <AvariaDialog item={avaria} onClose={() => setAvaria(null)} onFeito={() => recarregar(true)} />}
@@ -496,6 +505,8 @@ function DetalheLote() {
     </div>
   );
 }
+
+const SEM_ETIQUETAS: DadosEtiqueta[] = [];
 
 // ------------------------------------------------------------------ linha
 interface LinhaProps {
@@ -516,6 +527,13 @@ interface LinhaProps {
   palletNome: (id: string | null) => string;
 }
 
+/** Botões de ícone da linha (no celular um pouco maiores, para o dedo). */
+const ICONE = "size-9 xl:size-[26px] [&_svg]:size-4";
+const CELULA = "max-xl:!border-0 max-xl:!bg-transparent max-xl:!p-0 xl:!px-1.5 xl:!py-2";
+const BOTAO = "h-8 gap-1 px-1.5 text-xs xl:h-7";
+/** Nome da coluna, só no modo cartão (tela menor, sem cabeçalho). */
+const Rotulo = ({ children }: { children: ReactNode }) => <div className="text-[11px] text-muted-foreground xl:hidden">{children}</div>;
+
 function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtualizar, onExcluir, onEscolher, onDesmembrar, onAvaria, onCompartilhar, onImprimir, onEditar }: LinhaProps) {
   const [venda, setVenda] = useState(i.preco_venda != null ? String(i.preco_venda) : "");
   useEffect(() => setVenda(i.preco_venda != null ? String(i.preco_venda) : ""), [i.preco_venda]);
@@ -524,51 +542,60 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
   const m = margem(i.preco_venda, i.custo_unit);
   const temCandidatos = (i.candidatos?.length ?? 0) > 0;
   const riscado = i.ocorrencia === "nao_chegou" || i.ocorrencia === "avaria_total";
+  // impressora: verde = todas impressas, amarela = só parte, cinza = nenhuma
+  const impressas = i.etiquetas_impressas ?? 0;
+  const corImpresso = impressas >= i.quantidade ? "text-success" : impressas > 0 ? "text-amber-500" : "text-muted-foreground";
 
   return (
     <>
-      <tr className={cn("border-b align-top", riscado && "opacity-50")}>
-        <td className="py-2 pr-2">
+      <tr className={cn("flex flex-wrap items-end gap-x-3 gap-y-1 border-b py-2 align-top xl:table-row xl:py-0", riscado && "opacity-50")}>
+        <td className={cn(CELULA, "w-full xl:w-auto")}>
           <div className="flex gap-2">
             {i.foto_url ? <img src={i.foto_url} alt="" className="size-10 shrink-0 rounded bg-white object-contain" /> : <div className="size-10 shrink-0 rounded bg-muted" />}
-            <div className="min-w-0">
-              <div className={cn("font-medium leading-snug", riscado && "line-through")}>{i.titulo}</div>
-              {i.termo && i.termo !== i.titulo && <div className="text-xs text-muted-foreground">Termo: {i.termo}</div>}
+            <div className="min-w-0 flex-1">
+              <div className={cn("line-clamp-2 break-words font-medium leading-snug", riscado && "line-through")} title={i.titulo}>{i.titulo}</div>
+              {i.termo && i.termo !== i.titulo && <div className="truncate text-xs text-muted-foreground" title={i.termo}>Termo: {i.termo}</div>}
               {i.tipo_derivado && <span className="text-[11px] rounded bg-warning/20 px-1">{i.tipo_derivado === "desmembrado" ? "Desmembrado" : "Avaria parcial"}</span>}
-              <div className="text-xs text-muted-foreground">
+              <div className="break-words text-xs text-muted-foreground">
                 {i.sku}{i.codigo_barras ? ` · ${i.codigo_barras}` : ""}{i.marca ? ` · ${i.marca}` : ""}
-              </div>
-              <div className="mt-1 flex flex-wrap gap-1">
-                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" title="Editar custo, preços e dados do produto" onClick={onEditar}><Pencil className="size-3.5" /> Editar</Button>
-                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" title="Imprimir etiqueta" onClick={onImprimir}><Printer className="size-3.5" /> Etiqueta</Button>
-                <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs text-success" title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="size-3.5" /> Compartilhar</Button>
               </div>
             </div>
           </div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <Button type="button" size="sm" variant="outline" className={BOTAO} title="Editar custo, preços e dados do produto" onClick={onEditar}><Pencil className="size-3.5" /> Editar</Button>
+            <Button type="button" size="sm" variant="outline" className={cn(BOTAO, impressas > 0 && corImpresso)} title={`Imprimir etiqueta${impressas > 0 ? ` (${impressas}/${i.quantidade} impressos)` : ""}`} onClick={onImprimir}><Printer className={cn("size-3.5", corImpresso)} /> Etiqueta</Button>
+            <Button type="button" size="sm" variant="outline" className={cn(BOTAO, "text-success")} title="Compartilhar (post para WhatsApp)" onClick={onCompartilhar}><Share2 className="size-3.5" /> Compartilhar</Button>
+          </div>
         </td>
-        <td className="py-2 pr-2 text-right">
-          <input type="number" min={1} defaultValue={i.quantidade} onBlur={(e) => { const q = Math.max(1, Number(e.target.value) || 1); if (q !== i.quantidade) onAtualizar({ quantidade: q }); }} className="h-8 w-14 rounded border bg-background px-1 text-right" />
+        <td className={cn(CELULA, "xl:text-right")}>
+          <Rotulo>Qtd.</Rotulo>
+          <input type="number" min={1} defaultValue={i.quantidade} onBlur={(e) => { const q = Math.max(1, Number(e.target.value) || 1); if (q !== i.quantidade) onAtualizar({ quantidade: q }); }} className="h-8 w-14 rounded border bg-background px-1 text-right xl:w-full" />
         </td>
-        <td className="py-2 pr-2">
-          <div className="flex gap-1">
-            <select value={i.pallet_id ?? ""} onChange={(e) => onAtualizar({ pallet_id: e.target.value || null })} className="h-8 rounded border bg-background px-1 text-xs">
-              <option value="">—</option>
+        <td className={CELULA}>
+          <Rotulo>Pallet / grade</Rotulo>
+          <div className="flex gap-1 xl:flex-col">
+            <select value={i.pallet_id ?? ""} onChange={(e) => onAtualizar({ pallet_id: e.target.value || null })} className="h-8 max-w-36 rounded border bg-background px-1 text-xs xl:w-full xl:max-w-none">
+              <option value="">Sem pallet</option>
               {pallets.map((p) => <option key={p.id} value={p.id}>{p.codigo}</option>)}
             </select>
-            <select value={i.grade} onChange={(e) => onAtualizar({ grade: e.target.value })} className="h-8 rounded border bg-background px-1 text-xs">
+            <select value={i.grade} onChange={(e) => onAtualizar({ grade: e.target.value })} className="h-8 w-14 rounded border bg-background px-1 text-xs">
               {Array.from(new Set(["A", "B", "C", "D", i.grade])).map((g) => <option key={g}>{g}</option>)}
             </select>
           </div>
         </td>
-        <td className="py-2 pr-2 text-right whitespace-nowrap">
-          {i.preco_ml != null ? (
-            i.ml_link ? <a href={i.ml_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-success hover:underline">{fmtBRL(i.preco_ml)} <ExternalLink className="size-3" /></a> : fmtBRL(i.preco_ml)
-          ) : "—"}
+        <td className={cn(CELULA, "xl:text-right")}>
+          <Rotulo>{lote.tipo === "planilha" ? "ML / Planilha" : "Ref. ML"}</Rotulo>
+          <div className="whitespace-nowrap">
+            {i.preco_ml != null ? (
+              i.ml_link ? <a href={i.ml_link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-success hover:underline">{fmtBRL(i.preco_ml)} <ExternalLink className="size-3" /></a> : fmtBRL(i.preco_ml)
+            ) : "—"}
+          </div>
+          {lote.tipo === "planilha" && <div className="whitespace-nowrap text-xs text-muted-foreground" title="Valor da planilha">{i.valor_planilha != null ? fmtBRL(i.valor_planilha) : "—"}</div>}
         </td>
-        {lote.tipo === "planilha" && <td className="py-2 pr-2 text-right whitespace-nowrap">{i.valor_planilha != null ? fmtBRL(i.valor_planilha) : "—"}</td>}
-        <td className="py-2 pr-2 text-right whitespace-nowrap">
+        <td className={cn(CELULA, "xl:text-right")}>
+          <Rotulo>Custo</Rotulo>
           {verCusto ? (
-            <div className="flex items-center justify-end rounded border bg-muted/40 px-1" title="Custo unitário (clique para editar)">
+            <div className="flex w-24 items-center rounded border bg-muted/40 px-1 xl:w-full" title="Custo unitário (clique para editar)">
               <span className="text-xs text-muted-foreground">R$</span>
               <input
                 value={custoTxt}
@@ -576,50 +603,52 @@ function LinhaItem({ item: i, lote, pallets, verCusto, aberto, onAbrir, onAtuali
                 onBlur={() => { const v = custoTxt.trim() ? lerNumero(custoTxt) : null; if (v !== i.custo_unit) onAtualizar({ custo_unit: v }); }}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                 inputMode="decimal"
-                className="h-8 w-16 bg-transparent px-1 text-right outline-none"
+                className="h-8 w-full min-w-0 bg-transparent pl-1 text-right outline-none"
               />
             </div>
           ) : "•••"}
         </td>
-        <td className="py-2 pr-2">
-          <div className="flex items-center rounded border bg-muted/40 px-1">
+        <td className={CELULA}>
+          <Rotulo>Venda unit.</Rotulo>
+          <div className="flex w-28 items-center rounded border bg-muted/40 px-1 xl:w-full">
             <span className="text-xs text-muted-foreground">R$</span>
             <input
               value={venda}
               onChange={(e) => setVenda(e.target.value)}
               onBlur={() => { const v = lerNumero(venda); if (v !== i.preco_venda) onAtualizar({ preco_venda: v }); }}
-              className="h-8 w-20 bg-transparent px-1 text-right font-medium outline-none"
+              className="h-8 w-full min-w-0 bg-transparent pl-1 text-right font-medium outline-none"
             />
           </div>
           {i.preco_ml != null && <div className="text-[11px] text-muted-foreground">sug. {fmtBRL(precoSugerido(i.preco_ml, lote.perc_desconto) ?? 0)}</div>}
         </td>
-        <td className={cn("py-2 pr-2 text-right", m != null && m < 0 && "text-destructive")}>{verCusto && m != null ? `${m}%` : verCusto ? "—" : "•••"}</td>
-        <td className="py-2 pr-2">
+        <td className={cn(CELULA, "xl:text-right", m != null && m < 0 && "text-destructive")}><Rotulo>Margem</Rotulo>{verCusto && m != null ? `${m}%` : verCusto ? "—" : "•••"}</td>
+        <td className={CELULA}>
           <div className="flex flex-col gap-1">
             <span className={cn("w-fit rounded px-1.5 py-0.5 text-xs font-medium", COR_STATUS[i.status])}>
               {STATUS_ITEM_LABEL[i.status]}{i.similaridade != null && i.status !== "aprovado" ? ` ${i.similaridade}%` : ""}
             </span>
-            <select value={i.ocorrencia ?? ""} onChange={(e) => onAtualizar({ ocorrencia: (e.target.value || null) as Ocorrencia | null })} className="h-7 w-fit rounded border bg-background px-1 text-xs">
+            <select value={i.ocorrencia ?? ""} onChange={(e) => onAtualizar({ ocorrencia: (e.target.value || null) as Ocorrencia | null })} className="h-7 w-fit max-w-full rounded border bg-background px-1 text-xs xl:w-full">
               <option value="">Sem ocorrência</option>
               {Object.entries(OCORRENCIA_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
+            {impressas > 0 && <span className={cn("text-[11px]", corImpresso)}>{impressas}/{i.quantidade} impressos</span>}
+            <div className="flex">
+              {(i.status === "sucesso" || i.status === "similar") && (
+                <Button type="button" size="icon" variant="ghost" className={ICONE} title="Aprovar" onClick={() => onAtualizar({ status: "aprovado" })}><Check /></Button>
+              )}
+              {temCandidatos && (
+                <Button type="button" size="icon" variant="ghost" className={ICONE} title="Ver outras opções" onClick={onAbrir}>{aberto ? <ChevronUp /> : <ChevronDown />}</Button>
+              )}
+              {i.quantidade > 0 && i.tipo_derivado !== "avaria_parcial" && <Button type="button" size="icon" variant="ghost" className={ICONE} title="Desmembrar (caixa/kit → unidades)" onClick={onDesmembrar}><Scissors /></Button>}
+              {i.tipo_derivado !== "avaria_parcial" && <Button type="button" size="icon" variant="ghost" className={ICONE} title="Avaria parcial (separar com preço menor)" onClick={onAvaria}><ShieldAlert /></Button>}
+              <Button type="button" size="icon" variant="ghost" className={ICONE} title="Excluir" onClick={onExcluir}><Trash2 className="text-destructive" /></Button>
+            </div>
           </div>
-        </td>
-        <td className="py-2 whitespace-nowrap">
-          {(i.status === "sucesso" || i.status === "similar") && (
-            <Button size="icon" variant="ghost" title="Aprovar" onClick={() => onAtualizar({ status: "aprovado" })}><Check /></Button>
-          )}
-          {temCandidatos && (
-            <Button size="icon" variant="ghost" title="Ver outras opções" onClick={onAbrir}>{aberto ? <ChevronUp /> : <ChevronDown />}</Button>
-          )}
-          {i.quantidade > 0 && i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Desmembrar (caixa/kit → unidades)" onClick={onDesmembrar}><Scissors /></Button>}
-          {i.tipo_derivado !== "avaria_parcial" && <Button size="icon" variant="ghost" title="Avaria parcial (separar com preço menor)" onClick={onAvaria}><ShieldAlert /></Button>}
-          <Button size="icon" variant="ghost" title="Excluir" onClick={onExcluir}><Trash2 className="text-destructive" /></Button>
         </td>
       </tr>
       {aberto && temCandidatos && (
-        <tr className="border-b bg-muted/30">
-          <td colSpan={lote.tipo === "planilha" ? 10 : 9} className="p-2">
+        <tr className="block border-b bg-muted/30 xl:table-row">
+          <td colSpan={8} className="block p-2 xl:table-cell">
             <div className="mb-1 text-xs font-medium text-muted-foreground">SELECIONE O PRODUTO CORRETO</div>
             <div className="grid gap-2 md:grid-cols-3">
               {i.candidatos!.map((c) => (

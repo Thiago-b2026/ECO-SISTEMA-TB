@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/etiquetas")({
 
 const EXEMPLO = [{ titulo: "Liquidificador Philco 1500W 3,1L 12 Velocidades PLQ15A", sku: "P1234", preco: 179.99, precoDe: 199, grade: "A", copias: 1 }];
 const NOMES_CAMPOS: Record<keyof CamposEtiqueta, string> = {
-  titulo: "Nome do produto", de: "Preço \"De\"", off: "% OFF", grade: "Grade", codigo: "Código de barras", sku: "SKU", loja: "Nome da loja",
+  titulo: "Nome do produto", de: "Preço \"De\"", off: "% OFF", grade: "Grade", codigo: "Código de barras", sku: "SKU", loja: "Nome da loja", logo: "Logo",
 };
 
 /** Editor de modelos de etiqueta: tamanho, campos visíveis e fontes, com prévia ao vivo. */
@@ -67,7 +67,7 @@ export function EditorEtiquetas() {
         <Card className="p-4 space-y-3">
           <div>
             <Label>Começar de</Label>
-            <select value={m.id} onChange={(e) => { const b = modelos.find((x) => x.id === e.target.value); if (b) setM({ ...b, campos: { ...CAMPOS_PADRAO, ...b.campos }, nome: b.personalizado ? b.nome : `${b.nome} (cópia)` }); }} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <select value={m.id} onChange={(e) => { const b = modelos.find((x) => x.id === e.target.value); if (b) setM({ ...b, campos: { ...CAMPOS_PADRAO, logo: !b.personalizado, ...b.campos }, nome: b.personalizado ? b.nome : `${b.nome} (cópia)` }); }} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
               <option value="">Escolha…</option>
               {modelos.map((x) => <option key={x.id} value={x.id}>{x.personalizado ? "★ " : ""}{x.nome}</option>)}
             </select>
@@ -86,7 +86,7 @@ export function EditorEtiquetas() {
             <div className="text-sm font-medium">O que aparece</div>
             {(Object.keys(NOMES_CAMPOS) as (keyof CamposEtiqueta)[]).map((k) => (
               <label key={k} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" className="size-4 accent-primary" checked={campos[k]} onChange={(e) => setM({ ...m, campos: { ...campos, [k]: e.target.checked } })} />
+                <input type="checkbox" className="size-4 accent-primary" checked={!!campos[k]} onChange={(e) => setM({ ...m, campos: { ...campos, [k]: e.target.checked } })} />
                 {NOMES_CAMPOS[k]}
               </label>
             ))}
