@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { lerPlanilha } from "@/lib/planilha";
 import { linhaNaoEhProduto, modeloParaJuntar } from "@/lib/similaridade";
 import { unificarLinhas } from "@/lib/duplicados";
+import { codigoPallet } from "@/lib/lotes";
 import { colunaParaIndice, custoPercentual, lerNumero } from "@/lib/precificacao";
 import type { LoteTipo } from "@/lib/lotes";
 import { useLoja } from "@/lib/loja";
@@ -41,6 +42,7 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const [colGrade, setColGrade] = useState("F");
   const [colCategoria, setColCategoria] = useState("L");
   const [colSub, setColSub] = useState("M");
+  const [colPallet, setColPallet] = useState("");
   const [linhaInicial, setLinhaInicial] = useState("2");
   const [salvando, setSalvando] = useState(false);
 
@@ -65,7 +67,8 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       const iGrade = colGrade.trim() ? colunaParaIndice(colGrade) : -2;
       const iCat = colCategoria.trim() ? colunaParaIndice(colCategoria) : -2;
       const iSub = colSub.trim() ? colunaParaIndice(colSub) : -2;
-      if (iProd < 0 || [iValor, iQtd, iEan, iGrade, iCat, iSub].includes(-1)) return toast.error("Use letras de coluna (ex.: A, D, AB).");
+      const iPallet = colPallet.trim() ? colunaParaIndice(colPallet) : -2;
+      if (iProd < 0 || [iValor, iQtd, iEan, iGrade, iCat, iSub, iPallet].includes(-1)) return toast.error("Use letras de coluna (ex.: A, D, AB).");
       try {
         const linhas = await lerPlanilha(arquivo);
         const inicio = Math.max(1, Number(linhaInicial) || 1) - 1;
@@ -81,10 +84,11 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           const grade = iGrade >= 0 ? String(l[iGrade] ?? "").trim().toUpperCase().slice(0, 3) || "A" : "A";
           const categoria = iCat >= 0 ? String(l[iCat] ?? "").trim() || null : null;
           const subcategoria = iSub >= 0 ? String(l[iSub] ?? "").trim() || null : null;
-          return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria, subcategoria }];
+          const pallet = iPallet >= 0 ? codigoPallet(String(l[iPallet] ?? "")) || null : null;
+          return [{ termo: nomeProd, titulo: nomeProd, valor_planilha: valor, quantidade: qtd, codigo_barras: ean, grade, categoria, subcategoria, _pallet: pallet }];
         });
         // produto repetido na planilha (mesmo nome, código de barras ou código do modelo, mesma grade) vira um item só, com a quantidade somada
-        const unif = unificarLinhas(linhasItens as { titulo: string; codigo_barras: string | null; grade: string; quantidade: number; valor_planilha: number | null }[], modeloParaJuntar);
+        const unif = unificarLinhas(linhasItens as { titulo: string; codigo_barras: string | null; grade: string; quantidade: number; valor_planilha: number | null; _pallet: string | null }[], modeloParaJuntar);
         linhasItens = unif.linhas;
         if (unif.juntadas) toast.info(`${unif.juntadas} linha(s) repetida(s) juntada(s): a quantidade foi somada no mesmo produto.`);
         if (ignoradas) toast.info(`${ignoradas} linha(s) ignorada(s): subtotal, total ou sem nome de produto.`);
@@ -119,8 +123,17 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     }
 
     if (linhasItens.length) {
-      const itens = linhasItens.map((l) => ({
+      // pallets da planilha: cria cada um (com o nome da planilha) e liga os itens
+      const nomesPallet = [...new Set(linhasItens.map((l) => l._pallet as string | null).filter((x): x is string => !!x))];
+      const idPallet = new Map<string, string>();
+      if (nomesPallet.length) {
+        const { data: ps, error: ep } = await supabase.from("pallets").insert(nomesPallet.map((codigo) => ({ lote_id: lote.id, codigo }))).select("id, codigo");
+        if (ep) toast.warning("Lote criado, mas os pallets da planilha não foram criados: " + ep.message);
+        for (const p of ps ?? []) idPallet.set(p.codigo, p.id);
+      }
+      const itens = linhasItens.map(({ _pallet, ...l }) => ({
         ...l,
+        pallet_id: _pallet ? idPallet.get(_pallet as string) ?? null : null,
         lote_id: lote.id,
         origem: "planilha",
         status: "pendente",
@@ -206,6 +219,7 @@ export function NovoLoteDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 <Campo label="Categoria" value={colCategoria} onChange={setColCategoria} placeholder="opcional" />
                 <Campo label="Subcategoria" value={colSub} onChange={setColSub} placeholder="opcional" />
                 <Campo label="Cód. barras (EAN)" value={colEan} onChange={setColEan} placeholder="opcional" />
+                <Campo label="Pallet" value={colPallet} onChange={setColPallet} placeholder="opcional" />
               </div>
               <Campo label="Primeira linha com produto" value={linhaInicial} onChange={setLinhaInicial} />
             </div>

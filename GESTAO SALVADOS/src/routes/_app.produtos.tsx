@@ -553,6 +553,9 @@ function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, on
   const [grade, setGrade] = useState(produto.grade || "A");
   const [preco, setPreco] = useState(String(Number(produto.preco_venda)));
   const [custo, setCusto] = useState(produto.custo_unit != null ? String(Number(produto.custo_unit)) : "");
+  // custo em % do preço de venda (muda um, recalcula o outro)
+  const pctDe = (c: number | null, p: number | null) => (c != null && p ? String(Math.round((c / p) * 1000) / 10) : "");
+  const [percCusto, setPercCusto] = useState(pctDe(produto.custo_unit != null ? Number(produto.custo_unit) : null, Number(produto.preco_venda)));
   const [salvando, setSalvando] = useState(false);
   const achado = acharDuplicado(outros, { titulo, codigo_barras: ean }, (x) => x.id === produto.id);
   const parecidos = !achado && titulo.trim() !== produto.titulo ? acharParecidos(outros, { titulo }, (x) => x.id === produto.id) : [];
@@ -613,9 +616,25 @@ function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, on
             </div>
             <div>
               <Label>Preço de venda (R$)</Label>
-              <Input value={preco} onChange={(e) => setPreco(e.target.value)} inputMode="decimal" disabled={!podePreco} title={podePreco ? undefined : "Sem permissão para alterar preço"} />
+              <Input value={preco} onChange={(e) => { setPreco(e.target.value); setPercCusto(pctDe(lerNumero(custo), lerNumero(e.target.value))); }} inputMode="decimal" disabled={!podePreco} title={podePreco ? undefined : "Sem permissão para alterar preço"} />
             </div>
-            {verCusto && <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => setCusto(e.target.value)} inputMode="decimal" placeholder="opcional" /></div>}
+            {verCusto && <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => { setCusto(e.target.value); setPercCusto(pctDe(lerNumero(e.target.value), lerNumero(preco))); }} inputMode="decimal" placeholder="opcional" /></div>}
+            {verCusto && (
+              <div>
+                <Label>Custo % do preço</Label>
+                <Input
+                  value={percCusto}
+                  onChange={(e) => {
+                    setPercCusto(e.target.value);
+                    const n = lerNumero(e.target.value);
+                    const p = lerNumero(preco);
+                    if (n != null && p) setCusto(String(Math.round(p * n) / 100));
+                  }}
+                  inputMode="decimal"
+                  placeholder="%"
+                />
+              </div>
+            )}
           </div>
           {!podePreco && <p className="text-xs text-muted-foreground">Preço travado: seu usuário não tem a permissão "Alterar preço de venda".</p>}
           <div className="flex justify-end gap-2">

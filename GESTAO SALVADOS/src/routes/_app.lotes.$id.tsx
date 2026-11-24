@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { InserirProdutoDialog } from "@/components/lotes/inserir-produto-dialog";
 import { AvariaDialog, DesmembrarDialog } from "@/components/lotes/acoes-item";
 import { TransferirLoteDialog } from "@/components/lotes/transferir-lote-dialog";
+import { PalletsDialog } from "@/components/lotes/pallets-dialog";
 import { GraficosLote } from "@/components/lotes/graficos-lote";
 import { ArrowRightLeft, BarChart3, ImagePlus, Printer, Scissors, Share2, ShieldAlert } from "lucide-react";
 import { EtiquetasDialog } from "@/components/etiquetas-dialog";
@@ -67,6 +68,7 @@ function DetalheLote() {
   const [desmembrar, setDesmembrar] = useState<Item | null>(null);
   const [avaria, setAvaria] = useState<Item | null>(null);
   const [transferir, setTransferir] = useState(false);
+  const [verPallets, setVerPallets] = useState(false);
   const { acao } = Route.useSearch();
   const [verGraficos, setVerGraficos] = useState(false);
   const [editorPost, setEditorPost] = useState(false);
@@ -236,14 +238,6 @@ function DetalheLote() {
     navigate({ to: "/produtos", search: { aba: "lotes" } });
   }
 
-  async function novoPallet() {
-    const codigo = window.prompt("Código do novo pallet (até 15 letras/números, ex.: MZ-0410):")?.trim().toUpperCase();
-    if (!codigo) return;
-    const { error } = await supabase.from("pallets").insert({ lote_id: lote!.id, codigo });
-    if (error) return toast.error(error.message.includes("duplicate") ? `O pallet ${codigo} já existe neste lote.` : error.message);
-    recarregar(true);
-  }
-
   async function iniciarRobo() {
     pararRef.current = false;
     // Extensão 1.1+: busca pela página de busca do site (como o robô do PrecificaLote). A aba abre aqui, no clique.
@@ -369,7 +363,7 @@ function DetalheLote() {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={reaplicarPrecos}><RotateCcw /> Reaplicar preços e custo %</Button>
               <Button size="sm" variant="outline" onClick={recalcularCusto}>Recalcular custo pelo valor pago</Button>
-              <Button size="sm" variant="outline" onClick={novoPallet}><Plus /> Novo pallet</Button>
+              <Button size="sm" variant="outline" onClick={() => setVerPallets(true)}><Plus /> Pallets (criar / renomear)</Button>
               <Button size="sm" variant="outline" onClick={() => setTransferir(true)}><ArrowRightLeft /> Transferir itens para outro lote</Button>
               {gestor && <Button size="sm" variant="outline" className="text-destructive" onClick={excluirLote}><Trash2 /> Excluir lote</Button>}
             </div>
@@ -441,6 +435,7 @@ function DetalheLote() {
             <option value="">Todos os pallets</option>
             {pallets.map((p) => <option key={p.id} value={p.id}>{p.codigo}</option>)}
           </select>
+          <Button size="sm" variant="outline" onClick={() => setVerPallets(true)} title="Criar, renomear ou excluir pallets">Pallets</Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -493,6 +488,7 @@ function DetalheLote() {
       {editorPost && <EditorPostDialog lojaId={lote.loja_id} loteId={lote.id} onClose={() => setEditorPost(false)} />}
       {compartilhar && <CompartilharPostDialog lojaId={lote.loja_id} loteId={lote.id} dados={dadosDoItem(compartilhar)} onClose={() => setCompartilhar(null)} />}
       {avaria && <AvariaDialog item={avaria} onClose={() => setAvaria(null)} onFeito={() => recarregar(true)} />}
+      {verPallets && <PalletsDialog lote={lote} pallets={pallets} itens={itens} onClose={() => setVerPallets(false)} onSalvo={() => recarregar(true)} />}
       {transferir && <TransferirLoteDialog lote={lote} itens={itens} pallets={pallets} onClose={() => setTransferir(false)} onFeito={() => recarregar(true)} />}
       {lote.tipo === "manual" && (
         <InserirProdutoDialog open={inserir} onOpenChange={setInserir} lote={lote} cfg={cfg} pallets={pallets} itens={itens} onInserido={() => recarregar(true)} />

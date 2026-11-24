@@ -90,7 +90,7 @@ export type ModeloDe = (titulo: string) => { chave: string; volt: string | null 
  *    (220V × 127V não junta; sem voltagem junta com qualquer uma).
  * Códigos de barras diferentes nunca juntam. Fica o nome da primeira linha; o valor da planilha vira a média ponderada.
  */
-export function unificarLinhas<T extends { titulo: string; codigo_barras?: string | null; grade?: string | null; quantidade: number; valor_planilha?: number | null }>(
+export function unificarLinhas<T extends { titulo: string; codigo_barras?: string | null; grade?: string | null; quantidade: number; valor_planilha?: number | null; _pallet?: string | null }>(
   linhas: T[],
   modeloDe?: ModeloDe,
 ): { linhas: T[]; juntadas: number } {
@@ -102,7 +102,8 @@ export function unificarLinhas<T extends { titulo: string; codigo_barras?: strin
   let juntadas = 0;
   const codigoBate = (g: Grupo, cod: string | null) => !(cod && g.cod && cod !== g.cod);
   for (const l of linhas) {
-    const grade = (l.grade ?? "A").toUpperCase();
+    // pallet entra na chave: o mesmo produto em pallets diferentes continua separado
+    const grade = `${(l._pallet ?? "").toUpperCase()}#${(l.grade ?? "A").toUpperCase()}`;
     const cod = l.codigo_barras?.replace(/\D/g, "") || null;
     const kNome = `${grade}|${normalizarNome(l.titulo)}`;
     const kCod = cod ? `${grade}|${cod}` : null;

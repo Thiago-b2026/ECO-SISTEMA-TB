@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { buscarItem, criarBuscador, limpar, STATUS_ITEM_LABEL, type Item, type Lote, type Pallet } from "@/lib/lotes";
 import type { ConfigArredondamento } from "@/lib/precificacao";
 import { abrirAbaRobo, extensaoBuscaSite } from "@/lib/captura-ml";
-import { custoPercentual, lerNumero, margem } from "@/lib/precificacao";
+import { custoPercentual, lerNumero, margem, precoSugerido } from "@/lib/precificacao";
 import { fmtBRL } from "@/lib/format";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose
   const [precoML, setPrecoML] = useState(txt(item.preco_ml));
   const [precoVenda, setPrecoVenda] = useState(txt(item.preco_venda));
   const [custo, setCusto] = useState(txt(item.custo_unit));
-  const [perc, setPerc] = useState("");
+  const base0 = item.valor_planilha ?? item.preco_ml ?? item.preco_venda;
+  const [perc, setPerc] = useState(item.custo_unit != null && base0 ? String(Math.round((item.custo_unit / base0) * 1000) / 10) : "");
+  const [desc, setDesc] = useState(item.preco_ml && item.preco_venda != null ? String(Math.round((1 - item.preco_venda / item.preco_ml) * 1000) / 10) : "");
   const [quantidade, setQuantidade] = useState(String(item.quantidade));
   const [grade, setGrade] = useState(item.grade);
   const [palletId, setPalletId] = useState(item.pallet_id ?? "");
@@ -36,14 +38,23 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose
   const pVenda = lerNumero(precoVenda);
   const pCusto = custo.trim() ? lerNumero(custo) : null;
   const base = item.valor_planilha ?? pML ?? pVenda; // mesma base do custo % do lote
-  const percAtual = pCusto != null && base ? Math.round((pCusto / base) * 1000) / 10 : null;
   const m = margem(pVenda, pCusto);
   const achado = acharDuplicado(itens, { titulo, codigo_barras: ean }, (x) => x.id === item.id);
 
+  const pct = (a: number | null, b: number | null | undefined) => (a != null && b ? String(Math.round((a / b) * 1000) / 10) : "");
+
+  /** % do custo: custo = % × valor da planilha (ou preço ML / preço de venda, se não tiver). */
   function aplicarPerc(v: string) {
     setPerc(v);
     const n = lerNumero(v);
     if (n != null) setCusto(txt(custoPercentual(base, n)));
+  }
+
+  /** % de desconto sobre o preço ML: preço de venda = preço ML − %, com o arredondamento do lote. */
+  function aplicarDesc(v: string) {
+    setDesc(v);
+    const n = lerNumero(v);
+    if (n != null && pML) setPrecoVenda(txt(precoSugerido(pML, n, cfg)));
   }
 
   /**
@@ -128,11 +139,11 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs">Custo unit. (R$)</Label>
-                <Input value={custo} onChange={(e) => { setCusto(e.target.value); setPerc(""); }} inputMode="decimal" className="font-semibold" autoFocus />
+                <Input value={custo} onChange={(e) => { setCusto(e.target.value); setPerc(pct(lerNumero(e.target.value), base)); }} inputMode="decimal" className="font-semibold" autoFocus />
               </div>
               <div>
-                <Label className="text-xs">ou % do preço</Label>
-                <Input value={perc} onChange={(e) => aplicarPerc(e.target.value)} placeholder={percAtual != null ? `${percAtual}` : "%"} inputMode="decimal" />
+                <Label className="text-xs">Custo % {item.valor_planilha != null ? "(da planilha)" : "(do preço)"}</Label>
+                <Input value={perc} onChange={(e) => aplicarPerc(e.target.value)} placeholder="%" inputMode="decimal" />
               </div>
               <div>
                 <Label className="text-xs">Margem</Label>
@@ -145,9 +156,10 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-xs">Preço ML (R$)</Label><Input value={precoML} onChange={(e) => setPrecoML(e.target.value)} inputMode="decimal" /></div>
-            <div><Label className="text-xs">Preço de venda (R$)</Label><Input value={precoVenda} onChange={(e) => setPrecoVenda(e.target.value)} inputMode="decimal" className="font-semibold" /></div>
+          <div className="grid grid-cols-3 gap-2">
+            <div><Label className="text-xs">Preço ML (R$)</Label><Input value={precoML} onChange={(e) => { setPrecoML(e.target.value); const n = lerNumero(desc); const ml = lerNumero(e.target.value); if (n != null && ml) setPrecoVenda(txt(precoSugerido(ml, n, cfg))); }} inputMode="decimal" /></div>
+            <div><Label className="text-xs">Desconto %</Label><Input value={desc} onChange={(e) => aplicarDesc(e.target.value)} placeholder={`${lote.perc_desconto}`} inputMode="decimal" title="Desconto sobre o preço ML; calcula o preço de venda" /></div>
+            <div><Label className="text-xs">Preço de venda (R$)</Label><Input value={precoVenda} onChange={(e) => { setPrecoVenda(e.target.value); const v = lerNumero(e.target.value); setDesc(v != null && pML ? String(Math.round((1 - v / pML) * 1000) / 10) : ""); }} inputMode="decimal" className="font-semibold" /></div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

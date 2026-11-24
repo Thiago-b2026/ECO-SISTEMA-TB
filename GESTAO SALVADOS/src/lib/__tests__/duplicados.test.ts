@@ -61,3 +61,22 @@ describe("unificar linhas da planilha", () => {
     expect(r.linhas.map((l) => l.quantidade)).toEqual([3, 3, 5, 1, 1]);
   });
 });
+
+describe("pallets da planilha", () => {
+  it("nome do pallet vira código válido", async () => {
+    const { codigoPallet } = await import("@/lib/lotes");
+    expect(codigoPallet("Pallet 1")).toBe("PALLET-1");
+    expect(codigoPallet(" mz-0409 ")).toBe("MZ-0409");
+    expect(codigoPallet("Lote nº 3 / caixa")).toBe("LOTE-N-3-CAIXA");
+    expect(codigoPallet("")).toBe("");
+  });
+  it("mesmo produto em pallets diferentes não junta", async () => {
+    const { unificarLinhas } = await import("@/lib/duplicados");
+    const r = unificarLinhas([
+      { titulo: "Micro-ondas PMO23B", quantidade: 1, _pallet: "P1" },
+      { titulo: "Micro-ondas PMO23B", quantidade: 1, _pallet: "P2" },
+      { titulo: "Micro-ondas PMO23B", quantidade: 2, _pallet: "P1" },
+    ]);
+    expect(r.linhas.map((l) => l.quantidade)).toEqual([3, 1]);
+  });
+});

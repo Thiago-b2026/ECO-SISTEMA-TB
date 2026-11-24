@@ -396,3 +396,14 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - A importação também junta pelo **código do modelo** (`modeloParaJuntar` em `src/lib/similaridade.ts`): "Microondas PMO23B 220v" = "Micro-ondas PMO23B".
   Não junta 220V com 127V (sem voltagem junta com qualquer uma), não junta kit com unidade e não junta códigos de barras diferentes.
   Nome sem código de modelo (ex.: "Ventilador de parede 50cm") só junta se o nome for igual. O valor da planilha vira a média ponderada.
+
+## Sessão 23/11/2026 — % no editar produto e pallets nomeados/renomear
+- **Editar produto do lote:** "Custo %" (da planilha, ou do preço) e "Desconto %" (sobre o preço ML) agora vêm preenchidos e dá para editar.
+  Mudar o % recalcula o custo / preço de venda, e mudar o valor recalcula o %. O preço de venda usa o arredondamento do lote.
+- **Editar produto do cadastro:** novo campo "Custo % do preço" (custo = preço de venda × %), para quem vê custo.
+- **Pallets:**
+  - na importação da planilha há a coluna opcional "Pallet": cria os pallets com o nome da planilha e liga os itens a eles;
+  - a junção de itens repetidos não junta o mesmo produto em pallets diferentes;
+  - a tela "Pallets" (botão ao lado do filtro de pallet e em Parâmetros) cria, renomeia e exclui pallets vazios;
+  - `codigoPallet` padroniza o nome: até 15 caracteres, maiúsculas, espaço vira hífen.
+- A partir de agora o deploy vai só para o `main`, não mais para a branch também, por causa do limite de deploys da Vercel (6 projetos por envio).

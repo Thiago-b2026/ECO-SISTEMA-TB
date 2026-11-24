@@ -339,3 +339,14 @@ async function buscarComEspera(tipo: TipoBusca, valor: string): Promise<Candidat
 export function limpar<T extends Record<string, unknown>>(o: T): Partial<T> {
   return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
 }
+
+/** Código de pallet válido (até 15 letras/números, hífen ou sublinhado): "Pallet 1" → "PALLET-1". */
+export function codigoPallet(nome: string): string {
+  return nome
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .trim().toUpperCase()
+    .replace(/[\s./]+/g, "-")
+    .replace(/[^A-Z0-9_-]/g, "")
+    .replace(/-+/g, "-").replace(/^-|-$/g, "")
+    .slice(0, 15);
+}
