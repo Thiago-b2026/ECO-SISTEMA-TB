@@ -553,10 +553,28 @@ function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, on
   const [grade, setGrade] = useState(produto.grade || "A");
   const [preco, setPreco] = useState(String(Number(produto.preco_venda)));
   const [custo, setCusto] = useState(produto.custo_unit != null ? String(Number(produto.custo_unit)) : "");
+  // como no PrecificaLote: preço de venda = preço ML − desconto % (muda um, recalcula o outro)
+  const [precoML, setPrecoML] = useState(produto.preco_de != null ? String(Number(produto.preco_de)) : "");
+  const descDe = (p: number | null, ml: number | null) => (p != null && ml ? String(Math.round((1 - p / ml) * 1000) / 10) : "");
+  const [desc, setDesc] = useState(descDe(Number(produto.preco_venda), produto.preco_de != null ? Number(produto.preco_de) : null));
   // custo em % do preço de venda (muda um, recalcula o outro)
   const pctDe = (c: number | null, p: number | null) => (c != null && p ? String(Math.round((c / p) * 1000) / 10) : "");
   const [percCusto, setPercCusto] = useState(pctDe(produto.custo_unit != null ? Number(produto.custo_unit) : null, Number(produto.preco_venda)));
   const [salvando, setSalvando] = useState(false);
+  function mudarPreco(v: string) {
+    setPreco(v);
+    setPercCusto(pctDe(lerNumero(custo), lerNumero(v)));
+    setDesc(descDe(lerNumero(v), lerNumero(precoML)));
+  }
+  /** Desconto % ou preço ML mudou: recalcula só o preço de venda (o custo não muda). */
+  function aplicarDesconto(ml: string, d: string) {
+    const m = lerNumero(ml);
+    const n = lerNumero(d);
+    if (!m || n == null) return;
+    const novo = String(Math.round(m * (100 - n)) / 100);
+    setPreco(novo);
+    setPercCusto(pctDe(lerNumero(custo), lerNumero(novo)));
+  }
   const achado = acharDuplicado(outros, { titulo, codigo_barras: ean }, (x) => x.id === produto.id);
   const parecidos = !achado && titulo.trim() !== produto.titulo ? acharParecidos(outros, { titulo }, (x) => x.id === produto.id) : [];
 
@@ -571,6 +589,8 @@ function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, on
       grade,
     };
     if (podePreco && p !== Number(produto.preco_venda)) patch.preco_venda = p;
+    const de = precoML.trim() ? lerNumero(precoML) : null;
+    if (podePreco && de !== (produto.preco_de != null ? Number(produto.preco_de) : null)) patch.preco_de = de;
     if (verCusto) patch.custo_unit = custo.trim() ? lerNumero(custo) : null;
     setSalvando(true);
     const { error } = await supabase.from("produtos").update(patch).eq("id", produto.id);
@@ -615,9 +635,18 @@ function EditarProdutoDialog({ produto, outros, podePreco, verCusto, onClose, on
               </select>
             </div>
             <div>
-              <Label>Preço de venda (R$)</Label>
-              <Input value={preco} onChange={(e) => { setPreco(e.target.value); setPercCusto(pctDe(lerNumero(custo), lerNumero(e.target.value))); }} inputMode="decimal" disabled={!podePreco} title={podePreco ? undefined : "Sem permissão para alterar preço"} />
+              <Label>Preço ML (R$) — "De" da etiqueta</Label>
+              <Input value={precoML} onChange={(e) => { setPrecoML(e.target.value); aplicarDesconto(e.target.value, desc); }} inputMode="decimal" disabled={!podePreco} placeholder="opcional" />
             </div>
+            <div>
+              <Label>Desconto %</Label>
+              <Input value={desc} onChange={(e) => { setDesc(e.target.value); aplicarDesconto(precoML, e.target.value); }} inputMode="decimal" disabled={!podePreco || !lerNumero(precoML)} placeholder="%" title="Preço de venda = preço ML menos este desconto" />
+            </div>
+            <div className="col-span-2">
+              <Label>Preço de venda (R$) — "Por" da etiqueta</Label>
+              <Input value={preco} onChange={(e) => mudarPreco(e.target.value)} inputMode="decimal" className="font-semibold" disabled={!podePreco} title={podePreco ? undefined : "Sem permissão para alterar preço"} />
+            </div>
+            {verCusto && <p className="col-span-2 border-t pt-2 text-xs text-muted-foreground">Custo (só controle interno: não sai na etiqueta e não muda o preço de venda)</p>}
             {verCusto && <div><Label>Custo (R$)</Label><Input value={custo} onChange={(e) => { setCusto(e.target.value); setPercCusto(pctDe(lerNumero(e.target.value), lerNumero(preco))); }} inputMode="decimal" placeholder="opcional" /></div>}
             {verCusto && (
               <div>

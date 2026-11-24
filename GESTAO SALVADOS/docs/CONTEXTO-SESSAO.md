@@ -419,3 +419,13 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - **x/y impressos:** migration `20261124000033_etiquetas_impressas_lote.sql` APLICADA (`lote_itens.etiquetas_impressas`, `registrar_etiquetas_lote`).
   Botão Etiqueta: cinza = nenhuma, amarelo = parte, verde = todas. Etiquetas impressas antes desta data não foram contadas.
 - Não verificado: impressão em papel (conferir tamanho e leitura do código de barras na impressora) e o "Imprimir Todos" do PrecificaLote (não foi clicado).
+
+## Sessão 24/11/2026 (cont.) — Lógica do preço da etiqueta igual ao PrecificaLote
+- Varredura (só leitura): no PrecificaLote **De = preço atual do ML** (não o cheio) e **Por = preço atual − desconto do lote**. Exemplos: cheio 499 / atual 376 →
+  etiqueta "De 376,00"; encontrado 339 / 288 com 70% → 90,99 (lote com planilha arredonda). Nos lotes sem planilha vistos, o preço é exato (415,28 − 10% = 373,75).
+- Nossa etiqueta nunca usou o custo. O erro: ao lançar no estoque, o "De" do Cadastro ia com o preço CHEIO (`preco_ml_original`), e o % OFF não batia com o desconto.
+  Corrigido na migration `20261124000034_preco_de_igual_preco_ml.sql` (APLICADA): `lancar_lote_estoque` grava `preco_de = preco_ml` (e preenche o De de produto somado que não tinha).
+- Editar produto (Cadastro): campos **Preço ML ("De")**, **Desconto %** e **Preço de venda ("Por")**; o custo ficou separado. O "Custo % do preço" tinha sido
+  confundido com desconto (P3687: custo foi de 42,71 para 13,50).
+- PENDENTE (precisa do OK do usuário): produtos já lançados com De = preço cheio, e os preços que foram mudados à mão no Cadastro
+  (P3694, P3750, P3727, P3687) ficaram acima do preço ML atual. O arredondamento (cima, ,99) do sistema faz o % OFF ficar um pouco menor que o configurado.

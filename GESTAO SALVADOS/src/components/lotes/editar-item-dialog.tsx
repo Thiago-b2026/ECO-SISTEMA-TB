@@ -162,6 +162,9 @@ export function EditarItemDialog({ item, lote, pallets, itens = [], cfg, onClose
             <div><Label className="text-xs">Preço de venda (R$)</Label><Input value={precoVenda} onChange={(e) => { setPrecoVenda(e.target.value); const v = lerNumero(e.target.value); setDesc(v != null && pML ? String(Math.round((1 - v / pML) * 1000) / 10) : ""); }} inputMode="decimal" className="font-semibold" /></div>
           </div>
 
+          {item.preco_ml_original != null && item.preco_ml_original > (pML ?? 0) && (
+            <p className="text-xs text-muted-foreground">Preço cheio no ML (sem promoção): {fmtBRL(item.preco_ml_original)}. O desconto e o "De" da etiqueta usam o preço ML atual.</p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div><Label className="text-xs">Quantidade</Label><Input value={quantidade} onChange={(e) => setQuantidade(e.target.value)} inputMode="numeric" /></div>
             <div>
