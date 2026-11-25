@@ -433,3 +433,14 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   P3713 299,99→269,91, P3687 144,99→85,41, P3727 319,20→172,37, P3750 65,49→48,39. De antigo: 194,90, 470,00, 154,90, 399,00, 72,67.
 - **Feito com OK do usuário (24/11):** custo do P3687 voltou de 13,50 para 42,71 (o do lote).
 - Observação: o arredondamento (cima, ,99) faz o % OFF ficar um pouco menor que o configurado ("Arredondamento de preços").
+
+## Sessão 25/11/2026 — Etiqueta da loja 2 (impressora nova Elgin/Bematech, rolo com 2 colunas)
+- Foto: etiqueta única no meio do rolo, em cima do vão. **Causa confirmada por PDF:** modelo "Meu modelo" (100x50, 1 por linha) impresso com o papel do Windows em 50x25
+  (uma etiqueta só): o Chrome reduziu pela metade e a impressora centralizou. A de baixo da foto (P3729, 14:57) saiu em 100x50 real, ocupando 2 linhas.
+- Banco: P3717 4 impressões (até 14:48), P3729 1 (14:57), P3675 5 (15:28), P3669 1 (15:28); "Meu modelo" salvo às 15:40 (depois da foto, continua 100x50/1).
+  O banco não guarda a impressora nem o modelo usados em cada impressão, nem a loja de onde se imprimiu o lote.
+- Computador novo já vinha com o 1º da lista ("Meu modelo"). Agora precisa **escolher a impressora** antes de imprimir (fica salvo no computador).
+- Novo no diálogo: "Papel na impressora (Windows): 103 × 25 mm", "Teste e ajuste" (folha de molduras que não conta como impressa; ajuste fino em mm por computador,
+  `eco.ajusteEtiqueta`). Cada linha de etiquetas é uma página (`paginas`), conferido em PDF: 103x25, sem página sobrando.
+- Editor de etiquetas: "Salvar como novo" sempre disponível; "Salvar alterações" avisa que o modelo vale para todas as lojas.
+- PENDENTE: configurar o papel no Windows da loja 2 (103 × 25 mm, medir o rolo) e imprimir o teste.

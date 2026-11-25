@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlEtiquetas, MODELOS_ETIQUETA, textoOff } from "@/lib/etiquetas";
+import { htmlEtiquetas, htmlTeste, larguraPagina, MODELOS_ETIQUETA, textoOff } from "@/lib/etiquetas";
 
 describe("etiqueta no desenho do PrecificaLote", () => {
   const item = { titulo: "Lavadora <ZM>", sku: "P5345", preco: 2281.01, precoDe: 2534.46, grade: "A", copias: 3 };
@@ -22,5 +22,20 @@ describe("etiqueta no desenho do PrecificaLote", () => {
     const h = htmlEtiquetas([item], m, "Loja", { imprimir: false });
     expect(h).not.toContain('class="logo"');
     expect(h).toContain('class="grade"');
+  });
+});
+
+describe("rolo com 2 etiquetas por linha (impressora da loja 2)", () => {
+  const item = { titulo: "Micro-ondas", sku: "P3675", preco: 639.99, precoDe: 799, grade: "A", copias: 5 };
+  const m = MODELOS_ETIQUETA.find((x) => x.id === "50x25")!;
+  it("uma página do tamanho do rolo inteiro por linha", () => {
+    const h = htmlEtiquetas([item], m, "Loja", { imprimir: false });
+    expect(larguraPagina(m)).toBe(103);
+    expect(h.match(/class="folha"/g)).toHaveLength(3);
+  });
+  it("ajuste fino só quando existe; teste tem moldura e não produto", () => {
+    expect(htmlEtiquetas([item], m, "", { imprimir: false })).not.toContain("translate(");
+    expect(htmlEtiquetas([item], m, "", { imprimir: false, ajuste: { x: 1.5, y: -2 } })).toContain("translate(1.5mm, -2mm)");
+    expect(htmlTeste(m, { imprimir: false }).match(/class="t"/g)).toHaveLength(6);
   });
 });

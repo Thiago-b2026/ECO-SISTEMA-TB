@@ -1,14 +1,18 @@
 // "Pré-visualização da Etiqueta": escolhe a impressora (tamanho), mostra a etiqueta em tamanho real e imprime.
 import { useEffect, useMemo, useState } from "react";
-import { Printer } from "lucide-react";
+import { ChevronDown, ChevronUp, Printer, Ruler } from "lucide-react";
 import { toast } from "sonner";
-import { carregarModelos, htmlEtiquetas, imprimirEtiquetas, registrarImpressao, MODELOS_ETIQUETA, type DadosEtiqueta, type ModeloEtiqueta } from "@/lib/etiquetas";
+import {
+  carregarModelos, htmlEtiquetas, imprimirEtiquetas, imprimirTeste, larguraPagina, lerAjuste, modeloSalvo, registrarImpressao, salvarAjuste, salvarModelo,
+  MODELOS_ETIQUETA, type DadosEtiqueta, type ModeloEtiqueta,
+} from "@/lib/etiquetas";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 /** A prévia mostra no máximo estas etiquetas (a impressão sai completa). */
 const MAX_PREVIA = 24;
-const CHAVE = "eco.modeloEtiqueta";
+const BLOQUEADO = "O navegador bloqueou a janela de impressão. Permita pop-ups para este site.";
 
 export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }: {
   open: boolean; onOpenChange: (v: boolean) => void; itens: DadosEtiqueta[]; loja?: string;
@@ -16,23 +20,28 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
   onImpresso?: (produtoIds: string[]) => void;
 }) {
   const [modelos, setModelos] = useState<ModeloEtiqueta[]>(MODELOS_ETIQUETA);
-  const [modelo, setModelo] = useState(MODELOS_ETIQUETA[0].id);
+  const [modelo, setModelo] = useState(""); // "" = este computador ainda não escolheu
   const [copias, setCopias] = useState<"estoque" | "uma">("estoque");
+  const [verAjuste, setVerAjuste] = useState(false);
+  const [ajuste, setAjuste] = useState({ x: "0", y: "0" });
   useEffect(() => {
     if (!open) return;
     carregarModelos().then((ms) => {
       setModelos(ms);
-      let salvo: string | null = null;
-      try { salvo = localStorage.getItem(CHAVE); } catch { /* sem storage */ }
-      setModelo(salvo && ms.some((m) => m.id === salvo) ? salvo : ms[0].id);
+      const salvo = modeloSalvo();
+      setModelo(salvo && ms.some((m) => m.id === salvo) ? salvo : "");
+      const aj = lerAjuste();
+      setAjuste({ x: String(aj.x), y: String(aj.y) });
     });
   }, [open]);
 
+  const m = modelos.find((x) => x.id === modelo) ?? MODELOS_ETIQUETA[0];
+
   function imprimir() {
-    const m = modelos.find((x) => x.id === modelo)!;
-    try { localStorage.setItem(CHAVE, modelo); } catch { /* sem storage */ }
+    if (!modelo) return toast.error("Escolha a impressora (tamanho da etiqueta) antes de imprimir.");
+    salvarModelo(modelo);
     const lista = itens.map((i) => ({ ...i, copias: copias === "uma" ? 1 : i.copias }));
-    if (!imprimirEtiquetas(lista, m, loja)) return toast.error("O navegador bloqueou a janela de impressão. Permita pop-ups para este site.");
+    if (!imprimirEtiquetas(lista, m, loja)) return toast.error(BLOQUEADO);
     onOpenChange(false);
     // registra a impressão (etiqueta de produto do cadastro conta como movimento; a do lote soma em "x/y impressos")
     registrarImpressao(lista).then((erro) => {
@@ -41,13 +50,25 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
     });
   }
 
+  function teste() {
+    if (!modelo) return toast.error("Escolha a impressora (tamanho da etiqueta) antes do teste.");
+    salvarModelo(modelo);
+    if (!imprimirTeste(m)) toast.error(BLOQUEADO);
+  }
+
+  function mudarAjuste(k: "x" | "y", v: string) {
+    const novo = { ...ajuste, [k]: v };
+    setAjuste(novo);
+    const n = (t: string) => Number(t.replace(",", ".")) || 0;
+    salvarAjuste({ x: n(novo.x), y: n(novo.y) });
+  }
+
   const total = itens.reduce((s, i) => s + (copias === "uma" ? 1 : Math.max(1, i.copias)), 0);
-  const m = modelos.find((x) => x.id === modelo) ?? modelos[0];
-  const largura = m.largura * m.porLinha + m.espaco * (m.porLinha - 1);
+  const largura = larguraPagina(m);
   const naPrevia = Math.min(total, MAX_PREVIA);
   const linhas = Math.max(1, Math.ceil(naPrevia / m.porLinha));
   const html = useMemo(() => {
-    if (!open) return "";
+    if (!open || !modelo) return "";
     const lista: DadosEtiqueta[] = [];
     let falta = MAX_PREVIA;
     for (const i of itens) {
@@ -57,7 +78,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
       falta -= n;
     }
     return htmlEtiquetas(lista, m, loja, { imprimir: false, previa: true });
-  }, [open, itens, copias, m, loja]);
+  }, [open, itens, copias, m, modelo, loja]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,6 +91,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
           <label className="flex items-center gap-2 text-sm text-muted-foreground">
             Impressora:
             <select value={modelo} onChange={(e) => setModelo(e.target.value)} className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm text-foreground">
+              <option value="" disabled>Escolha a impressora deste computador…</option>
               {modelos.map((x) => <option key={x.id} value={x.id}>{x.personalizado ? "★ " : ""}{x.nome}</option>)}
             </select>
           </label>
@@ -77,15 +99,46 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
             <Button type="button" size="sm" variant={copias === "estoque" ? "default" : "outline"} onClick={() => setCopias("estoque")}>Uma por unidade</Button>
             <Button type="button" size="sm" variant={copias === "uma" ? "default" : "outline"} onClick={() => setCopias("uma")}>Uma por produto</Button>
           </div>
-          <div className="h-60 overflow-auto rounded-xl bg-neutral-800 p-2">
-            <iframe title="Prévia da etiqueta" srcDoc={html} className="mx-auto block bg-white" style={{ width: `${largura}mm`, height: `${linhas * m.altura}mm`, border: 0, maxWidth: "none" }} />
+          {modelo ? (
+            <>
+              <div className="h-60 overflow-auto rounded-xl bg-neutral-800 p-2">
+                <iframe title="Prévia da etiqueta" srcDoc={html} className="mx-auto block bg-white" style={{ width: `${largura}mm`, height: `${linhas * m.altura}mm`, border: 0, maxWidth: "none" }} />
+              </div>
+              <p className="text-center text-xs text-muted-foreground">
+                Tamanho real: {m.largura}mm × {m.altura}mm{m.porLinha > 1 ? ` · ${m.porLinha} por linha` : ""}{total > naPrevia ? ` · prévia das ${naPrevia} primeiras` : ""}
+                <br />Papel na impressora (Windows): <b className="text-foreground">{largura} × {m.altura} mm</b> (rolo inteiro)
+              </p>
+            </>
+          ) : (
+            <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              Escolha o tamanho da etiqueta que está na impressora deste computador. Rolo com 2 etiquetas lado a lado: use um modelo "2 por linha".
+            </p>
+          )}
+
+          <div className="rounded-md border">
+            <button type="button" onClick={() => setVerAjuste((v) => !v)} className="flex w-full items-center justify-between p-2 text-sm">
+              <span className="flex items-center gap-2"><Ruler className="size-4" /> Saiu torta, cortada ou no meio? Teste e ajuste</span>
+              {verAjuste ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+            {verAjuste && (
+              <div className="space-y-2 border-t p-2 text-xs">
+                <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
+                  <li>No Windows: Impressoras → a impressora → <b>Preferências de impressão</b> → tamanho do papel <b className="text-foreground">{modelo ? `${largura} × ${m.altura} mm` : "do rolo inteiro"}</b> (a linha toda, não uma etiqueta só), com espaço (gap) entre etiquetas.</li>
+                  <li>Na janela do Chrome: a mesma impressora, esse papel, <b>Escala: Padrão (100)</b>, Margens: Nenhuma.</li>
+                  <li>Clique em <b>Imprimir teste</b>: cada moldura deve cair em cima de uma etiqueta.</li>
+                  <li>Só se ficar 1 a 3 mm fora, use o ajuste abaixo (vale só neste computador).</li>
+                </ol>
+                <div className="grid grid-cols-2 gap-2">
+                  <label>Direita (+) / esquerda (−), mm<Input value={ajuste.x} onChange={(e) => mudarAjuste("x", e.target.value)} inputMode="decimal" /></label>
+                  <label>Baixo (+) / cima (−), mm<Input value={ajuste.y} onChange={(e) => mudarAjuste("y", e.target.value)} inputMode="decimal" /></label>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={teste} disabled={!modelo}><Ruler /> Imprimir teste (3 linhas de molduras)</Button>
+              </div>
+            )}
           </div>
-          <p className="text-center text-xs text-muted-foreground">
-            Tamanho real: {m.largura}mm × {m.altura}mm{total > naPrevia ? ` · prévia das ${naPrevia} primeiras` : ""}
-          </p>
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={imprimir}><Printer /> Imprimir</Button>
+            <Button onClick={imprimir} disabled={!modelo}><Printer /> Imprimir</Button>
           </div>
         </div>
       </DialogContent>

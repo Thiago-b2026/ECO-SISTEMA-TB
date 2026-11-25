@@ -46,6 +46,32 @@ export const MODELOS_ETIQUETA: ModeloEtiqueta[] = [
   { id: "50x30", nome: "50x30/2 — 50×30mm (2 por linha)", largura: 50, altura: 30, porLinha: 2, espaco: 3, fonteTitulo: 8.5, fonteDe: 9, fontePreco: 18, fonteOff: 7 },
 ];
 
+/** Largura da página (= do rolo inteiro): todas as etiquetas da linha + os vãos. É o tamanho de papel a cadastrar na impressora. */
+export const larguraPagina = (m: ModeloEtiqueta) => m.largura * m.porLinha + m.espaco * (m.porLinha - 1);
+
+// ---------- escolhas DESTE computador (cada loja tem a sua impressora)
+const CHAVE_MODELO = "eco.modeloEtiqueta";
+const CHAVE_AJUSTE = "eco.ajusteEtiqueta";
+/** Ajuste fino em mm: x + = direita, y + = para baixo. */
+export interface AjusteEtiqueta { x: number; y: number }
+
+export function modeloSalvo(): string | null {
+  try { return localStorage.getItem(CHAVE_MODELO); } catch { return null; }
+}
+export function salvarModelo(id: string) {
+  try { localStorage.setItem(CHAVE_MODELO, id); } catch { /* sem storage */ }
+}
+export function lerAjuste(): AjusteEtiqueta {
+  try {
+    const a = JSON.parse(localStorage.getItem(CHAVE_AJUSTE) ?? "{}") as Partial<AjusteEtiqueta>;
+    const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(-30, Math.min(30, v)) : 0);
+    return { x: n(a.x), y: n(a.y) };
+  } catch { return { x: 0, y: 0 }; }
+}
+export function salvarAjuste(a: AjusteEtiqueta) {
+  try { localStorage.setItem(CHAVE_AJUSTE, JSON.stringify(a)); } catch { /* sem storage */ }
+}
+
 /** Prontos + personalizados salvos no banco. */
 export async function carregarModelos(): Promise<ModeloEtiqueta[]> {
   const { data } = await supabase.from("modelos_etiqueta").select("id, nome, config").order("nome");
@@ -74,11 +100,47 @@ export function textoOff(preco: number, precoDe?: number | null): string {
   return `${((1 - preco / precoDe) * 100).toFixed(2).replace(".", ",")}% OFF`;
 }
 
+interface OpcoesHtml { imprimir?: boolean; previa?: boolean; ajuste?: AjusteEtiqueta }
+
+/** Páginas: uma por linha de etiquetas (do tamanho exato do rolo), para o erro de arredondamento não ir somando linha a linha. */
+function paginas(etiquetas: string[], m: ModeloEtiqueta): string {
+  const linhas: string[] = [];
+  for (let i = 0; i < etiquetas.length; i += m.porLinha) linhas.push(`<div class="folha"><div class="miolo">${etiquetas.slice(i, i + m.porLinha).join("")}</div></div>`);
+  return linhas.join("");
+}
+
+function cssPagina(m: ModeloEtiqueta, opts: OpcoesHtml): string {
+  const larg = larguraPagina(m);
+  const a = opts.ajuste;
+  return `@page { size: ${larg}mm ${m.altura}mm; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; width: ${larg}mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    ${opts.previa ? "html, body { overflow: hidden; }" : ""}
+    .folha { width: ${larg}mm; height: ${m.altura}mm; overflow: hidden; break-inside: avoid; break-after: page; }
+    .folha:last-of-type { break-after: auto; }
+    .miolo { display: grid; grid-template-columns: repeat(${m.porLinha}, ${m.largura}mm); grid-auto-rows: ${m.altura}mm; column-gap: ${m.espaco}mm;${a && (a.x || a.y) ? ` transform: translate(${a.x}mm, ${a.y}mm);` : ""} }`;
+}
+
+const scriptImprimir = (opts: OpcoesHtml) => (opts.imprimir === false ? "" : "<script>window.onload = () => setTimeout(() => window.print(), 300);</script>");
+
+/** Folha de teste: moldura, número e régua em cada etiqueta, em 3 linhas. Serve para acertar o papel na impressora sem gastar produto. */
+export function htmlTeste(m: ModeloEtiqueta, opts: OpcoesHtml = {}): string {
+  const total = m.porLinha * 3;
+  const fs = m.altura < 30 ? 7 : 10;
+  const et = Array.from({ length: total }, (_, i) => `<div class="t"><b>${Math.floor(i / m.porLinha) + 1}ª linha · ${(i % m.porLinha) + 1}ª etiqueta</b><span>${m.largura} × ${m.altura} mm</span><span>papel: ${larguraPagina(m)} × ${m.altura} mm</span><div class="regua"></div></div>`);
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Teste de etiqueta</title><style>
+    ${cssPagina(m, opts)}
+    .t { position: relative; width: ${m.largura}mm; height: ${m.altura}mm; border: 0.4mm solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: ${fs}pt; line-height: 1.2; overflow: hidden; }
+    .t b { font-size: ${fs + 1}pt; white-space: nowrap; }
+    .regua { position: absolute; left: 0; right: 0; bottom: 0; height: 2mm; background: repeating-linear-gradient(to right, #000 0, #000 0.3mm, transparent 0.3mm, transparent 5mm); }
+  </style></head><body>${paginas(et, m)}${scriptImprimir(opts)}</body></html>`;
+}
+
 /**
  * Etiqueta no desenho do PrecificaLote: nome em 2 linhas, SKU na vertical à esquerda, De / % OFF, Por, código de barras
  * e logo. O código de barras ocupa a altura que sobra (ou `alturaCodigo`).
  */
-export function htmlEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string, opts: { imprimir?: boolean; previa?: boolean } = {}): string {
+export function htmlEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string, opts: OpcoesHtml = {}): string {
   const c = m.campos ?? CAMPOS_PADRAO;
   const pequena = m.altura < 30;
   const fTit = m.fonteTitulo || (pequena ? 7 : m.altura >= 45 ? 15 : 8.5);
@@ -109,13 +171,8 @@ export function htmlEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: 
     </div>`;
     return Array.from({ length: Math.max(1, it.copias) }, () => html);
   });
-  const larguraPagina = m.largura * m.porLinha + m.espaco * (m.porLinha - 1);
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas</title><style>
-    @page { size: ${larguraPagina}mm ${m.altura}mm; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; width: ${larguraPagina}mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    ${opts.previa ? "html, body { overflow: hidden; }" : ""}
-    .folha { display: grid; grid-template-columns: repeat(${m.porLinha}, ${m.largura}mm); grid-auto-rows: ${m.altura}mm; column-gap: ${m.espaco}mm; }
+    ${cssPagina(m, opts)}
     .et { width: ${m.largura}mm; height: ${m.altura}mm; padding: 1mm 1.2mm; display: flex; flex-direction: column; overflow: hidden; break-inside: avoid; ${opts.imprimir === false && !opts.previa ? "outline: 0.2mm dashed #aaa;" : ""} }
     .tit { font-size: ${fTit}pt; line-height: 1.12; max-height: 2.24em; overflow: hidden; letter-spacing: -0.03em; flex: none; }
     .corpo { flex: 1; min-height: 0; display: flex; gap: 0.6mm; }
@@ -135,19 +192,24 @@ export function htmlEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: 
     .cb svg { width: 100%; height: 100%; display: block; }
     .logo { flex: none; width: ${ladoLogo}mm; height: ${ladoLogo}mm; max-height: 100%; object-fit: contain; background: #000; }
     .loja { font-size: ${pequena ? 5 : 7}pt; text-align: center; flex: none; }
-  </style></head><body><div class="folha">${etiquetas.join("")}</div>
-  ${opts.imprimir === false ? "" : "<script>window.onload = () => setTimeout(() => window.print(), 300);</script>"}</body></html>`;
+  </style></head><body>${paginas(etiquetas, m)}${scriptImprimir(opts)}</body></html>`;
 }
 
-/** Abre a janela de impressão. Retorna false se o navegador bloqueou o pop-up. */
-export function imprimirEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string): boolean {
+function abrirParaImprimir(html: string): boolean {
   const w = window.open("", "_blank", "width=800,height=600");
   if (!w) return false;
   w.document.open();
-  w.document.write(htmlEtiquetas(itens, m, loja));
+  w.document.write(html);
   w.document.close();
   return true;
 }
+
+/** Abre a janela de impressão (com o ajuste fino deste computador). Retorna false se o navegador bloqueou o pop-up. */
+export const imprimirEtiquetas = (itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) =>
+  abrirParaImprimir(htmlEtiquetas(itens, m, loja, { ajuste: lerAjuste() }));
+
+/** Imprime a folha de teste (molduras). Não conta como etiqueta impressa. */
+export const imprimirTeste = (m: ModeloEtiqueta) => abrirParaImprimir(htmlTeste(m, { ajuste: lerAjuste() }));
 
 /**
  * Imprime sem abrir janela (quadro escondido na própria página). Serve para imprimir depois de um "await"
@@ -160,7 +222,7 @@ export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqu
   document.body.appendChild(quadro);
   const doc = quadro.contentDocument!;
   doc.open();
-  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false }));
+  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false, previa: true, ajuste: lerAjuste() }));
   doc.close();
   // espera o logo carregar (no máximo 3 s) antes de imprimir
   const imagens = [...doc.images].filter((im) => !im.complete).map((im) => new Promise((ok) => { im.onload = im.onerror = ok; }));

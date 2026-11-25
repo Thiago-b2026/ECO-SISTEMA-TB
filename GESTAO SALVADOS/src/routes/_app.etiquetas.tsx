@@ -35,12 +35,14 @@ export function EditorEtiquetas() {
   const campos = m.campos ?? CAMPOS_PADRAO;
   const num = (k: keyof ModeloEtiqueta, v: string) => setM({ ...m, [k]: Math.max(0, Number(v.replace(",", ".")) || 0) });
 
-  async function salvar() {
+  /** comoNovo: cria outro modelo (o modelo salvo vale para todas as lojas; mudar nele muda para todo mundo). */
+  async function salvar(comoNovo: boolean) {
     if (!m.nome.trim()) return toast.error("Dê um nome ao modelo.");
     if (m.largura < 15 || m.altura < 10 || m.porLinha < 1) return toast.error("Tamanho inválido.");
     setSalvando(true);
     const { id, nome, personalizado: _p, ...config } = m;
-    const r = m.personalizado && id
+    if (!comoNovo && !window.confirm(`"${nome}" é usado por todas as lojas. Salvar a mudança para todo mundo?\n\nSe for só para uma impressora, cancele, mude o nome e use "Salvar como novo".`)) return setSalvando(false);
+    const r = !comoNovo && m.personalizado && id
       ? await supabase.from("modelos_etiqueta").update({ nome: nome.trim(), config }).eq("id", id)
       : await supabase.from("modelos_etiqueta").insert({ nome: nome.trim(), config });
     setSalvando(false);
@@ -92,7 +94,8 @@ export function EditorEtiquetas() {
             ))}
           </div>
           <div className="flex gap-2">
-            <Button onClick={salvar} disabled={salvando} className="flex-1">{salvando ? <Loader2 className="animate-spin" /> : <Save />} {m.personalizado ? "Salvar alterações" : "Salvar como novo"}</Button>
+            <Button onClick={() => salvar(true)} disabled={salvando} className="flex-1">{salvando ? <Loader2 className="animate-spin" /> : <Save />} Salvar como novo</Button>
+            {m.personalizado && <Button variant="outline" onClick={() => salvar(false)} disabled={salvando}>Salvar alterações</Button>}
             {m.personalizado && <Button variant="outline" onClick={excluir}><Trash2 className="text-destructive" /></Button>}
           </div>
         </Card>

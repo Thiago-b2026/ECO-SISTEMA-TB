@@ -14,7 +14,7 @@ import { BotaoCamera } from "@/components/leitor-camera";
 import { cn } from "@/lib/utils";
 import { candidatoDaCaptura, capturarPeloNavegador, extensaoInstalada, ouvirCapturas, removerCaptura, type CapturaML } from "@/lib/captura-ml";
 import { CapturasRecentes, InstalarExtensao } from "@/components/lotes/captura-ml";
-import { carregarModelos, imprimirEtiquetasNaPagina, registrarImpressao, type DadosEtiqueta } from "@/lib/etiquetas";
+import { carregarModelos, imprimirEtiquetasNaPagina, modeloSalvo, registrarImpressao, type DadosEtiqueta } from "@/lib/etiquetas";
 import { useLoja } from "@/lib/loja";
 import { acharDuplicado, TEXTO_MOTIVO } from "@/lib/duplicados";
 import { fetchAllRows } from "@/lib/fetch-all";
@@ -234,9 +234,8 @@ export function InserirProdutoDialog({ open, onOpenChange, lote, cfg, pallets, i
   /** Etiqueta do produto recém-inserido, no último modelo usado (o mesmo da tela de etiquetas). */
   async function imprimirAoSalvar(et: DadosEtiqueta) {
     const modelos = await carregarModelos();
-    let salvo: string | null = null;
-    try { salvo = localStorage.getItem("eco.modeloEtiqueta"); } catch { /* sem storage */ }
-    const m = modelos.find((x) => x.id === salvo) ?? modelos[0];
+    const m = modelos.find((x) => x.id === modeloSalvo());
+    if (!m) return void toast.warning("Etiqueta não impressa: escolha a impressora deste computador uma vez no botão Etiqueta do produto.");
     imprimirEtiquetasNaPagina([et], m, lojas.find((l) => l.id === lote.loja_id)?.nome);
     const erro = await registrarImpressao([et]);
     if (!erro) onInserido(); // atualiza o "x/y impressos" da lista
