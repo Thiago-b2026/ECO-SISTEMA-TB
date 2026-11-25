@@ -105,7 +105,7 @@ export function textoOff(preco: number, precoDe?: number | null): string {
   return `${((1 - preco / precoDe) * 100).toFixed(2).replace(".", ",")}% OFF`;
 }
 
-interface OpcoesHtml { imprimir?: boolean; previa?: boolean; ajuste?: AjusteEtiqueta }
+interface OpcoesHtml { imprimir?: boolean; previa?: boolean; /** vai ser impresso num quadro (sem contorno tracejado e sem script) */ quadro?: boolean; ajuste?: AjusteEtiqueta }
 
 /** Páginas: uma por linha de etiquetas (do tamanho exato do rolo), para o erro de arredondamento não ir somando linha a linha. */
 function paginas(etiquetas: string[], m: ModeloEtiqueta): string {
@@ -178,7 +178,7 @@ export function htmlEtiquetas(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: 
   });
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Etiquetas</title><style>
     ${cssPagina(m, opts)}
-    .et { width: ${m.largura}mm; height: ${m.altura}mm; padding: 1mm 1.2mm; display: flex; flex-direction: column; overflow: hidden; break-inside: avoid; ${opts.imprimir === false && !opts.previa ? "outline: 0.2mm dashed #aaa;" : ""} }
+    .et { width: ${m.largura}mm; height: ${m.altura}mm; padding: 1mm 1.2mm; display: flex; flex-direction: column; overflow: hidden; break-inside: avoid; ${opts.imprimir === false && !opts.previa && !opts.quadro ? "outline: 0.2mm dashed #aaa;" : ""} }
     .tit { font-size: ${fTit}pt; line-height: 1.12; max-height: 2.24em; overflow: hidden; letter-spacing: -0.03em; flex: none; }
     .corpo { flex: 1; min-height: 0; display: flex; gap: 0.6mm; }
     .sku { flex: none; display: flex; align-items: flex-end; font-size: ${pequena ? 6 : m.altura >= 45 ? 10 : 7}pt; line-height: 1; }
@@ -209,25 +209,15 @@ function abrirParaImprimir(html: string): boolean {
   return true;
 }
 
-/** Abre a janela de impressão (com o ajuste fino deste computador). Retorna false se o navegador bloqueou o pop-up. */
-export const imprimirEtiquetas = (itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) =>
-  abrirParaImprimir(htmlEtiquetas(itens, m, loja, { ajuste: lerAjuste(m.id) }));
-
-/** Imprime a folha de teste (molduras). Não conta como etiqueta impressa. */
-export const imprimirTeste = (m: ModeloEtiqueta) => abrirParaImprimir(htmlTeste(m, { ajuste: lerAjuste(m.id) }));
-
-/**
- * Imprime sem abrir janela (quadro escondido na própria página). Serve para imprimir depois de um "await"
- * (ex.: ao salvar), quando o navegador já bloquearia uma janela nova.
- */
-export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) {
+/** Imprime num quadro escondido da própria página (como o PrecificaLote): não depende de pop-up e usa a impressora escolhida no Chrome. */
+function imprimirNoQuadro(html: string) {
   const quadro = document.createElement("iframe");
   quadro.setAttribute("aria-hidden", "true");
   quadro.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
   document.body.appendChild(quadro);
   const doc = quadro.contentDocument!;
   doc.open();
-  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false, previa: true, ajuste: lerAjuste(m.id) }));
+  doc.write(html);
   doc.close();
   // espera o logo carregar (no máximo 3 s) antes de imprimir
   const imagens = [...doc.images].filter((im) => !im.complete).map((im) => new Promise((ok) => { im.onload = im.onerror = ok; }));
@@ -236,6 +226,27 @@ export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqu
     quadro.contentWindow?.print();
     setTimeout(() => quadro.remove(), 60_000);
   }, 400));
+}
+
+/** Celular/tablet: o navegador imprime a página inteira em vez do quadro, então lá continua a janela nova. */
+const ehToque = () => typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+
+function imprimirHtml(gerar: (o: OpcoesHtml) => string, m: ModeloEtiqueta): boolean {
+  const ajuste = lerAjuste(m.id);
+  if (ehToque()) return abrirParaImprimir(gerar({ ajuste }));
+  imprimirNoQuadro(gerar({ imprimir: false, quadro: true, ajuste }));
+  return true;
+}
+
+/** Imprime (com o ajuste fino deste computador). Retorna false se o navegador bloqueou a janela (só no celular). */
+export const imprimirEtiquetas = (itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) => imprimirHtml((o) => htmlEtiquetas(itens, m, loja, o), m);
+
+/** Imprime a folha de teste (molduras). Não conta como etiqueta impressa. */
+export const imprimirTeste = (m: ModeloEtiqueta) => imprimirHtml((o) => htmlTeste(m, o), m);
+
+/** Imprime sem precisar de clique (ex.: ao salvar, depois de um "await", quando o navegador bloquearia uma janela nova). */
+export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) {
+  imprimirNoQuadro(htmlEtiquetas(itens, m, loja, { imprimir: false, quadro: true, ajuste: lerAjuste(m.id) }));
 }
 
 /** Registra as etiquetas impressas: produto do cadastro (conta como movimento) e item de lote ("x/y impressos"). Devolve o erro, se houver. */

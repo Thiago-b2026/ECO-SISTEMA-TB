@@ -131,9 +131,11 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
                   </p>
                 )}
                 <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-                  <li>Windows → Impressoras → a impressora → <b>Preferências de impressão</b> → crie um papel <b>novo</b> (não apague o que já existe) de <b className="text-foreground">{modelo ? `${largura} × ${m.altura} mm` : "a linha inteira do rolo"}</b>, tipo etiqueta com espaço (gap).</li>
-                  <li>Feche e abra o Chrome. Na janela de imprimir: <b>Mais definições → Tamanho do papel</b> = o papel novo; <b>Escala: Padrão (100)</b>; Margens: Nenhuma.</li>
-                  <li>Clique em <b>Imprimir teste</b>: cada moldura deve cair em cima de uma etiqueta.</li>
+                  <li>Windows → Painel de Controle → Dispositivos e Impressoras → botão direito na impressora → <b>Preferências de impressão</b>.</li>
+                  <li>Aba <b>Configuração de página</b> → <b>Novo</b> (não apague o que já existe): largura <b className="text-foreground">{modelo ? `${largura} mm` : "da linha inteira do rolo"}</b>,
+                    altura <b className="text-foreground">{modelo ? `${m.altura} mm` : "de uma etiqueta"}</b>. Deixe esse papel <b>selecionado</b> e clique em Aplicar: o Chrome usa o papel que estiver selecionado aqui.</li>
+                  <li>Aba <b>Papel de etiquetas</b>: tipo de mídia com <b>intervalo (gap)</b> e altura do intervalo igual ao espaço entre as linhas (perto de 3 mm). Depois calibre: segure o botão Feed até a impressora avançar algumas etiquetas.</li>
+                  <li>Feche o Chrome <b>inteiro</b>, abra de novo e clique em <b>Imprimir teste</b>. Na janela: essa impressora e, se aparecer, Tamanho do papel = o novo, Escala = Padrão. Cada moldura deve cair em cima de uma etiqueta.</li>
                   <li>Só se ficar 1 a 3 mm fora, use o ajuste abaixo (vale só para este modelo, neste computador).</li>
                 </ol>
                 <div className="grid grid-cols-2 gap-2">

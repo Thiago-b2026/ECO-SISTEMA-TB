@@ -448,3 +448,8 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   todos espremidos em ~50 mm no meio do rolo. Confirma que o papel do Windows está com 50 mm de largura; nenhum modelo do sistema resolve sem criar o papel 103 × 25.
 - Ajuste fino passou a ser **por modelo** e por computador (`eco.ajustesEtiqueta`). Criado no banco o modelo "LOJA 2 - Elgin L42 (50x25, 2 por linha)"; "Meu modelo" e os
   prontos não foram alterados: as duas configurações ficam.
+- **Foto das 16:02 (25/11):** ventilador P3774 (7 tentativas, 16:00–16:03) com 2 por linha: saiu 25 mm de largura, começando 25 mm da borda = página de 103 mm encolhida para 50 mm.
+  O papel do Windows continua em 50 mm. Usuário confirmou: etiqueta 50x25.
+- **PrecificaLote (código público):** imprime HTML com `@page { size: 103mm 25mm }` (largura × por linha + vão), igual ao nosso; a diferença era imprimir num quadro da própria página
+  (nós abríamos janela). Igualado: computador usa quadro, celular continua com janela. Com o papel em 50 mm, o PrecificaLote também encolhe: testar lá para confirmar.
+- Passo a passo do driver Elgin/Seagull na tela "Teste e ajuste" (abas Configuração de página e Papel de etiquetas).
