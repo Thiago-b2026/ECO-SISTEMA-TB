@@ -30,10 +30,12 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
       setModelos(ms);
       const salvo = modeloSalvo();
       setModelo(salvo && ms.some((m) => m.id === salvo) ? salvo : "");
-      const aj = lerAjuste();
-      setAjuste({ x: String(aj.x), y: String(aj.y) });
     });
   }, [open]);
+  useEffect(() => {
+    const aj = lerAjuste(modelo);
+    setAjuste({ x: String(aj.x), y: String(aj.y) });
+  }, [open, modelo]);
 
   const m = modelos.find((x) => x.id === modelo) ?? MODELOS_ETIQUETA[0];
 
@@ -60,7 +62,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
     const novo = { ...ajuste, [k]: v };
     setAjuste(novo);
     const n = (t: string) => Number(t.replace(",", ".")) || 0;
-    salvarAjuste({ x: n(novo.x), y: n(novo.y) });
+    if (modelo) salvarAjuste(modelo, { x: n(novo.x), y: n(novo.y) });
   }
 
   const total = itens.reduce((s, i) => s + (copias === "uma" ? 1 : Math.max(1, i.copias)), 0);
@@ -122,11 +124,17 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
             </button>
             {verAjuste && (
               <div className="space-y-2 border-t p-2 text-xs">
+                {m.porLinha > 1 && modelo && (
+                  <p className="rounded bg-warning/15 p-2 text-foreground">
+                    Saiu <b>pequena e no meio do rolo</b>? O papel da impressora está com a largura de <b>uma etiqueta só</b> ({m.largura} mm). Trocar o modelo aqui não resolve: crie no Windows
+                    um papel com a linha inteira, <b>{largura} × {m.altura} mm</b> (passo 1).
+                  </p>
+                )}
                 <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-                  <li>No Windows: Impressoras → a impressora → <b>Preferências de impressão</b> → tamanho do papel <b className="text-foreground">{modelo ? `${largura} × ${m.altura} mm` : "do rolo inteiro"}</b> (a linha toda, não uma etiqueta só), com espaço (gap) entre etiquetas.</li>
-                  <li>Na janela do Chrome: a mesma impressora, esse papel, <b>Escala: Padrão (100)</b>, Margens: Nenhuma.</li>
+                  <li>Windows → Impressoras → a impressora → <b>Preferências de impressão</b> → crie um papel <b>novo</b> (não apague o que já existe) de <b className="text-foreground">{modelo ? `${largura} × ${m.altura} mm` : "a linha inteira do rolo"}</b>, tipo etiqueta com espaço (gap).</li>
+                  <li>Feche e abra o Chrome. Na janela de imprimir: <b>Mais definições → Tamanho do papel</b> = o papel novo; <b>Escala: Padrão (100)</b>; Margens: Nenhuma.</li>
                   <li>Clique em <b>Imprimir teste</b>: cada moldura deve cair em cima de uma etiqueta.</li>
-                  <li>Só se ficar 1 a 3 mm fora, use o ajuste abaixo (vale só neste computador).</li>
+                  <li>Só se ficar 1 a 3 mm fora, use o ajuste abaixo (vale só para este modelo, neste computador).</li>
                 </ol>
                 <div className="grid grid-cols-2 gap-2">
                   <label>Direita (+) / esquerda (−), mm<Input value={ajuste.x} onChange={(e) => mudarAjuste("x", e.target.value)} inputMode="decimal" /></label>

@@ -444,3 +444,7 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   `eco.ajusteEtiqueta`). Cada linha de etiquetas é uma página (`paginas`), conferido em PDF: 103x25, sem página sobrando.
 - Editor de etiquetas: "Salvar como novo" sempre disponível; "Salvar alterações" avisa que o modelo vale para todas as lojas.
 - PENDENTE: configurar o papel no Windows da loja 2 (103 × 25 mm, medir o rolo) e imprimir o teste.
+- **Vídeo da loja 2 (25/11 15:49):** calça jeans A100114, 3 cópias por tentativa (15:40, 15:47:27, :38, :49, 15:48:08, usuário ELMORANE): modelos de 3, 2 e 1 por linha,
+  todos espremidos em ~50 mm no meio do rolo. Confirma que o papel do Windows está com 50 mm de largura; nenhum modelo do sistema resolve sem criar o papel 103 × 25.
+- Ajuste fino passou a ser **por modelo** e por computador (`eco.ajustesEtiqueta`). Criado no banco o modelo "LOJA 2 - Elgin L42 (50x25, 2 por linha)"; "Meu modelo" e os
+  prontos não foram alterados: as duas configurações ficam.

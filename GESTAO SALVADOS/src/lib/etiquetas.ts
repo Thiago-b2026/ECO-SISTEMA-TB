@@ -51,7 +51,7 @@ export const larguraPagina = (m: ModeloEtiqueta) => m.largura * m.porLinha + m.e
 
 // ---------- escolhas DESTE computador (cada loja tem a sua impressora)
 const CHAVE_MODELO = "eco.modeloEtiqueta";
-const CHAVE_AJUSTE = "eco.ajusteEtiqueta";
+const CHAVE_AJUSTE = "eco.ajustesEtiqueta";
 /** Ajuste fino em mm: x + = direita, y + = para baixo. */
 export interface AjusteEtiqueta { x: number; y: number }
 
@@ -61,15 +61,20 @@ export function modeloSalvo(): string | null {
 export function salvarModelo(id: string) {
   try { localStorage.setItem(CHAVE_MODELO, id); } catch { /* sem storage */ }
 }
-export function lerAjuste(): AjusteEtiqueta {
+function lerAjustes(): Record<string, Partial<AjusteEtiqueta>> {
   try {
-    const a = JSON.parse(localStorage.getItem(CHAVE_AJUSTE) ?? "{}") as Partial<AjusteEtiqueta>;
-    const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(-30, Math.min(30, v)) : 0);
-    return { x: n(a.x), y: n(a.y) };
-  } catch { return { x: 0, y: 0 }; }
+    const v = JSON.parse(localStorage.getItem(CHAVE_AJUSTE) ?? "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch { return {}; }
 }
-export function salvarAjuste(a: AjusteEtiqueta) {
-  try { localStorage.setItem(CHAVE_AJUSTE, JSON.stringify(a)); } catch { /* sem storage */ }
+/** Um ajuste POR MODELO: duas impressoras no mesmo computador não mexem uma na outra. */
+export function lerAjuste(modeloId: string): AjusteEtiqueta {
+  const a = lerAjustes()[modeloId];
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(-30, Math.min(30, v)) : 0);
+  return { x: n(a?.x), y: n(a?.y) };
+}
+export function salvarAjuste(modeloId: string, a: AjusteEtiqueta) {
+  try { localStorage.setItem(CHAVE_AJUSTE, JSON.stringify({ ...lerAjustes(), [modeloId]: a })); } catch { /* sem storage */ }
 }
 
 /** Prontos + personalizados salvos no banco. */
@@ -206,10 +211,10 @@ function abrirParaImprimir(html: string): boolean {
 
 /** Abre a janela de impressão (com o ajuste fino deste computador). Retorna false se o navegador bloqueou o pop-up. */
 export const imprimirEtiquetas = (itens: DadosEtiqueta[], m: ModeloEtiqueta, loja?: string) =>
-  abrirParaImprimir(htmlEtiquetas(itens, m, loja, { ajuste: lerAjuste() }));
+  abrirParaImprimir(htmlEtiquetas(itens, m, loja, { ajuste: lerAjuste(m.id) }));
 
 /** Imprime a folha de teste (molduras). Não conta como etiqueta impressa. */
-export const imprimirTeste = (m: ModeloEtiqueta) => abrirParaImprimir(htmlTeste(m, { ajuste: lerAjuste() }));
+export const imprimirTeste = (m: ModeloEtiqueta) => abrirParaImprimir(htmlTeste(m, { ajuste: lerAjuste(m.id) }));
 
 /**
  * Imprime sem abrir janela (quadro escondido na própria página). Serve para imprimir depois de um "await"
@@ -222,7 +227,7 @@ export function imprimirEtiquetasNaPagina(itens: DadosEtiqueta[], m: ModeloEtiqu
   document.body.appendChild(quadro);
   const doc = quadro.contentDocument!;
   doc.open();
-  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false, previa: true, ajuste: lerAjuste() }));
+  doc.write(htmlEtiquetas(itens, m, loja, { imprimir: false, previa: true, ajuste: lerAjuste(m.id) }));
   doc.close();
   // espera o logo carregar (no máximo 3 s) antes de imprimir
   const imagens = [...doc.images].filter((im) => !im.complete).map((im) => new Promise((ok) => { im.onload = im.onerror = ok; }));

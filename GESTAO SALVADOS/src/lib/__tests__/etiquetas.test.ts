@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlEtiquetas, htmlTeste, larguraPagina, MODELOS_ETIQUETA, textoOff } from "@/lib/etiquetas";
+import { htmlEtiquetas, htmlTeste, larguraPagina, lerAjuste, salvarAjuste, MODELOS_ETIQUETA, textoOff } from "@/lib/etiquetas";
 
 describe("etiqueta no desenho do PrecificaLote", () => {
   const item = { titulo: "Lavadora <ZM>", sku: "P5345", preco: 2281.01, precoDe: 2534.46, grade: "A", copias: 3 };
@@ -37,5 +37,22 @@ describe("rolo com 2 etiquetas por linha (impressora da loja 2)", () => {
     expect(htmlEtiquetas([item], m, "", { imprimir: false })).not.toContain("translate(");
     expect(htmlEtiquetas([item], m, "", { imprimir: false, ajuste: { x: 1.5, y: -2 } })).toContain("translate(1.5mm, -2mm)");
     expect(htmlTeste(m, { imprimir: false }).match(/class="t"/g)).toHaveLength(6);
+  });
+});
+
+describe("duas impressoras", () => {
+  it("o ajuste de um modelo não mexe no outro", () => {
+    const guarda = new Map<string, string>();
+    const antes = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (k: string) => guarda.get(k) ?? null, setItem: (k: string, v: string) => guarda.set(k, v) } });
+    try {
+      salvarAjuste("50x25", { x: 2, y: -1 });
+      salvarAjuste("100x50", { x: 0, y: 3 });
+      expect(lerAjuste("50x25")).toEqual({ x: 2, y: -1 });
+      expect(lerAjuste("100x50")).toEqual({ x: 0, y: 3 });
+      expect(lerAjuste("33x22")).toEqual({ x: 0, y: 0 });
+    } finally {
+      Object.defineProperty(globalThis, "localStorage", { configurable: true, value: antes });
+    }
   });
 });
