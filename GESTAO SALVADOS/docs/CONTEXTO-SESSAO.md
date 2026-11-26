@@ -466,3 +466,8 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   A Elgin L42 imprime centralizada: a impressora centraliza a imagem pela largura do papel que o driver manda. Com o papel do driver/Chrome em ~50 mm, tudo cai no meio.
   A loja 1 funciona porque o rolo de lá é de 1 coluna (100x50).
 - Este computador (DESKTOP-UMQFTHO) não tem a Elgin instalada; tem AnyDesk. Próximo passo: configurar o papel do driver na loja 2 (largura da linha inteira) ou acesso remoto.
+- **AnyDesk na loja 2 (26/11 11:24–11:28, com autorização do usuário):** impressora "ELGIN L42-DT" usa o driver **4BARCODE 4B-2074B** (Seagull), não o da Elgin.
+  Preferências de impressão (do usuário): já tinham "ROLO 2 COLUNAS (103,0 x 25,0 mm)", térmica direta, etiquetas com intervalo 3,0 mm.
+  **Padrões de Impressão (Propriedades → Avançado), que valem para o Windows/Chrome: estavam em "USER (100 x 180 mm)"** → trocado para ROLO 2 COLUNAS, Aplicar/OK.
+  Na lista do driver também existem "ETIQUETA DUPLA 50x25 (102 x 25)" e "Novo papel de etiquetas (103 x 25)", criados antes por alguém da loja.
+  Falta: fechar o Chrome inteiro na loja 2, imprimir o teste (50x25/2) e conferir a régua; se o Chrome ainda guardar o papel antigo, escolher ROLO 2 COLUNAS em Mais definições.
