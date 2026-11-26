@@ -456,3 +456,6 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - **18:15 (25/11):** mais 3 tentativas (P3774), ainda encolhido. Conta: página 103 mm num papel de 50 mm = 48,5% (metade, encostado em cima), como nas fotos.
   O Chrome guarda o último tamanho de papel de cada impressora; tem que trocar em "Mais definições → Tamanho do papel". Teste ganhou régua (mede o tamanho real).
   Modelo "LOJA 2 - Elgin L42" passou a página 101,6 × 25 mm (vão 1,6), o tamanho 4 × 1 pol que costuma existir nesses drivers.
+- **Varredura PrecificaLote (25/11 noite, só leitura):** Perfil → Impressora Padrão: 100x50/1 (vão 0), 33x22/3 (3), 50x25/2 (3), 70x30/1 (0), 50x30/2 (3); editor de etiqueta
+  "Somente visualização". "Imprimir 1 (HTML)": `@page` 103×25 mm; "Imprimir todas (PDF)": página do PDF também 103×25 mm (largura × por linha + vão).
+  Mesma geometria do nosso: com o papel do Chrome em 50 mm, os dois encolhem. Aguardando: teste do PrecificaLote no computador da loja 2 e prints do papel.
