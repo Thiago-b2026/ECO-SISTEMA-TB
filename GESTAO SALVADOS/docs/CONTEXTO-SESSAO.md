@@ -459,3 +459,4 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - **Varredura PrecificaLote (25/11 noite, só leitura):** Perfil → Impressora Padrão: 100x50/1 (vão 0), 33x22/3 (3), 50x25/2 (3), 70x30/1 (0), 50x30/2 (3); editor de etiqueta
   "Somente visualização". "Imprimir 1 (HTML)": `@page` 103×25 mm; "Imprimir todas (PDF)": página do PDF também 103×25 mm (largura × por linha + vão).
   Mesma geometria do nosso: com o papel do Chrome em 50 mm, os dois encolhem. Aguardando: teste do PrecificaLote no computador da loja 2 e prints do papel.
+- **Excluído com OK do usuário (25/11):** modelo "LOJA 2 - Elgin L42 (50x25, 2 por linha)". Fica só "Meu modelo" + os 5 prontos (usar o 50x25/2 na loja 2).
