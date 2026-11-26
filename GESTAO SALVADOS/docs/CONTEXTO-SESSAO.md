@@ -460,3 +460,9 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   "Somente visualização". "Imprimir 1 (HTML)": `@page` 103×25 mm; "Imprimir todas (PDF)": página do PDF também 103×25 mm (largura × por linha + vão).
   Mesma geometria do nosso: com o papel do Chrome em 50 mm, os dois encolhem. Aguardando: teste do PrecificaLote no computador da loja 2 e prints do papel.
 - **Excluído com OK do usuário (25/11):** modelo "LOJA 2 - Elgin L42 (50x25, 2 por linha)". Fica só "Meu modelo" + os 5 prontos (usar o 50x25/2 na loja 2).
+
+## Sessão 26/11/2026 — Etiqueta da loja 2 (continuação)
+- Foto 10:14: P3687 (tentativas 09:01–09:02 e 10:10) em 100x50, 50x25/2 e 33x22/3, todas centralizadas no meio do rolo de 2 colunas (metade em cada etiqueta).
+  A Elgin L42 imprime centralizada: a impressora centraliza a imagem pela largura do papel que o driver manda. Com o papel do driver/Chrome em ~50 mm, tudo cai no meio.
+  A loja 1 funciona porque o rolo de lá é de 1 coluna (100x50).
+- Este computador (DESKTOP-UMQFTHO) não tem a Elgin instalada; tem AnyDesk. Próximo passo: configurar o papel do driver na loja 2 (largura da linha inteira) ou acesso remoto.
