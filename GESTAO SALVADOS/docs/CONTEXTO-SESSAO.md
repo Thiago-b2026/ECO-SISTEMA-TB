@@ -471,3 +471,6 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
   **Padrões de Impressão (Propriedades → Avançado), que valem para o Windows/Chrome: estavam em "USER (100 x 180 mm)"** → trocado para ROLO 2 COLUNAS, Aplicar/OK.
   Na lista do driver também existem "ETIQUETA DUPLA 50x25 (102 x 25)" e "Novo papel de etiquetas (103 x 25)", criados antes por alguém da loja.
   Falta: fechar o Chrome inteiro na loja 2, imprimir o teste (50x25/2) e conferir a régua; se o Chrome ainda guardar o papel antigo, escolher ROLO 2 COLUNAS em Mais definições.
+- **CAUSA REAL (26/11 11:37, AnyDesk):** no Chrome da loja 2, janela de imprimir → Mais definições → **Escala "Personalizado" = 50** (fica gravada no Chrome).
+  Por isso tudo saía pela metade e no meio do rolo. Trocado para **Padrão**; com ROLO 2 COLUNAS a prévia ficou com as 2 molduras de 50×25 lado a lado. Teste enviado à impressora.
+  A tela "Teste e ajuste" agora avisa da Escala primeiro.

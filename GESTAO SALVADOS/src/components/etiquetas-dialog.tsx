@@ -125,7 +125,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
             {verAjuste && (
               <div className="space-y-2 border-t p-2 text-xs">
                 <p className="rounded bg-warning/15 p-2 text-foreground">
-                  Saiu <b>menor</b> (pela metade) e no meio do rolo? O Chrome está com o papel de <b>uma etiqueta só</b> e encolhe a página para caber.
+                  Saiu <b>menor</b> (pela metade) e no meio do rolo? Na janela de imprimir do Chrome, em <b>Mais definições</b>, confira a <b>Escala: tem que ser Padrão</b> (se estiver "Personalizado" com 50, sai tudo pela metade; foi o caso da loja 2). Confira também o papel: com o papel de <b>uma etiqueta só</b> o Chrome encolhe a página para caber.
                   Ele <b>guarda o último papel usado</b>: mesmo depois de mexer no Windows, troque na janela de imprimir:
                   <b> Mais definições → Tamanho do papel = {modelo ? `${largura} × ${m.altura} mm` : "a linha inteira do rolo"}</b>
                   {modelo && largura > 100 && largura < 105 ? " (ou 4,00 × 1,00 pol / 101,6 × 25,4 mm, se for o que aparecer)" : ""}. O Imprimir teste traz uma régua para conferir.
