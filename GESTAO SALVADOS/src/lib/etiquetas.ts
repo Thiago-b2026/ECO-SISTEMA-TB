@@ -128,17 +128,29 @@ function cssPagina(m: ModeloEtiqueta, opts: OpcoesHtml): string {
 
 const scriptImprimir = (opts: OpcoesHtml) => (opts.imprimir === false ? "" : "<script>window.onload = () => setTimeout(() => window.print(), 300);</script>");
 
-/** Folha de teste: moldura, número e régua em cada etiqueta, em 3 linhas. Serve para acertar o papel na impressora sem gastar produto. */
+/**
+ * Folha de teste: 1ª linha com a régua (mede o tamanho real que saiu: se 40 mm saírem com 20 mm, o Chrome está com o papel
+ * errado e encolheu tudo pela metade); depois molduras em cada etiqueta. Não gasta produto e não conta como impressa.
+ */
 export function htmlTeste(m: ModeloEtiqueta, opts: OpcoesHtml = {}): string {
-  const total = m.porLinha * 3;
+  const larg = larguraPagina(m);
   const fs = m.altura < 30 ? 7 : 10;
-  const et = Array.from({ length: total }, (_, i) => `<div class="t"><b>${Math.floor(i / m.porLinha) + 1}ª linha · ${(i % m.porLinha) + 1}ª etiqueta</b><span>${m.largura} × ${m.altura} mm</span><span>papel: ${larguraPagina(m)} × ${m.altura} mm</span><div class="regua"></div></div>`);
+  const cm = Math.floor(Math.min(larg - 4, 100) / 10); // régua em cm cheios
+  const regua = `<div class="r" style="width:${cm * 10}mm"><b>RÉGUA: esta barra tem ${cm * 10} mm (${cm} cm)</b>
+    <div class="barra">${Array.from({ length: cm + 1 }, (_, i) => `<i style="left:${i * 10}mm"><span>${i * 10}</span></i>`).join("")}</div>
+    <small>Mediu menos? Papel errado na janela do Chrome (Mais definições → Tamanho do papel = ${larg} × ${m.altura} mm).</small></div>`;
+  const et = Array.from({ length: m.porLinha * 2 }, (_, i) => `<div class="t"><b>${Math.floor(i / m.porLinha) + 2}ª linha · ${(i % m.porLinha) + 1}ª etiqueta</b><span>${m.largura} × ${m.altura} mm</span><span>papel: ${larg} × ${m.altura} mm</span><div class="regua"></div></div>`);
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Teste de etiqueta</title><style>
     ${cssPagina(m, opts)}
+    .r { margin: 1mm 2mm; font-size: ${fs}pt; line-height: 1.15; }
+    .r small { display: block; font-size: ${Math.max(5, fs - 2)}pt; margin-top: 3.2mm; }
+    .barra { position: relative; height: 2.5mm; border-bottom: 0.4mm solid #000; margin-top: 0.6mm; }
+    .barra i { position: absolute; bottom: 0; width: 0.4mm; height: 2.5mm; background: #000; }
+    .barra span { position: absolute; top: 2.8mm; left: -2mm; width: 4mm; text-align: center; font-style: normal; font-size: ${Math.max(5, fs - 2)}pt; }
     .t { position: relative; width: ${m.largura}mm; height: ${m.altura}mm; border: 0.4mm solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: ${fs}pt; line-height: 1.2; overflow: hidden; }
     .t b { font-size: ${fs + 1}pt; white-space: nowrap; }
     .regua { position: absolute; left: 0; right: 0; bottom: 0; height: 2mm; background: repeating-linear-gradient(to right, #000 0, #000 0.3mm, transparent 0.3mm, transparent 5mm); }
-  </style></head><body>${paginas(et, m)}${scriptImprimir(opts)}</body></html>`;
+  </style></head><body><div class="folha">${regua}</div>${paginas(et, m)}${scriptImprimir(opts)}</body></html>`;
 }
 
 /**

@@ -453,3 +453,6 @@ Leia este arquivo inteiro antes de qualquer coisa. Depois `CLAUDE.md`, `docs/esc
 - **PrecificaLote (código público):** imprime HTML com `@page { size: 103mm 25mm }` (largura × por linha + vão), igual ao nosso; a diferença era imprimir num quadro da própria página
   (nós abríamos janela). Igualado: computador usa quadro, celular continua com janela. Com o papel em 50 mm, o PrecificaLote também encolhe: testar lá para confirmar.
 - Passo a passo do driver Elgin/Seagull na tela "Teste e ajuste" (abas Configuração de página e Papel de etiquetas).
+- **18:15 (25/11):** mais 3 tentativas (P3774), ainda encolhido. Conta: página 103 mm num papel de 50 mm = 48,5% (metade, encostado em cima), como nas fotos.
+  O Chrome guarda o último tamanho de papel de cada impressora; tem que trocar em "Mais definições → Tamanho do papel". Teste ganhou régua (mede o tamanho real).
+  Modelo "LOJA 2 - Elgin L42" passou a página 101,6 × 25 mm (vão 1,6), o tamanho 4 × 1 pol que costuma existir nesses drivers.

@@ -124,12 +124,12 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
             </button>
             {verAjuste && (
               <div className="space-y-2 border-t p-2 text-xs">
-                {m.porLinha > 1 && modelo && (
-                  <p className="rounded bg-warning/15 p-2 text-foreground">
-                    Saiu <b>pequena e no meio do rolo</b>? O papel da impressora está com a largura de <b>uma etiqueta só</b> ({m.largura} mm). Trocar o modelo aqui não resolve: crie no Windows
-                    um papel com a linha inteira, <b>{largura} × {m.altura} mm</b> (passo 1).
-                  </p>
-                )}
+                <p className="rounded bg-warning/15 p-2 text-foreground">
+                  Saiu <b>menor</b> (pela metade) e no meio do rolo? O Chrome está com o papel de <b>uma etiqueta só</b> e encolhe a página para caber.
+                  Ele <b>guarda o último papel usado</b>: mesmo depois de mexer no Windows, troque na janela de imprimir:
+                  <b> Mais definições → Tamanho do papel = {modelo ? `${largura} × ${m.altura} mm` : "a linha inteira do rolo"}</b>
+                  {modelo && largura > 100 && largura < 105 ? " (ou 4,00 × 1,00 pol / 101,6 × 25,4 mm, se for o que aparecer)" : ""}. O Imprimir teste traz uma régua para conferir.
+                </p>
                 <ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
                   <li>Windows → Painel de Controle → Dispositivos e Impressoras → botão direito na impressora → <b>Preferências de impressão</b>.</li>
                   <li>Aba <b>Configuração de página</b> → <b>Novo</b> (não apague o que já existe): largura <b className="text-foreground">{modelo ? `${largura} mm` : "da linha inteira do rolo"}</b>,
@@ -142,7 +142,7 @@ export function EtiquetasDialog({ open, onOpenChange, itens, loja, onImpresso }:
                   <label>Direita (+) / esquerda (−), mm<Input value={ajuste.x} onChange={(e) => mudarAjuste("x", e.target.value)} inputMode="decimal" /></label>
                   <label>Baixo (+) / cima (−), mm<Input value={ajuste.y} onChange={(e) => mudarAjuste("y", e.target.value)} inputMode="decimal" /></label>
                 </div>
-                <Button type="button" size="sm" variant="outline" onClick={teste} disabled={!modelo}><Ruler /> Imprimir teste (3 linhas de molduras)</Button>
+                <Button type="button" size="sm" variant="outline" onClick={teste} disabled={!modelo}><Ruler /> Imprimir teste (régua + molduras)</Button>
               </div>
             )}
           </div>

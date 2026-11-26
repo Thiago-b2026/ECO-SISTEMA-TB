@@ -36,7 +36,8 @@ describe("rolo com 2 etiquetas por linha (impressora da loja 2)", () => {
   it("ajuste fino só quando existe; teste tem moldura e não produto", () => {
     expect(htmlEtiquetas([item], m, "", { imprimir: false })).not.toContain("translate(");
     expect(htmlEtiquetas([item], m, "", { imprimir: false, ajuste: { x: 1.5, y: -2 } })).toContain("translate(1.5mm, -2mm)");
-    expect(htmlTeste(m, { imprimir: false }).match(/class="t"/g)).toHaveLength(6);
+    expect(htmlTeste(m, { imprimir: false }).match(/class="t"/g)).toHaveLength(4);
+    expect(htmlTeste(m, { imprimir: false })).toContain("RÉGUA: esta barra tem 90 mm");
   });
 });
 
